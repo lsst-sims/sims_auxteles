@@ -1,0 +1,14 @@
+Simulation of the LSST Auxiliary Telescope
+
+Executable file: AuxSpecGen.py
+Main dependences : scientific libraries for python, scipy, numpy
+
+Inputs: 1D star spectrum, 1D atmosphere spectrum
+Output: 1D spectrum obtained taking into account responses of all the optical elements of the AT.
+
+input star spectrum can be given in dE/dl, dE/dn as a function of lambda or nu, use the appropriate function to read it.
+
+output spectrum is given is photo-electrons, you can use the calibration function to get it in dE/dl using known responses of the AT (not very realistic!).
+
+Arbitrary parameters (gain, exposure time, effective area) can be tuned giving them as input parameters to functions at differents step of the procedure.
+
