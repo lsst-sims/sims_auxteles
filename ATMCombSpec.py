@@ -1,5 +1,6 @@
 from scipy import *
 from constants import *
+import pylab as pl
 
 class ATMCombSpec:
 
@@ -24,9 +25,18 @@ class ATMCombSpec:
         self.wl = array(self.wl)
         self.tr = array(self.tr)
         self.ab = array(self.ab)
+        #self.plot(filename)
         
     def gettrans(self):
         return array([self.nu, self.wl, self.tr])
 
     def getabs(self):
         return array([self.nu, self.wl, self.ab])
+    
+    def plot(self,fName):
+        pl.figure()        
+        pl.xlabel("wavelength nm")
+        pl.ylabel("%")
+        pl.grid()
+        pl.title("Atmosphere file %s"%fName)
+        pl.plot(self.wl, self.tr)

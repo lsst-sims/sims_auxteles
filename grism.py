@@ -24,7 +24,7 @@ class grism:
         self.B = array([1.03961212, 2.31792344e-1, 1.01046945])
         self.C = array([6.00069867e3, 2.00179144e4, 1.03560653e8])
         # grating characteristic
-        self.a = 1./100.e3 # m-1
+        self.a = 1./100.e3 # m
         # prism angle
         self.prismAngle = math.pi/180. # 1 degree
 
@@ -46,9 +46,9 @@ class grism:
 
     def gratingAngle(self, l):
         # return the angle at the ouput of the grating
+        #print l, l*1.e-9, l*1.e-9/self.a, self.a
         return math.asin(l*1.e-9/self.a)
 
     def outputAngle(self, l):
         # return the total angle at the ouput of the grism
         return math.asin(self.getN(l) * math.sin(self.gratingAngle(l) + self.prismAngle)) - self.prismAngle
-

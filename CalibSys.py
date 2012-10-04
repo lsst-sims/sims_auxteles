@@ -15,6 +15,9 @@ import numpy
 import numpy.fft
 import numpy.random
 import scipy.interpolate
+import pylab as pl
+
+S_LevelPlot = 0
 
 
 class CalibSys:
@@ -38,7 +41,26 @@ class CalibSys:
         self.dist = numpy.array(self.dist)
         self.corr = numpy.array(self.corr)
         self.step = self.dist[1] - self.dist[0]
-
+        #self.plotCorrel()
+        
+        
+    def plotCorrel(self):
+        pl.figure()
+        pl.xlabel("nm")
+        pl.ylabel("?")
+        pl.grid()
+        pl.title("correlation function")
+        pl.plot(self.dist, self.corr)
+        
+    def plotNoise(self,x,y,title=''):
+        pl.figure()
+        pl.xlabel("nm")
+        pl.ylabel("?")
+        pl.grid()
+        pl.title(title)
+        pl.plot(x,y)
+      
+        
     def GetRandomRealization(self, wl, s, sn):
         distmax = max(wl) - min(wl)
         c = []
@@ -63,9 +85,11 @@ class CalibSys:
         noise = numpy.random.normal(numpy.zeros(len(c)))
         fourierdeviation = numpy.fft.fft(noise)*numpy.sqrt(PowerSpec)
         deviation = numpy.real(numpy.fft.ifft(fourierdeviation))
+        
         # interpolate the deviation on the wl of the spectrum
         tck = scipy.interpolate.splrep(d+min(wl), deviation[0:len(d)])
         intdev = scipy.interpolate.splev(wl, tck, der=0)
+        if S_LevelPlot > 3: self.plotNoise(wl, intdev, "raw noise")
         # return the deviation times the rms
         # given that the rms is at a good approximation propto the inverse of the s/n
         rms = []
@@ -75,6 +99,8 @@ class CalibSys:
             else:
                 rms.append(0.)
         rms = numpy.array(rms)
-        return intdev*rms*s
+        ret = intdev*rms*s
+        if S_LevelPlot > 3: self.plotNoise(wl, ret, "noise")
+        return ret
 
 
