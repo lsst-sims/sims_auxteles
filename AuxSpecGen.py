@@ -24,6 +24,7 @@ from ccd import *
 from CalibSys import *
 import pylab as pl
 import scipy as sp 
+from constants import *
 
 def finalPlot(star, atms, pCCD, pMir, pGrism):
     assert isinstance(star, starspectrum)
@@ -35,10 +36,11 @@ def finalPlot(star, atms, pCCD, pMir, pGrism):
     pl.xlabel("wavelength nm")
     pl.ylabel("$J.m^{-2}.s^{-1}.nm^{-1}$")
     pl.grid()    
-    pl.title("Star flux above atmosphere and estimated")
+    pl.title("Star flux above atmosphere and observed")
     pl.plot(star.wl, star.dEdl)
     pl.plot(star.wlccd, star.syscaldEdl)
-    pl.legend(["above atm ","estimated"])
+    pl.plot(star.wlccd, star.elecccd*hplanck*star.nuccd**3/(clight*240*star._deltaNuCCD))
+    pl.legend(["above atm ","observed calibrated","observed raw"])
     # transmission
     pl.figure()
     pl.xlabel("wavelength nm")

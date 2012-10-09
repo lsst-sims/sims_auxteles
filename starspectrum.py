@@ -581,6 +581,7 @@ class starspectrum:
 
 
     def MakeSensFuncJMC(self, atm, ccdresp, grismresp, mirrorresp, gain=1., effarea=1.0, exptime=240.):
+        self._deltaNuCCD = []
         self.sensdEdnJMC = np.zeros(len(self.nuccd), dtype=np.float64)
         self.sensdEdlJMC = np.zeros(len(self.nuccd), dtype=np.float64)
         # CCD
@@ -640,6 +641,7 @@ class starspectrum:
             else:
                 dnccdd = (self.nuccd[i+1]-self.nuccd[i])/2.
                 dnccdg = (self.nuccd[i]-self.nuccd[i-1])/2.
+            self._deltaNuCCD.append(dnccdg+dnccdd)
             # final estimation
             self.sensdEdnJMC[i] = calib/(dnccdg+dnccdd)
             #self.sensdEdnJMC[i] = calib
@@ -651,7 +653,8 @@ class starspectrum:
             pl.plot(self.wlccd[50:-50], self.sensdEdlJMC[50:-50])
         self.sensdEdl = self.sensdEdlJMC
         self.sensdEdn = self.sensdEdnJMC 
-         
+        self._deltaNuCCD = array(self._deltaNuCCD) 
+        
         
     def MakeSensFunc(self, atm, ccdresp, grismresp, mirrorresp, gain=1., effarea=1.0, exptime=240.):
         # calculate the sensitivity function for flux calibration        
