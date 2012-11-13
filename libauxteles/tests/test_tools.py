@@ -19,6 +19,7 @@ class Test(unittest.TestCase):
         
         
     def test_02(self):
+        # mon comm
         ret = readTextFileColumn('/home/colley/temp/lsst/modtran/TemplateT04.01_1.txt')        
         print ret
 
