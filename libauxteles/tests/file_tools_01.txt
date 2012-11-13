@@ -1,0 +1,17 @@
+#
+         # file test for tools.readTextFileColumn()
+#
+
+
+   12.12  ;    12      
+    
+
+20; 30
+12.18	;28.17
+
+
+
+ 
+
+
+

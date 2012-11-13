@@ -1,0 +1,5 @@
+#
+# file test for tools.readTextFileColumn()
+#
+10.12 12
+20 
