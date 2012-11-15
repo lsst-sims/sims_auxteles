@@ -9,7 +9,7 @@ import math
 import pyfits as pf
 
 
-S_verbose = 1
+S_verbose = 0
 
 
 def removeAllEltlike(myList,elt):
@@ -54,7 +54,7 @@ def readTextFileColumn(fileName, sep = None):
         if S_verbose >0 : print listCol
         removeAllEltlike(listCol,'')  
         removeAllEltlike(listCol,'\n')  
-        print listCol
+        #print listCol
         if len(listCol) == 0:
             if S_verbose >0 : print "ligne vide ... continue"
             continue        
@@ -84,11 +84,3 @@ def readTextFileColumn(fileName, sep = None):
     outArray = np.array(listReal)
     outArray = np.reshape(outArray,(cptLine, nbCol))
     return outArray
-
-
-
-
-
-if __name__ == "__main__":
-    a=read_kurucz_all()
-    print a
