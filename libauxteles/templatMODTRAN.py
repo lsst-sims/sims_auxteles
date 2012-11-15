@@ -41,6 +41,7 @@ class TemplateMODTRAN(object):
         pl.ylabel("%")
         pl.ylim([0,1.02])
         
+        
 if __name__ == "__main__":
     Tpl = TemplateMODTRAN('/home/colley/temp/lsst/modtran/TemplateT04.01_1.txt')
     Tpl.plotTemplate()
