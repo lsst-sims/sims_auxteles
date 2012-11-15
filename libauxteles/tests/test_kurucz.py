@@ -4,7 +4,6 @@ Created on 14 nov. 2012
 @author: colley
 '''
 import unittest
-
 from kurucz import *
 
 
@@ -17,8 +16,9 @@ def test_plotFlux():
     oKur.plotMultiFlux(1540,5)
     oKur.plotFlux(1544)
     
+    
+    
 class Test(unittest.TestCase):
-
 
     def testName(self):
         pass
