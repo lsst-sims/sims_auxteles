@@ -14,18 +14,77 @@ class BurkeAtmModelv1(object):
     '''
     Burke and All model from paper 'precision  determination of atmosphere extinction at optical and NIR wavelengths' 2010
     '''
+    
+#
+# PRIVATE
+#
 
-    def __init__(self, ModFileTempl, arrayWL, pressure=782):
+    def __init__(self, ModFileTempl, timeObs, pressure=782):
         '''        
         '''
         self._Tpl = tmod.TemplateMODTRAN(ModFileTempl)
-        self._PressureRef = pressure
-        self._NbPar = 18
+        # convert in angstrom
+        self._Tpl.convertWaveLength(1.e-10)
+        self._PressureRef = pressure*1.0
+        self._NbObs = len(timeObs)
+        self._TimeObs = timeObs
+        self._NbParNoH20 = 7
+        # nb paral H20 is egal to nbObs
+        self._NbPar = self._NbParNoH20 + self._NbObs 
         self._Par  = None
         self.setSlopeAirMassComponents(0.98, 0.71, 0.97, 0.59)
-        self._aWL = arrayWL
-        self._WL0 = 6750
+        self._aWL = self._Tpl._wl
+        self._WL0 = 6750.0
+
+    def _transGrayAero(self):
+        tau  = (self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3])
+        tau *= (self._aWL/self._WL0)**self._Par[4]
+        return self._Par[0]*np.exp(-self._AirMass*tau)
         
+    def _transMols(self):
+        return (1 - self._Par[5]*self._PresRat*self._Tpl._Amols*self._AirMass) 
+    
+    def _transMola(self):
+        return (1 - np.sqrt(self._Par[5]*self._PresRat)*self._Tpl._Amola*self._AirMass) 
+    
+    def _transO3(self):
+        return (1 - self._Par[6]*self._Tpl._A03*self._AirMass)
+    
+    def _transH2O(self):
+        return (1 - self.getC_H20(self._idxTime)*self._Tpl._AH2O*self._AirMass)
+
+#       
+# PUBLIC
+#
+
+# setter
+
+    def setAerosolGrayModel(self, Tgray, tau0, tau1, tau2, alpha):
+        self._Par[0] = Tgray
+        self._Par[1] = tau0
+        self._Par[2] = tau1
+        self._Par[3] = tau2
+        self._Par[4] = alpha
+                
+    def setMolParam(self, Cmol):
+        self._Par[5] = Cmol
+    
+    def setOzoneParam(self, O3):
+        self._Par[6] = O3
+        
+    def setH20Param(self, aIn):        
+        assert (len(aIn) == self._NbObs)
+        self._Par[self._NbParNoH20:self._NbPar] = aIn
+        
+    def setDefaultParam(self):
+        self._Par = np.zeros(self._NbPar, dtype=np.float32)
+        # from [1], table 3, 2007, 2nov
+        self.setAerosolGrayModel(0.98, 3.9/100, 0.02/100, -0.03/100, -1.70)
+        # from [1], 4.results , first line
+        self.setMolParam(0.91)
+        # from [1], table 3, 2007, 2nov
+        self.setOzoneParam(0.8)
+        self.setH20Param(np.ones(self._NbObs))
         
     def setSlopeAirMassComponents(self, Raygleigth, h2o, o3, o2):
         self._SlopeAMassRay = Raygleigth
@@ -33,16 +92,58 @@ class BurkeAtmModelv1(object):
         self._SlopeAMasso3 = o3
         self._SlopeAMasso2 = o2
     
-    
-    def setBurkeParamModel(self, par):
+    def setModelParam(self, par):
         assert (len(par) == self._NbPar)
         self._Par = par
         
+# getter
+
+    def computeAtmTransmission(self, alt, az, t, presure):
+        if self._Par == None:
+            print "No parameter yet defined !"
+            return None        
+        self._AirMass = np.fabs(1/np.cos(np.pi/2 - alt))
+        self._Alt = alt
+        self._Az = az
+        self._EW = np.cos(alt)*np.sin(az)
+        self._NS = np.cos(alt)*np.cos(az)
+        self._Time = t
+        aIdx = np.where(np.fabs(t-self._TimeObs) < 0.01)[0]
+        if len(aIdx) == 0:
+            print "No observation at this time ", t
+            print self._TimeObs
+            return None
+        self._idxTime = aIdx[0]
+        self._PresRat = presure*1.0/self._PressureRef        
+        ret = 1
+        ret *= self._transGrayAero()
+        ret *= self._transMols()
+        ret *= self._transMola()
+        ret *= self._transO3()
+        ret *= self._transH2O()
+        self._CurtTrans = ret
+        return ret
+    
+    def getC_H20(self,IdxObs): 
+        return self._Par[self._NbParNoH20+IdxObs]
+
+# pretty print, plot
+
+    def printAndPlotBurkeModel(self):
+        if self.printBurkeModel() == None: return None
+        pl.figure()
+        pl.plot(self._TimeObs, self._Par[self._NbParNoH20:self._NbPar],"*")
+        pl.xlabel("s")
+        pl.grid()
+        pl.title("C_H20")
+        self._Tpl.plotTemplate()
                 
     def printBurkeModel(self):
         if self._Par == None:
             print "No parameter yet defined !"
-            return 
+            return None
+        print "BurkeAndAll atmosphere model:"
+        print "============================"
         print "Constants"
         print "  airmass slope:"
         print "    H20 :   ", self._SlopeAMassh2o
@@ -59,77 +160,17 @@ class BurkeAtmModelv1(object):
         print "  alpha :   ", self._Par[4]
         print "  Cmol :   ", self._Par[5]
         print "  C_O3 :   ", self._Par[6]
-        print "  C_H2O :   ", self._Par[7:18]
+        print "  C_H2O :   ", self._Par[7:self._NbPar]
+                    
+    def plotCurrentTrans(self):
+        if self._CurtTrans == None:
+            print "No current transmission !"
+            return None    
         pl.figure()
-        xt = np.linspace(0,3600*6, 256)
-        pl.plot(xt, self.getC_H20(xt))
-        pl.xlabel("s")
+        pl.plot(self._Tpl._wl, self._CurtTrans)
+        pl.xlabel("Angstrom")
+        pl.ylabel("%")
         pl.grid()
-        pl.title("C_H20")
-        self._Tpl.plotTemplate()
-        
-        
-    def setAerosolGrayModel(self, par, Tgray, tau0, tau1, tau2, alpha):
-        par[0] = Tgray
-        par[1] = tau0
-        par[2] = tau1
-        par[3] = tau2
-        par[4] = alpha
-        return par
-    
-    
-    def setMolModel(self,par, Cmol):
-        par[5] = Cmol
-        return par
-    
-    
-    def setOzoneModel(self, par,O3):
-        par[6] = O3
-        return par
-        
-    
-    
-    def ComputeAtmTransmission(self, alt, az, t, presure):
-        self._AirMass = 1/np.cos(np.pi/2 - alt)
-        self._Alt = alt
-        self._Az = az
-        self._EW = np.cos(alt)*np.sin(az)
-        self._NS = np.cos(alt)*np.cos(az)
-        self._Time = t
-        self._PresRat = presure/self._PressureRef
-        ret = 1
-        ret *= self._transGrayAero()
-        ret *= self._transMols()
-        ret *= self._transMola()
-        ret *= self._transO3()
-        ret *= self._transH2O()
-        return ret
-    
-    
-    def getC_H20(self, t): 
-        return self._Par[7] + t*(self._Par[7] + t*(self._Par[8] + t*self._Par[9]))
-    
-        
-    def _transGrayAero(self):
-        tau  = (self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3])
-        tau *= (self._aWL/self._WL0)**self._Par[4]
-        return self._Par[0]*np.exp(-self._AirMass*tau)
-    
-    
-    def _transMols(self):
-        return (1 - self._Par[5]*self._PresRat*self._Tpl._Trmols*self._AirMass) 
-    
-    
-    def _transMola(self):
-        return (1 - np.sqrt(self._Par[5]*self._PresRat)*self._Tpl._Trmola*self._AirMass) 
-    
-    
-    def _transO3(self):
-        return (1 - self._Par[6]*self._Tpl._Tr03*self._AirMass)
-    
-    
-    def _transH2O(self):
-        return (1 - self.getC_H20(self._Time)*self._Tpl._TrH2O*self._AirMass)
-    
+        pl.title("atm trans at: [alt:%.1f,az:%.1f], pres ratio %.2f, time %.1f"%(np.rad2deg(self._Alt),np.rad2deg(self._Az), self._PresRat, self._Time ))
         
         
