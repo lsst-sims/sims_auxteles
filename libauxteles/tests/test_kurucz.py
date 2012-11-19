@@ -20,10 +20,11 @@ def test_plotFlux():
     
 class Test(unittest.TestCase):
 
-    def testName(self):
-        pass
-
-
+    def test_nearestFlux(self):
+        oKur = Kurucz(FileKuruczPic)
+        oKur.getNearestFlux(1.3, 8800, 2.7)
+        
 
 test_plotFlux()
 pl.show()
+unittest.main()

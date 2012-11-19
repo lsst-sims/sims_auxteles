@@ -9,6 +9,7 @@ import numpy as np
 import math
 import pyfits as pf
 import pylab as pl
+import scipy.interpolate as sci
 
 
 
@@ -79,6 +80,11 @@ def fits2pickle_JMC():
     
 class Kurucz(object):
     '''    
+    Format Kurucz array :
+        column 0 : wavelength
+        line 0 : metallicity
+        line 1 : temperature
+        line 2 : gravity
     '''
 
     def __init__(self, filePickle):
@@ -113,5 +119,11 @@ class Kurucz(object):
         pl.grid()
         pl.title("Kurucz 93 star flux")
     
-        
-        
+    
+    def getIdxNearestFlux(self, pMet, pTemp, pGra):
+        a = self._Flux[0:3,1:].transpose()
+        oNGP = sci.NearestNDInterpolator(a, np.arange(1, len(self._Flux[0]-1)))
+        b = np.array([[pMet, pTemp, pGra]])
+        idx = oNGP(b)
+        print idx, self._Flux[0:3,idx]
+        return idx

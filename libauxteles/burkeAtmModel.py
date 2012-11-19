@@ -32,7 +32,7 @@ class BurkeAtmModelv1(object):
         # nb paral H20 is egal to nbObs
         self._NbPar = self._NbParNoH20 + self._NbObs 
         self._Par  = None
-        self.setSlopeAirMassComponents(0.98, 0.71, 0.97, 0.59)
+        self.setModelSlopeAirMassComponents(0.98, 0.71, 0.97, 0.59)
         self._aWL = self._Tpl._wl
         self._WL0 = 6750.0
 
@@ -59,49 +59,57 @@ class BurkeAtmModelv1(object):
 
 # setter
 
-    def setAerosolGrayModel(self, Tgray, tau0, tau1, tau2, alpha):
+    def setParamAerosolGray(self, Tgray, tau0, tau1, tau2, alpha):
         self._Par[0] = Tgray
         self._Par[1] = tau0
         self._Par[2] = tau1
         self._Par[3] = tau2
         self._Par[4] = alpha
                 
-    def setMolParam(self, Cmol):
+    def setParamMol(self, Cmol):
         self._Par[5] = Cmol
     
-    def setOzoneParam(self, O3):
+    def setParamOzone(self, O3):
         self._Par[6] = O3
         
-    def setH20Param(self, aIn):        
+    def setParamH20(self, aIn):        
         assert (len(aIn) == self._NbObs)
         self._Par[self._NbParNoH20:self._NbPar] = aIn
         
-    def setDefaultParam(self):
+    def setParamExample1(self):
         self._Par = np.zeros(self._NbPar, dtype=np.float32)
         # from [1], table 3, 2007, 2nov
-        self.setAerosolGrayModel(0.98, 3.9/100, 0.02/100, -0.03/100, -1.70)
+        self.setParamAerosolGray(0.98, 3.9/100, 0.02/100, -0.03/100, -1.70)
         # from [1], 4.results , first line
-        self.setMolParam(0.91)
+        self.setParamMol(0.91)
         # from [1], table 3, 2007, 2nov
-        self.setOzoneParam(0.8)
-        self.setH20Param(np.ones(self._NbObs))
+        self.setParamOzone(0.8)
+        self.setParamH20(np.ones(self._NbObs))
+
+    def setParamNoEffect(self):
+        """
+        to have template MODTRAN with any modification
+        """
+        self._Par = np.zeros(self._NbPar, dtype=np.float32)
+        # from [1], table 3, 2007, 2nov
+        self.setParamAerosolGray(1.0, 0, 0, 0, 0)
+        # from [1], 4.results , first line
+        self.setParamMol(1.0)
+        # from [1], table 3, 2007, 2nov
+        self.setParamOzone(1.0)
+        self.setParamH20(np.ones(self._NbObs))
         
-    def setSlopeAirMassComponents(self, Raygleigth, h2o, o3, o2):
+    def setModelSlopeAirMassComponents(self, Raygleigth, h2o, o3, o2):
         self._SlopeAMassRay = Raygleigth
         self._SlopeAMassh2o = h2o 
         self._SlopeAMasso3 = o3
         self._SlopeAMasso2 = o2
     
-    def setModelParam(self, par):
+    def setParam(self, par):
         assert (len(par) == self._NbPar)
         self._Par = par
         
-# getter
-
-    def computeAtmTransmission(self, alt, az, t, presure):
-        if self._Par == None:
-            print "No parameter yet defined !"
-            return None        
+    def setVarObs(self, alt, az, t, presure):
         self._AirMass = np.fabs(1/np.cos(np.pi/2 - alt))
         self._Alt = alt
         self._Az = az
@@ -115,6 +123,10 @@ class BurkeAtmModelv1(object):
             return None
         self._idxTime = aIdx[0]
         self._PresRat = presure*1.0/self._PressureRef        
+        
+# getter
+
+    def computeAtmTrans(self):   
         ret = 1
         ret *= self._transGrayAero()
         ret *= self._transMols()
@@ -124,8 +136,17 @@ class BurkeAtmModelv1(object):
         self._CurtTrans = ret
         return ret
     
+    def computeAtmTransAt(self, alt, az, t, presure):
+        self.setVarObs(alt, az, t, presure)  
+        ret = self.computeAtmTrans()
+        return ret
+    
     def getC_H20(self,IdxObs): 
         return self._Par[self._NbParNoH20+IdxObs]
+
+    def computeDeltaDataModel(self,alt, az, t, presure, param, data ):
+        self.setParam(param)
+        return data - self.computeAtmTrans(alt, az, t, presure)
 
 # pretty print, plot
 
@@ -142,6 +163,10 @@ class BurkeAtmModelv1(object):
         if self._Par == None:
             print "No parameter yet defined !"
             return None
+        self.printBurkeModelConst()
+        self.printBurkeModelParam()
+        
+    def printBurkeModelConst(self):
         print "BurkeAndAll atmosphere model:"
         print "============================"
         print "Constants"
@@ -152,6 +177,8 @@ class BurkeAtmModelv1(object):
         print "    O3 :   ", self._SlopeAMasso3
         print "  ref. pressure:  %d  mb"% self._PressureRef
         print "  ref. wavelength:  %g  A"% self._WL0
+        
+    def printBurkeModelParam(self):
         print "Parameters"
         print "  Tgray :   ", self._Par[0]
         print "  Tau0 :   ", self._Par[1]
@@ -161,7 +188,7 @@ class BurkeAtmModelv1(object):
         print "  Cmol :   ", self._Par[5]
         print "  C_O3 :   ", self._Par[6]
         print "  C_H2O :   ", self._Par[7:self._NbPar]
-                    
+                   
     def plotCurrentTrans(self):
         if self._CurtTrans == None:
             print "No current transmission !"

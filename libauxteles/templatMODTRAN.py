@@ -44,13 +44,16 @@ class TemplateMODTRAN(object):
     def getTrH2O (self):
         return 1- self._AH2O     
     
+    def getTrAll(self):
+        return self.getTr03()*self.getTrmols()*self.getTrmola()* self.getTrH2O()
+    
     def plotTemplate(self):
         pl.figure()
         pl.plot(self._wl, self.getTr03())
         pl.plot(self._wl, self.getTrmols())
         pl.plot(self._wl, self.getTrmola())
         pl.plot(self._wl, self.getTrH2O())
-        TrAll = self.getTr03()*self.getTrmols()*self.getTrmola()* self.getTrH2O()
+        TrAll = self.getTrAll()
         pl.plot(self._wl, TrAll,'y')
         pl.title("Template MODTRAN transmission")
         pl.legend(["03","mols","mola/02","H2O","all"],loc=4)
