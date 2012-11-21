@@ -35,7 +35,8 @@ class BurkeAtmModelv1(object):
         self.setModelSlopeAirMassComponents(0.98, 0.71, 0.97, 0.59)
         self._aWL = self._Tpl._wl
         self._WL0 = 6750.0
-
+        self._NameParam = ['$T_{gray}$',r'$\tau_0$',r'$\tau_1$', r'$\tau_2$', r'$\alpha$', '$C_{mol}$', '$C_{O3}$','$C_{H2O}$']
+        
     def _transGrayAero(self):
         tau  = (self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3])
         tau *= (self._aWL/self._WL0)**self._Par[4]
@@ -109,7 +110,10 @@ class BurkeAtmModelv1(object):
         assert (len(par) == self._NbPar)
         self._Par = par
         
-    def setVarObs(self, alt, az, t, presure):
+    def setVarObs(self, pVecObs):
+        return self.setVarObsComp(pVecObs[0], pVecObs[1],pVecObs[2],pVecObs[3])
+    
+    def setVarObsComp(self, alt, az, t, pressure):
         self._AirMass = np.fabs(1/np.cos(np.pi/2 - alt))
         self._Alt = alt
         self._Az = az
@@ -122,13 +126,12 @@ class BurkeAtmModelv1(object):
             print self._TimeObs
             return None
         self._idxTime = aIdx[0]
-        self._PresRat = presure*1.0/self._PressureRef        
+        self._PresRat = pressure*1.0/self._PressureRef        
         
 # getter
 
     def computeAtmTrans(self):   
-        ret = 1
-        ret *= self._transGrayAero()
+        ret = self._transGrayAero()
         ret *= self._transMols()
         ret *= self._transMola()
         ret *= self._transO3()
@@ -136,17 +139,12 @@ class BurkeAtmModelv1(object):
         self._CurtTrans = ret
         return ret
     
-    def computeAtmTransAt(self, alt, az, t, presure):
-        self.setVarObs(alt, az, t, presure)  
-        ret = self.computeAtmTrans()
-        return ret
+    def computeAtmTransAtVarObs(self, alt, az, t, pressure):
+        self.setVarObsComp(alt, az, t, pressure)  
+        return self.computeAtmTrans()
     
     def getC_H20(self,IdxObs): 
         return self._Par[self._NbParNoH20+IdxObs]
-
-    def computeDeltaDataModel(self,alt, az, t, presure, param, data ):
-        self.setParam(param)
-        return data - self.computeAtmTrans(alt, az, t, presure)
 
 # pretty print, plot
 
@@ -167,8 +165,6 @@ class BurkeAtmModelv1(object):
         self.printBurkeModelParam()
         
     def printBurkeModelConst(self):
-        print "BurkeAndAll atmosphere model:"
-        print "============================"
         print "Constants"
         print "  airmass slope:"
         print "    H20 :   ", self._SlopeAMassh2o
@@ -199,5 +195,16 @@ class BurkeAtmModelv1(object):
         pl.ylabel("%")
         pl.grid()
         pl.title("atm trans at: [alt:%.1f,az:%.1f], pres ratio %.2f, time %.1f"%(np.rad2deg(self._Alt),np.rad2deg(self._Az), self._PresRat, self._Time ))
+    
+    def plotCovarMatrix(self, mat, pTitle=''):
+        #pl.figure()        
+        #pl.pcolor(mat)
+        #pl.matshow(mat, cmap=pl.cm.gray)  
+        pl.matshow(mat)  
+        pl.title(pTitle)  
+        aIdx = np.arange(len(self._NameParam))
+        pl.xticks(aIdx,  self._NameParam)
+        #pl.yticks(aIdx, self._NameParam)
+        pl.colorbar()
         
         

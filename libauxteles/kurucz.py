@@ -62,13 +62,11 @@ def read_kurucz_all(directory = '/home/colley/projet/lsst/stellar_spectra/k93mod
     return data
 
 
-
 def fits2pickle(fIn, fOut):
     kur = read_kurucz_all(fIn)
     f=open(fOut, "wb")
     pk.dump(kur, f, pk.HIGHEST_PROTOCOL)
     f.close()
-
 
 
 def fits2pickle_JMC():
@@ -78,10 +76,11 @@ def fits2pickle_JMC():
     
     
     
+    
 class Kurucz(object):
     '''    
     Format Kurucz array :
-        column 0 : wavelength
+        column 0 : wavelength angstrom
         line 0 : metallicity
         line 1 : temperature
         line 2 : gravity
@@ -94,22 +93,56 @@ class Kurucz(object):
             print "can't open file ", filePickle
             return 
         self._Flux = pk.load(f)
+        self._oNGP = None
+        self._oInterLin = None
         #print self._Flux
         f.close()
+        self.setWLuseAll()
     
     
+    def setWLuseAll(self):
+        self._IdxMin = 3
+        self._IdxMax = len(self._Flux[0])-1
+    
+    def setWLInterval(self, wlMin , wlMax):   
+        idx = np.where(self._Flux[3:,0] >= wlMin)[0]
+        if len(idx) == 0:
+            print "ERROR [setWLInterval]: wlMin > WL max"
+            self.setWLuseAll()
+            return 
+        self._IdxMin = idx[0]+3
+        idx = np.where(self._Flux[3:,0] <= wlMax)[0]
+        if len(idx) == 0:
+            print "ERROR [setWLInterval]: wlMax < WL min"
+            self.setWLuseAll()
+            return 
+        self._IdxMax = idx[-1]+3
+        print wlMin , wlMax
+        print "nb wl ", self._IdxMax-self._IdxMin
+    
+    def getFlux(self, idx):
+        return self._Flux[self._IdxMin:self._IdxMax+1, idx]
+    
+    def getWL(self):
+        return self._Flux[self._IdxMin:self._IdxMax+1, 0]
+    
+    def getParam(self, idx):
+        """
+        return metallicity, temperature, gravity
+        """
+        return self._Flux[0:3, idx]
+     
     def plotFlux(self,idx):
         pl.figure()
-        pl.plot(self._Flux[3:700,0],self._Flux[3:700,idx])
+        pl.plot(self.getWL(),self.getFlux(idx))
         pl.xlabel("Angstrom")
         pl.grid()
         pl.title("Kurucz 93 star flux M %.2f T %.2f G %.2f"%(self._Flux[0,idx], self._Flux[1,idx], self._Flux[2,idx]))
-        
-        
-    def plotMultiFlux(self,idx0, nb):
+                
+    def plotMultiFluxesCont(self,idx0, nb):
         pl.figure()
         for idx in range(nb):
-            pl.plot(self._Flux[3:700,0],self._Flux[3:700,idx+idx0])
+            pl.plot(self.getWL(),self.getFlux(idx+idx0))
         strLgd = []
         for idxR in range(nb):
             idx = idxR + idx0
@@ -117,13 +150,81 @@ class Kurucz(object):
         pl.legend(strLgd)
         pl.xlabel("Angstrom")
         pl.grid()
-        pl.title("Kurucz 93 star flux")
-    
-    
-    def getIdxNearestFlux(self, pMet, pTemp, pGra):
-        a = self._Flux[0:3,1:].transpose()
-        oNGP = sci.NearestNDInterpolator(a, np.arange(1, len(self._Flux[0]-1)))
-        b = np.array([[pMet, pTemp, pGra]])
-        idx = oNGP(b)
-        print idx, self._Flux[0:3,idx]
+        pl.title("Kurucz 93 star fluxes")
+
+    def plotMultiFluxes(self,aIdx):
+        pl.figure()
+        strLgd = []
+        for idx in aIdx:
+            pl.plot(self.getWL(),self.getFlux(idx))
+            strLgd.append("M %.1f T %.0f G %.2f"%(self._Flux[0,idx], self._Flux[1,idx], self._Flux[2,idx]))
+        pl.legend(strLgd)
+        pl.xlabel("Angstrom")
+        pl.grid()
+        pl.title("Kurucz 93 star fluxes")
+                
+#class KuruczNGP(Kurucz): 
+#       
+#    def __init__(self, filePickle):
+#        Kurucz.__init__(self, filePickle)
+
+    def getFluxNGP(self, pMet, pTemp, pGra):
+        """
+        return nearest grid point flux for given parameters pMet, pTemp, pGra
+        """
+        idx = self.getFluxIdxNPG(pMet, pTemp, pGra)
+        return self.getFlux(idx)
+       
+    def getFluxIdxNPG(self, pMet, pTemp, pGra):
+        """
+        return idx nearest grid point for given parameters pMet, pTemp, pGra
+        """        
+        if self._oNGP == None:
+            a = self._Flux[0:3,1:].transpose()
+            self._oNGP = sci.NearestNDInterpolator(a, np.arange(1, len(self._Flux[0]-1)))
+        idx = self._oNGP(np.array([[pMet, pTemp, pGra]]))
+        #print idx, self._Flux[0:3,idx]
         return idx
+        
+    def getFluxInterLin(self, pMet, pTemp, pGra):
+        """
+        linear interpolation of flux for given parameters pMet, pTemp, pGra
+        """   
+        if self._oInterLin == None:
+            param = self._Flux[0:3,1:].transpose()
+            flux = self._Flux[self._IdxMin: self._IdxMax+1,1:].transpose()      
+            self._oInterLin = sci.LinearNDInterpolator(param, flux)
+            print "fin LinearNDInterpolator"
+        res = self._oInterLin(np.array([[pMet, pTemp, pGra]]))
+        return res
+
+
+#    def getFluxInterLin1(self, pMet, pTemp, pGra):
+#        nbWL = self._IdxMax- self._IdxMin +1
+#        if self._oInterLin == None:            
+#            nbFlux = len(self._Flux[0]) -1
+#            #nbFlux = 200
+#            aIn = np.zeros((nbWL*nbFlux, 4), dtype=np.float32)
+#            print aIn.shape
+#            iData = 0            
+#            for idx in np.arange(nbFlux):
+#                iFlux = idx+1
+#                m = self._Flux[0, iFlux]
+#                t = self._Flux[1, iFlux]#test_getFluxInterV1()
+#                g = self._Flux[2, iFlux]                                
+#                iWL = self._IdxMin
+#                if self._Flux[se#test_getFluxInterV1()lf._IdxMin: self._IdxMax+1, iFlux].sum() == 0:
+#                    print iFlux, m,t,g,"all ZERO !!!", iData
+#                else:                            
+#                    if not np.isnan(self._Flux[iWL, iFlux]) :
+#                        aIn[iData,:] = np.array([m, t, g, self._Flux[iWL, iFlux]]) 
+#                    #print aIn[iData,:]         
+#                        iData += 1           
+#            print aIn[:10]
+#            print iData
+#            self._oInterLin = sci.LinearNDInterpolator(aIn[:iData,:3], aIn[:iData,3])  
+#            print "fin LinearNDInterpolator"      
+#        a = np.array([[pMet, pTemp, pGra]])
+#        res = self._oInterLin(a)
+#        print res
+#        return res
