@@ -6,7 +6,7 @@ Created on 6 nov. 2012
 
 import tools as tl 
 import pylab as pl
-
+import numpy as np
 
 class TemplateMODTRAN(object):
     '''
@@ -16,8 +16,6 @@ class TemplateMODTRAN(object):
     * molecular absorption
     * H20
     '''
-
-
     def __init__(self, fileName, unit = 1e-9):
         out = tl.readTextFileColumn(fileName)
         self._wl = out[:,0]
@@ -27,22 +25,39 @@ class TemplateMODTRAN(object):
         self._Amols = 1 - out[:,5]
         self._Amola = 1 - out[:,7]
         self._AH2O  = 1 - out[:,2]*out[:,4]
-       
+        perm = np.argsort(self._wl)
+        self._A03 = self._A03[perm]
+        self._Amols = self._Amols[perm]
+        self._Amola = self._Amola[perm]
+        self._AH2O = self._AH2O [perm]
+        self._wl = self._wl[perm]
+         
+    def resampleBetween(self, pWLmin, pWLmax, pNb):
+        newWL = np.linspace(pWLmin, pWLmax, pNb, True)
+        self.resample(newWL)
+        
+    def resample(self, pWL):
+        self._A03 = tl.interpolBSpline(self._wl, self._A03, pWL)
+        self._AH2O = tl.interpolBSpline(self._wl, self._AH2O, pWL)
+        self._Amola = tl.interpolBSpline(self._wl, self._Amola, pWL)
+        self._Amols= tl.interpolBSpline(self._wl, self._Amols, pWL)
+        self._wl = pWL
+                
     def convertWaveLength(self, unit):
         self._wl *= (self._Unit/unit)
         self._Unit = unit
                 
     def getTr03(self):
-        return 1- self._A03
+        return 1 - self._A03
         
     def getTrmols(self):
-        return 1- self._Amols    
+        return 1 - self._Amols    
     
     def getTrmola(self):
-        return 1- self._Amola    
+        return 1 - self._Amola    
     
     def getTrH2O (self):
-        return 1- self._AH2O     
+        return 1 - self._AH2O     
     
     def getTrAll(self):
         return self.getTr03()*self.getTrmols()*self.getTrmola()* self.getTrH2O()

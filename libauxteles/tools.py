@@ -7,6 +7,9 @@ Created on 6 nov. 2012
 import numpy as np
 import math
 import pyfits as pf
+import scipy.interpolate as sci
+import pylab as pl
+
 
 
 S_verbose = 0
@@ -84,3 +87,28 @@ def readTextFileColumn(fileName, sep = None):
     outArray = np.array(listReal)
     outArray = np.reshape(outArray,(cptLine, nbCol))
     return outArray
+
+
+def interpolBSpline(pXin, pYin, pXout, pFlagPlot = False):
+    """
+    pXin : increasing ordered array 
+    pYin : same size as pXin
+    pXout :increasing ordered array, completely in pXin
+    """
+    assert len(pXin) == len(pYin)
+    # test coherence pXin pXout
+    if  pXin[0] >  pXout[0]: raise
+    if  pXin[-1] <  pXout[-1]: raise       
+    tck = sci.splrep(pXin, pYin)
+    Yout = sci.splev(pXout, tck)
+    # test Yout ???    
+    if pFlagPlot:
+        pl.figure()
+        pl.plot(pXin, pYin)
+        pl.plot(pXout, Yout)
+        pl.grid()
+        pl.title("interpolBSpline function ")
+        pl.legend(["Raw","Interpol"])
+    return Yout
+
+    

@@ -36,23 +36,25 @@ class BurkeAtmModelv1(object):
         self._aWL = self._Tpl._wl
         self._WL0 = 6750.0
         self._NameParam = ['$T_{gray}$',r'$\tau_0$',r'$\tau_1$', r'$\tau_2$', r'$\alpha$', '$C_{mol}$', '$C_{O3}$','$C_{H2O}$']
-        
+        self._AbsH2OConst = 10.0**(-0.4*0.01)
+        self._AbsO2Const  = 10.0**(-0.4*0.005)
+         
     def _transGrayAero(self):
         tau  = (self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3])
         tau *= (self._aWL/self._WL0)**self._Par[4]
         return self._Par[0]*np.exp(-self._AirMass*tau)
         
     def _transMols(self):
-        return (1 - self._Par[5]*self._PresRat*self._Tpl._Amols*self._AirMass) 
+        return (1 - self._Par[5]*self._PresRat*self._Tpl._Amols**self._AirMass) 
     
     def _transMola(self):
-        return (1 - np.sqrt(self._Par[5]*self._PresRat)*self._Tpl._Amola*self._AirMass) 
+        return (1 - np.sqrt(self._Par[5]*self._PresRat)*self._AbsO2Const*self._Tpl._Amola**self._AirMass) 
     
     def _transO3(self):
-        return (1 - self._Par[6]*self._Tpl._A03*self._AirMass)
+        return (1 - self._Par[6]*self._Tpl._A03**self._AirMass)
     
     def _transH2O(self):
-        return (1 - self.getC_H20(self._idxTime)*self._Tpl._AH2O*self._AirMass)
+        return (1 - self.getC_H20(self._idxTime)*self._AbsH2OConst*self._Tpl._AH2O**self._AirMass)
 
 #       
 # PUBLIC
@@ -93,7 +95,7 @@ class BurkeAtmModelv1(object):
         """
         self._Par = np.zeros(self._NbPar, dtype=np.float32)
         # from [1], table 3, 2007, 2nov
-        self.setParamAerosolGray(1.0, 0, 0, 0, 0)
+        self.setParamAerosolGray(1.0, 1.0, 0, 0, 0)
         # from [1], 4.results , first line
         self.setParamMol(1.0)
         # from [1], table 3, 2007, 2nov
@@ -154,7 +156,7 @@ class BurkeAtmModelv1(object):
         pl.plot(self._TimeObs, self._Par[self._NbParNoH20:self._NbPar],"*")
         pl.xlabel("s")
         pl.grid()
-        pl.title("C_H20")
+        pl.title("C_H2O")
         self._Tpl.plotTemplate()
                 
     def printBurkeModel(self):
@@ -167,7 +169,7 @@ class BurkeAtmModelv1(object):
     def printBurkeModelConst(self):
         print "Constants"
         print "  airmass slope:"
-        print "    H20 :   ", self._SlopeAMassh2o
+        print "    H2O :   ", self._SlopeAMassh2o
         print "    Rayleigth :   ", self._SlopeAMassRay
         print "    O2 :   ", self._SlopeAMasso2
         print "    O3 :   ", self._SlopeAMasso3

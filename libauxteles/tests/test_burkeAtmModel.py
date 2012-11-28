@@ -183,7 +183,8 @@ def test_leastsq03():
     parTrue= np.copy(oAtm._Par)
     pl.grid()
     oAtm.printBurkeModelParam()
-    oAtm._Par += np.random.normal(0, 2, len(oAtm._Par))*oAtm._Par    
+    oAtm._Par += np.random.normal(0, 0.5, len(oAtm._Par))*oAtm._Par
+    oAtm.setParamNoEffect() 
     print "\nguess parameter"
     oAtm.printBurkeModelParam()
     p0 = oAtm._Par
@@ -218,8 +219,8 @@ class Test(unittest.TestCase):
 #test_PresVariation()
 #test_CH20Variation()
 
-np.random.seed(100)
-test_leastsq02()
+#np.random.seed(150)
+#test_leastsq02()
 test_leastsq03()
 
 try:

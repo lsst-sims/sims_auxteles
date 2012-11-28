@@ -10,7 +10,7 @@ import math
 import pyfits as pf
 import pylab as pl
 import scipy.interpolate as sci
-
+import scipy.optimize as spo
 
 
 def read_kurucz_all(directory = '/home/colley/projet/lsst/stellar_spectra/k93models/'):
@@ -81,9 +81,9 @@ class Kurucz(object):
     '''    
     Format Kurucz array :
         column 0 : wavelength angstrom
-        line 0 : metallicity
-        line 1 : temperature
-        line 2 : gravity
+        line 0 : metallicity log_Z : -5.0 to 1.0
+        line 1 : temperature Kelvin: 3000 to 50000
+        line 2 : gravity log_g : 0 to 5
     '''
 
     def __init__(self, filePickle):
@@ -98,8 +98,42 @@ class Kurucz(object):
         #print self._Flux
         f.close()
         self.setWLuseAll()
-    
-    
+        # may be useful for linear interpolated feature  
+        self._deleteFluxNotDefined()
+        
+    def resampleBetween(self, pWLmin, pWLmax, pNb):
+        newWL = np.linspace(pWLmin, pWLmax, pNb, True)
+        self.resample(newWL)
+        
+    def resample(self, pWL):
+        # interpole only around new WL domain 
+        self.setWLInterval(pWL[0]*0.98, pWL[-1]*1.02)
+        WLin = self.getWL()
+        sizepWL = len(pWL)
+        for idx in np.arange(1, len(self._Flux[0,:])): 
+            # Bspline fit - interpole                
+            tck = sci.splrep(WLin, self.getFlux(idx))
+            self._Flux[3:sizepWL+3,idx] = sci.splev(pWL, tck)
+        self._Flux[3:sizepWL+3, 0] = pWL 
+        # remove obsolete (WL, Flux)     
+        idxRemove = np.arange(sizepWL+3, len(self._Flux[0,:]))
+        self._Flux = np.delete(self._Flux, idxRemove, 0)
+        # use all wl domain and raz interpole object
+        self.setWLuseAll()
+        self._oInterLin = None
+        self._oNGP = None
+                
+    def _deleteFluxNotDefined(self):
+        aColNOK = []        
+        for idx in np.arange(1, len(self._Flux[0,:])):            
+            if self._Flux[3:,idx].sum() == 0.0:
+                #print "%d not defined"%idx
+                #print self.getParam(idx)
+                aColNOK.append(idx)
+        if aColNOK != []:
+            print "delete %d column not defined "%len(aColNOK)
+            self._Flux = np.delete(self._Flux, aColNOK, 1)
+                
     def setWLuseAll(self):
         self._IdxMin = 3
         self._IdxMax = len(self._Flux[0])-1
@@ -132,7 +166,7 @@ class Kurucz(object):
         """
         return self._Flux[0:3, idx]
      
-    def plotFlux(self,idx):
+    def plotFluxIdx(self,idx):
         pl.figure()
         pl.plot(self.getWL(),self.getFlux(idx))
         pl.xlabel("Angstrom")
@@ -152,7 +186,7 @@ class Kurucz(object):
         pl.grid()
         pl.title("Kurucz 93 star fluxes")
 
-    def plotMultiFluxes(self,aIdx):
+    def plotFluxesArrayIdx(self,aIdx):
         pl.figure()
         strLgd = []
         for idx in aIdx:
@@ -163,31 +197,29 @@ class Kurucz(object):
         pl.grid()
         pl.title("Kurucz 93 star fluxes")
                 
-#class KuruczNGP(Kurucz): 
-#       
-#    def __init__(self, filePickle):
-#        Kurucz.__init__(self, filePickle)
-
-    def getFluxNGP(self, pMet, pTemp, pGra):
+    def getFluxNGP(self, pPar):
         """
+        pPar : Met, Temp, Gra
         return nearest grid point flux for given parameters pMet, pTemp, pGra
         """
-        idx = self.getFluxIdxNPG(pMet, pTemp, pGra)
+        idx = self.getIdxNGP(pPar)
         return self.getFlux(idx)
        
-    def getFluxIdxNPG(self, pMet, pTemp, pGra):
+    def getIdxNGP(self, pPar):
         """
+        pPar : Met, Temp, Gra
         return idx nearest grid point for given parameters pMet, pTemp, pGra
         """        
         if self._oNGP == None:
             a = self._Flux[0:3,1:].transpose()
             self._oNGP = sci.NearestNDInterpolator(a, np.arange(1, len(self._Flux[0]-1)))
-        idx = self._oNGP(np.array([[pMet, pTemp, pGra]]))
+        idx = self._oNGP(np.array([pPar]))
         #print idx, self._Flux[0:3,idx]
         return idx
         
-    def getFluxInterLin(self, pMet, pTemp, pGra):
+    def getFluxInterLin(self, pPar):
         """
+        pPar : Met, Temp, Gra
         linear interpolation of flux for given parameters pMet, pTemp, pGra
         """   
         if self._oInterLin == None:
@@ -195,36 +227,131 @@ class Kurucz(object):
             flux = self._Flux[self._IdxMin: self._IdxMax+1,1:].transpose()      
             self._oInterLin = sci.LinearNDInterpolator(param, flux)
             print "fin LinearNDInterpolator"
-        res = self._oInterLin(np.array([[pMet, pTemp, pGra]]))
-        return res
+        res = self._oInterLin(np.array([pPar]))
+        return res.ravel()
 
-
-#    def getFluxInterLin1(self, pMet, pTemp, pGra):
-#        nbWL = self._IdxMax- self._IdxMin +1
-#        if self._oInterLin == None:            
-#            nbFlux = len(self._Flux[0]) -1
-#            #nbFlux = 200
-#            aIn = np.zeros((nbWL*nbFlux, 4), dtype=np.float32)
-#            print aIn.shape
-#            iData = 0            
-#            for idx in np.arange(nbFlux):
-#                iFlux = idx+1
-#                m = self._Flux[0, iFlux]
-#                t = self._Flux[1, iFlux]#test_getFluxInterV1()
-#                g = self._Flux[2, iFlux]                                
-#                iWL = self._IdxMin
-#                if self._Flux[se#test_getFluxInterV1()lf._IdxMin: self._IdxMax+1, iFlux].sum() == 0:
-#                    print iFlux, m,t,g,"all ZERO !!!", iData
-#                else:                            
-#                    if not np.isnan(self._Flux[iWL, iFlux]) :
-#                        aIn[iData,:] = np.array([m, t, g, self._Flux[iWL, iFlux]]) 
-#                    #print aIn[iData,:]         
-#                        iData += 1           
-#            print aIn[:10]
-#            print iData
-#            self._oInterLin = sci.LinearNDInterpolator(aIn[:iData,:3], aIn[:iData,3])  
-#            print "fin LinearNDInterpolator"      
-#        a = np.array([[pMet, pTemp, pGra]])
-#        res = self._oInterLin(a)
-#        print res
-#        return res
+    def _fitLeastsqLinAll(self, pFlux, pIter=1, guess=None, pLogT = False):
+        """
+        fit NOK : probleme avec le domaine de definition metal. et grav.
+        2 solutions: 
+            ==> solution possible utiliser une methode optimisation sous contrainte.
+            ==> fit alternee sur temp puis sur (met, grav) OK  , fitLeastsqLinAll3Step
+        """
+        return None
+        assert (len(pFlux)== len(self.getWL()))
+        if guess == None:
+            guess = np.array([-2.5, 8000., 2.5])
+        if pLogT: 
+            guess[1] = np.log10(guess[1])
+        def errorModel(par, kur, ydata):
+            parI =  par.copy()
+            delta = 1
+            flag = True
+            if par[2] > 4:                
+                delta = np.fabs(par[2] - 4)
+                flag = False
+            elif par[2] <1:                
+                delta = np.fabs(par[2] - 1)
+                flag = False
+            if par[0] < -4:                
+                delta *= np.fabs(par[0] +4)
+                flag = False
+            elif par[0] > 0.5:                
+                delta *= np.fabs(par[0] -0.5)
+                flag = False
+            #print par 
+            if pLogT: parI[1]= 10**parI[1]  
+            if flag:                     
+                res = (ydata - kur.getFluxInterLin(parI))*1e-7
+            else:
+                print "NGP penalisation"                
+                res = (ydata - kur.getFluxNGP(parI))*1e-3
+            print par, (res**2).sum()
+            return res.ravel()
+        # loop iteration
+        for idxIter in range(pIter):
+            res = spo.leastsq(errorModel, guess, args=(self, pFlux), full_output=True)
+            if res[4] >= 0 and res[4]<=4:
+                print "FIT %d OK :"%(idxIter+1) + str(res[0])
+                guess = res[0]
+            else:
+                print res
+                print "FIT NOK : ",  res[3]
+                return None
+        ret = res[0]
+        if pLogT: ret[1]= 10**ret[1]
+        return ret
+            
+    def fitLeastsqLinTemp(self, pFlux, guess=None):        
+        """
+        guess : Met, Temp, Gra
+        """
+        assert (len(pFlux)== len(self.getWL()))
+        if guess == None:
+            guess = np.array([-2.5, 8000., 2.5])
+        def errorModel(par, kur, ydata):
+            parI = np.copy(guess)
+            parI[1] = par                                  
+            res = (ydata - kur.getFluxInterLin(parI))*1e-7
+            print parI, (res**2).sum()
+            return res.ravel()        
+        res = spo.leastsq(errorModel, guess[1], args=(self, pFlux), full_output=True)
+        if res[4] >= 0 and res[4]<=4:
+            print "FIT OK :"+ str(res[0])
+        else:
+            print res
+            print "FIT NOK : ",  res[3]
+            return None
+        ret = np.copy(guess)
+        ret[1] = res[0]        
+        return ret
+    
+    def fitFminLinTemp(self, pFlux, guess=None):
+        """
+        guess : Met, Temp, Gra
+        """
+        assert (len(pFlux)== len(self.getWL()))
+        if guess == None:
+            guess = np.array([-2.5, 8000., 2.5])
+        def errorModel(par, kur, ydata):
+            parI = np.copy(guess)
+            parI[1] = par                                  
+            res = ((ydata - kur.getFluxInterLin(parI))*1e-7)**2
+            print parI, (res**2).sum()
+            return res.ravel().sum()       
+        res = spo.fmin(errorModel, guess[1], args=(self, pFlux))
+        ret = np.copy(guess)
+        ret[1] = res[0]        
+        return ret
+    
+    def fitLeastsqLinAll3Step(self, pFlux, guess=None):
+        """
+        alternated fit: temp => (met, gra) => temp
+        """
+        # Step 1: fit on temp
+        sol = self.fitLeastsqLinTemp(pFlux, guess)
+        # Step 2: fit gra, met        
+        def errorModel(par, kur, ydata):
+            parI = np.copy(sol)
+            parI[0] = par[0]
+            parI[2] = par[1]                                  
+            res = (ydata - kur.getFluxInterLin(parI))*1e-7
+            print parI, (res**2).sum()
+            return res.ravel()            
+        guess =  np.delete(sol, 1)  
+        print "guess:", guess
+        res = spo.leastsq(errorModel, guess, args=(self, pFlux), full_output=True)
+        if res[4] >= 0 and res[4]<=4:
+            print "FIT OK :"+ str(res[0])
+        else:
+            print res
+            print "FIT NOK : ",  res[3]
+            return None
+        ret = np.copy(sol)
+        ret[0] = res[0][0]
+        ret[2] = res[0][1]
+        # Step 3: fit temp again
+        sol = self.fitLeastsqLinTemp(pFlux, ret) 
+        return sol
+        
+        
