@@ -35,7 +35,7 @@ def test_AltVariation():
     aAlt= np.deg2rad(np.linspace(30, 90, 4))
     aLgd = []
     for alt in aAlt:
-        tr = oAtm.computeAtmTransAtVarObs(alt, 0, timeObs[3], 780)          
+        tr = oAtm.computeAtmTransAtConstObs(alt, 0, timeObs[3], 780)          
         pl.plot(oAtm._aWL, tr)
         aLgd.append("alt %.1f degree"%np.rad2deg(alt))
     pl.legend(aLgd, loc=4)
@@ -52,7 +52,7 @@ def test_PresVariation():
     aPres= np.linspace(650, 950, 4)
     aLgd = []
     for pres in aPres:
-        tr = oAtm.computeAtmTransAtVarObs(np.pi/2, 0, timeObs[3], pres)          
+        tr = oAtm.computeAtmTransAtConstObs(np.pi/2, 0, timeObs[3], pres)          
         pl.plot(oAtm._aWL, tr)
         aLgd.append("pres ratio %.2f"%oAtm._PresRat)
     pl.legend(aLgd, loc=4)
@@ -70,7 +70,7 @@ def test_CH20Variation():
     pl.figure()    
     aLgd = []
     for idx in range(len(aVar)):
-        tr = oAtm.computeAtmTransAtVarObs(np.pi/2, 0, timeObs[idx], 750)          
+        tr = oAtm.computeAtmTransAtConstObs(np.pi/2, 0, timeObs[idx], 750)          
         pl.plot(oAtm._aWL, tr)
         aLgd.append("C_H2O %.2f"%aVar[idx])
     pl.legend(aLgd, loc=4)
@@ -82,7 +82,7 @@ def test_CH20Variation():
 
 def test_leastsq01():
     oAtm= BurkeAtmModelv1(fileModtran, np.array([0]))
-    oAtm.setVarObsComp(np.pi/2, 0, np.array([0.]), 750)
+    oAtm.setConstObsComp(np.pi/2, 0, np.array([0.]), 750)
     oAtm.setParamExample1()
     #oAtm.setParamNoEffect()
     sed = oAtm._Tpl.getTrAll()
@@ -116,7 +116,7 @@ def test_leastsq01():
 
 def test_leastsq02():
     oAtm= BurkeAtmModelv1(fileModtran, np.array([0]))
-    oAtm.setVarObsComp(np.pi/3, np.pi/4, np.array([0.]), 750)
+    oAtm.setConstObsComp(np.pi/3, np.pi/4, np.array([0.]), 750)
     oAtm.setParamExample1()
     #oAtm.setParamNoEffect()
     sed = oAtm.computeAtmTrans()
@@ -158,23 +158,23 @@ def test_leastsq03():
                        [np.pi/3.5, np.pi/3, np.array([0.]), 750],
                        [np.pi/10, np.pi/7, np.array([0.]), 750]])
     
-    oAtm.setVarObs(matVarObs[0,:])
+    oAtm.setConstObs(matVarObs[0,:])
     oAtm.setParamExample1()
     sed = oAtm.computeAtmTrans()
-    oAtm.setVarObs(matVarObs[1,:])
+    oAtm.setConstObs(matVarObs[1,:])
     sed2 = oAtm.computeAtmTrans()
-    oAtm.setVarObs(matVarObs[2,:])
+    oAtm.setConstObs(matVarObs[2,:])
     sed3 = oAtm.computeAtmTrans()    
     sed = np.concatenate((sed,sed2))
     sed = np.concatenate((sed,sed3))    
     sed += np.random.normal(0, 1e-3, len(sed))    
     def errorModel(param, atm, ydata, varObs):
         atm.setParam(param)
-        atm.setVarObs(matVarObs[0,:])
+        atm.setConstObs(matVarObs[0,:])
         sed = atm.computeAtmTrans()
-        atm.setVarObs(matVarObs[1,:])
+        atm.setConstObs(matVarObs[1,:])
         sed = np.concatenate((sed,atm.computeAtmTrans()))
-        atm.setVarObs(matVarObs[2,:])
+        atm.setConstObs(matVarObs[2,:])
         sed = np.concatenate((sed,atm.computeAtmTrans()))       
         return ydata - sed
     print "True parameter"
@@ -207,6 +207,65 @@ def test_leastsq03():
         print res
         print "FIT NOK : ",  res[3]   
 
+def test_leastsq03_v2():
+    """
+    with BurkeAtmModelv2
+    """    
+    oAtm= BurkeAtmModelv2(fileModtran)
+    matVarObs = np.array([[np.pi/3, np.pi/4, np.array([0.]), 750], 
+                       [np.pi/3.5, np.pi/3, np.array([0.]), 750],
+                       [np.pi/10, np.pi/7, np.array([0.]), 750]])
+    oAtm.setConstObsPtgRefComp(np.pi/3.5, np.pi/5)
+    oAtm.setConstObs(matVarObs[0,:])
+    oAtm.setParamExample1()
+    sed = oAtm.computeAtmTrans()
+    oAtm.setConstObs(matVarObs[1,:])
+    sed2 = oAtm.computeAtmTrans()
+    oAtm.setConstObs(matVarObs[2,:])
+    sed3 = oAtm.computeAtmTrans()    
+    sed = np.concatenate((sed,sed2))
+    sed = np.concatenate((sed,sed3))    
+    sed += np.random.normal(0, 1e-3, len(sed))    
+    def errorModel(param, atm, ydata, varObs):
+        atm.setParam(param)
+        atm.setConstObs(matVarObs[0,:])
+        sed = atm.computeAtmTrans()
+        atm.setConstObs(matVarObs[1,:])
+        sed = np.concatenate((sed,atm.computeAtmTrans()))
+        atm.setConstObs(matVarObs[2,:])
+        sed = np.concatenate((sed,atm.computeAtmTrans()))       
+        return ydata - sed
+    print "True parameter"
+    pl.figure()
+    #pl.plot(oAtm._Par,'*')
+    parTrue= np.copy(oAtm._Par)
+    pl.grid()
+    oAtm.printBurkeModelParam()
+    oAtm._Par += np.random.normal(0, 0.5, len(oAtm._Par))*oAtm._Par
+    oAtm.setParamNoEffect() 
+    print "\nguess parameter"
+    oAtm.printBurkeModelParam()
+    p0 = oAtm._Par
+    res = spo.leastsq(errorModel, p0, args=(oAtm, sed, matVarObs), full_output=True)
+    pl.plot(100*(res[0]-parTrue)/parTrue,'o')
+    pl.ylabel("%")
+    pl.title('Erreur relative')
+    #pl.legend(["true","estimated"])
+    print 'erreur relative', np.fabs((parTrue-res[0])/parTrue)
+    if res[4] >= 0 and res[4]<=4:
+        print "FIT OK :",  res[3]
+        #print res[0], res[2]["nfev"]
+        print "\nSolution scipy.leastsq in %d calls "%res[2]["nfev"]
+        oAtm.setParam(res[0])
+        oAtm.printBurkeModelParam()
+        if res[1] != None:             
+            oAtm.plotCovarMatrix(res[1], "Covariance matrix estimated with 3 trans. obser")
+            print res[1]
+        else: 
+            print "no covariance estimated"
+    else:
+        print res
+        print "FIT NOK : ",  res[3]   
         
 class Test(unittest.TestCase):
     def testName(self):
@@ -221,7 +280,7 @@ class Test(unittest.TestCase):
 
 #np.random.seed(150)
 #test_leastsq02()
-test_leastsq03()
+test_leastsq03_v2()
 
 try:
     pl.show()

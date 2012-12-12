@@ -44,16 +44,55 @@ def test_getFluxInterLin():
     oKur = Kurucz(FileKuruczPic)
     oKur.setWLInterval(2000, 10000)
     pl.figure()
-    fl = oKur.getFluxInterLin(-1.3, 6000, 2.7)
+    fl = oKur.getFluxInterLin(np.array([-1.3, 6000, 2.7]))
     pl.plot(oKur.getWL(), fl.T)
-    fl = oKur.getFluxInterLin(-1.3, 6242, 2.7)
+    fl = oKur.getFluxInterLin(np.array([-1.3, 6242, 2.7]))
     pl.plot(oKur.getWL(), fl.T)
-    fl = oKur.getFluxInterLin(-1.3, 6300, 2.7)
+    fl = oKur.getFluxInterLin(np.array([-1.3, 6300, 2.7]))
     pl.plot(oKur.getWL(), fl.T)
     pl.legend(['6000','6242','6300'])
     pl.grid()
     
-         
+
+def test_fitTempGra():
+    oKur = Kurucz(FileKuruczPic)
+    oKur.setWLInterval(2500, 10000)        
+    fluxTrue =oKur.getFluxInterLin(np.array([-2, 7125, 3.7]))
+    flux = (1+np.random.normal(0, 0.01,len(fluxTrue)))*fluxTrue
+    metUsed= -2.
+    def errorModel(par, kur, ydata):
+        parI = np.array([metUsed, 0. ,0.])
+        parI[1:3] = par
+        res = (ydata - oKur.getFluxInterLin(parI))*1e-7
+        print parI, (res**2).sum()
+        return res.ravel()
+    print "True parameter"
+    print "-2, 6100, 2.7"
+    print "\nguess parameter"
+    p0 = np.array([ 6100., 2.7])
+    p0 += np.random.normal(0, 0.3,2)*p0
+    print p0
+    res = spo.leastsq(errorModel, p0, args=(oKur, flux), full_output=True)
+    if res[4] >= 0 and res[4]<=4:
+        print "FIT OK :",  res[3]
+        #print res[0], res[2]["nfev"]
+        print "\nSolution scipy.leastsq in %d calls "%res[2]["nfev"]
+        print res[0]            
+        if res[1] != None:                             
+            print res[1]
+        else: 
+            print "no covariance estimated"
+    else:
+        print res
+        print "FIT NOK : ",  res[3]
+    pl.figure()
+    pl.plot(oKur.getWL(), flux  )
+    par = np.array([metUsed, 0., 0.])
+    par[1:3] = res[0] 
+    pl.plot(oKur.getWL(), oKur.getFluxInterLin(par))
+    pl.legend(["True","Fit"])
+    
+ 
 class Test(unittest.TestCase):
 
     def notest_nearestFlux(self):
@@ -309,8 +348,9 @@ class Test(unittest.TestCase):
         
 #test_setWLInterval()
 #test_plotFlux()
-#test_getFluxInterLin()
-test_resample()
+test_getFluxInterLin()
+#test_resample()
+test_fitTempGra()
 #unittest.main()
 try:
     pl.show()

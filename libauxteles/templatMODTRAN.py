@@ -35,12 +35,18 @@ class TemplateMODTRAN(object):
     def resampleBetween(self, pWLmin, pWLmax, pNb):
         newWL = np.linspace(pWLmin, pWLmax, pNb, True)
         self.resample(newWL)
-        
+    
+    def _setZeroNeg(self, a):
+        idx = np.where(a <0) [0]
+        if len(a) > 0:
+            a[idx] = 0.0
+        return a
+    
     def resample(self, pWL):
-        self._A03 = tl.interpolBSpline(self._wl, self._A03, pWL)
-        self._AH2O = tl.interpolBSpline(self._wl, self._AH2O, pWL)
-        self._Amola = tl.interpolBSpline(self._wl, self._Amola, pWL)
-        self._Amols= tl.interpolBSpline(self._wl, self._Amols, pWL)
+        self._A03 = tl.interpolLinear(self._wl, self._A03, pWL)        
+        self._AH2O = tl.interpolLinear(self._wl, self._AH2O, pWL)        
+        self._Amola = tl.interpolLinear(self._wl, self._Amola, pWL)        
+        self._Amols= tl.interpolLinear(self._wl, self._Amols, pWL)        
         self._wl = pWL
                 
     def convertWaveLength(self, unit):

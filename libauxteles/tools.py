@@ -111,4 +111,26 @@ def interpolBSpline(pXin, pYin, pXout, pFlagPlot = False):
         pl.legend(["Raw","Interpol"])
     return Yout
 
+def interpolLinear(pXin, pYin, pXout, pFlagPlot = False):
+    """
+    pXin : increasing ordered array 
+    pYin : same size as pXin
+    pXout :increasing ordered array, completely in pXin
+    """
+    assert len(pXin) == len(pYin)
+    # test coherence pXin pXout
+    if  pXin[0] >  pXout[0]: raise
+    if  pXin[-1] <  pXout[-1]: raise       
+    oInter = sci.interp1d(pXin, pYin)
+    Yout = oInter(pXout)
+    # test Yout ???    
+    if pFlagPlot:
+        pl.figure()
+        pl.plot(pXin, pYin)
+        pl.plot(pXout, Yout)
+        pl.grid()
+        pl.title("interpolBSpline function ")
+        pl.legend(["Raw","Interpol"])
+    return Yout
+
     

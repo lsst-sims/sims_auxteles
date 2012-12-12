@@ -30,6 +30,12 @@ class ObsSurvey(object):
     def getGuessParam(self):
         pass
     
+    def plotObs(self,idx, pTitle=""):        
+        pl.figure()
+        pl.plot(self.aFlux[idx])
+        pl.title('Obs flux '+pTitle)
+        pl.grid()
+        
 
 class ObsSurveySimu01(ObsSurvey):
     """
@@ -89,7 +95,7 @@ class ObsSurveySimu01(ObsSurvey):
         self._SimuParNight[:,7] = np.random.uniform(-0.05, 0.05, self._NbNight)
         ######## _SimuParObs
         # Tgray
-        self._SimuParTgray = np.random.uniform(0.6, 0.99, self.NbFlux)
+        self._SimuParTgray = np.random.uniform(0.9, 0.99, self._NbFlux)
         # C_H2O
         self._SimuParC_H2O = np.random.uniform(0.2, 1.2, self._NbSimul)
         ######## _SimuParObsIdx
@@ -181,12 +187,15 @@ class ObsSurveySimu01(ObsSurvey):
         g0 = self._Oatm._Par
         print "g0:",g0
         for idxS in range(self._NbStar):
-            guess[idxS*2] = 6000
+            guess[idxS*2] = 6100
             guess[idxS*2+1] = 3
         for idx in range(self._NbFlux):
             print self.aIdxParAtm[idx,:]            
             guess[self.aIdxParAtm[idx,:]] = g0
         return guess
+    
+    def getFirstIdxAtm(self):
+        return  2*self._NbStar    
     
     def getTrueParam(self):
         """
@@ -213,7 +222,7 @@ class ObsSurveySimu01(ObsSurvey):
 #                    idxObs += 1
 #                    idx += 2
             self._TrueParam = par
-        return self._TrueParam
+        return np.copy(self._TrueParam)
     
     def plotFlux(self,idx):
         pl.figure()

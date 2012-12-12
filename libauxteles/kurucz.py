@@ -100,6 +100,12 @@ class Kurucz(object):
         self.setWLuseAll()
         # may be useful for linear interpolated feature  
         self._deleteFluxNotDefined()
+        self._CoefUnit = 1
+        self.setCoefUnit(1e-5)
+        
+    def setCoefUnit(self, coef):
+        self._CoefUnit *= coef
+        self._Flux[3:,1:] *= coef        
         
     def resampleBetween(self, pWLmin, pWLmax, pNb):
         newWL = np.linspace(pWLmin, pWLmax, pNb, True)
@@ -112,7 +118,7 @@ class Kurucz(object):
         sizepWL = len(pWL)
         for idx in np.arange(1, len(self._Flux[0,:])): 
             # Bspline fit - interpole                
-            tck = sci.splrep(WLin, self.getFlux(idx))
+            tck = sci.splrep(WLin, self.getFluxIdx(idx))
             self._Flux[3:sizepWL+3,idx] = sci.splev(pWL, tck)
         self._Flux[3:sizepWL+3, 0] = pWL 
         # remove obsolete (WL, Flux)     
@@ -154,7 +160,7 @@ class Kurucz(object):
         print wlMin , wlMax
         print "nb wl ", self._IdxMax-self._IdxMin
     
-    def getFlux(self, idx):
+    def getFluxIdx(self, idx):
         return self._Flux[self._IdxMin:self._IdxMax+1, idx]
     
     def getWL(self):
@@ -168,7 +174,7 @@ class Kurucz(object):
      
     def plotFluxIdx(self,idx):
         pl.figure()
-        pl.plot(self.getWL(),self.getFlux(idx))
+        pl.plot(self.getWL(),self.getFluxIdx(idx))
         pl.xlabel("Angstrom")
         pl.grid()
         pl.title("Kurucz 93 star flux M %.2f T %.2f G %.2f"%(self._Flux[0,idx], self._Flux[1,idx], self._Flux[2,idx]))
@@ -176,7 +182,7 @@ class Kurucz(object):
     def plotMultiFluxesCont(self,idx0, nb):
         pl.figure()
         for idx in range(nb):
-            pl.plot(self.getWL(),self.getFlux(idx+idx0))
+            pl.plot(self.getWL(),self.getFluxIdx(idx+idx0))
         strLgd = []
         for idxR in range(nb):
             idx = idxR + idx0
@@ -190,7 +196,7 @@ class Kurucz(object):
         pl.figure()
         strLgd = []
         for idx in aIdx:
-            pl.plot(self.getWL(),self.getFlux(idx))
+            pl.plot(self.getWL(),self.getFluxIdx(idx))
             strLgd.append("M %.1f T %.0f G %.2f"%(self._Flux[0,idx], self._Flux[1,idx], self._Flux[2,idx]))
         pl.legend(strLgd)
         pl.xlabel("Angstrom")
@@ -203,7 +209,7 @@ class Kurucz(object):
         return nearest grid point flux for given parameters pMet, pTemp, pGra
         """
         idx = self.getIdxNGP(pPar)
-        return self.getFlux(idx)
+        return self.getFluxIdx(idx)
        
     def getIdxNGP(self, pPar):
         """
