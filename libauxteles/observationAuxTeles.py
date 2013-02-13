@@ -139,6 +139,9 @@ class ObsSurveySimu01(ObsSurvey):
 # GETTER
         
     def getTrueParamAtmIdx(self, pIdx):
+        """
+        return true parameter in Burke model format (10 values) for flux pIdx
+        """
         par = np.zeros(10, dtype=np.float64)
         par[0] = self._SimuParTgray[pIdx]
         par[1:9] = self._SimuParNight[self._SimuParObsIdx[pIdx,0]]
@@ -148,9 +151,15 @@ class ObsSurveySimu01(ObsSurvey):
         return par
         
     def getConst(self, pIdx):
+        """
+        return observation constante for Burke model format for flux pIdx
+        """
         return self._SimuConstObs[pIdx,:]
     
     def getGuessDefault(self):
+        """
+        return default parameter for all flux
+        """
         guess = np.zeros(self._NbParam, dtype=np.float64)        
         self._Oatm.setParamNoEffect()
         g0 = self._Oatm._Par
@@ -164,11 +173,14 @@ class ObsSurveySimu01(ObsSurvey):
         return guess
     
     def getFirstIdxAtm(self):
+        """
+        return index of first parameter relative to atmopshere in parameter vector 
+        """
         return  2*self._NbStar    
     
     def getTrueParam(self):
         """
-        return global true vector parameter
+        return true parameter vector for all flux
         """
         if self._TrueParam == None:
             par = np.zeros(self._NbParam)
@@ -193,10 +205,10 @@ class ObsSurveySimu01(ObsSurvey):
             self._TrueParam = par
         return np.copy(self._TrueParam)
 
-                
+        
     def readObsNight(self, pRep):
         """
-        
+        fill self.aFlux (array flux)  , here by simulation atmosphere and star
         """
         assert isinstance(self._Oatm, atm.BurkeAtmModel)
         #
@@ -250,7 +262,7 @@ class ObsSurveySimu01(ObsSurvey):
         # with last observation    
         self._NbParam = self._NbStar*self._NbPstar + self._NbNight*8 + self._NbSimul*(1+self._NbStar)
     
-    def addNoise(self, snr=100, doPlot=False):
+    def addNoisebySNR(self, snr=100, doPlot=False):
         mean = self.aFlux.ravel().mean()
         sigma =  mean/ snr 
         print "mean signal :", mean
@@ -267,9 +279,23 @@ class ObsSurveySimu01(ObsSurvey):
             pl.xlabel("Angstrom")
             pl.legend(["no noise","with noise" ])
             pl.grid()
-            
+    
+    def computeTransTheoIdx(self, idx, param):
+        """
+        idx   : index flux
+        param : global parameter vector
+        """        
+        self._Oatm.setConstObs(self.aConst[idx])
+        parBurke = param[self.aIdxParAtm[idx]]
+        self._Oatm.setParam(parBurke)
+        trans = self._Oatm.computeAtmTrans()
+        return trans
     
     def computeFluxTheoIdx(self, idx, param):
+        """
+        idx   : index flux
+        param : global parameter vector
+        """
         parStar = np.array([-3, 0.0, 0.0])               
         # compute model transmission                
         self._Oatm.setConstObs(self.aConst[idx])
@@ -285,6 +311,9 @@ class ObsSurveySimu01(ObsSurvey):
              
                 
     def computeResidu(self, param):
+        """
+        return residu vector for parameter vector param
+        """
         parStar = np.array([-3, 0.0, 0.0])
         residu = np.copy(self.aFlux)         
         for idx in range(self._NbFlux):           
@@ -325,9 +354,15 @@ class ObsSurveySimu02(ObsSurveySimu01):
         ObsSurveySimu01.__init__(self, pNbNight, pNbObsNight)
         
     def getFirstIdxAtm(self):
+        """
+        return index of first parameter relative to atmopshere in parameter vector 
+        """
         return  self._NbStar
     
     def getGuessDefault(self):
+        """
+        return default parameter for all flux
+        """        
         guess = np.zeros(self._NbParam, dtype=np.float64)        
         self._Oatm.setParamNoEffect()
         g0 = self._Oatm._Par
@@ -354,16 +389,20 @@ class ObsSurveySimu02(ObsSurveySimu01):
             self._TrueParam = par
         return np.copy(self._TrueParam)  
     
-      
-    def computeFluxTheoIdx(self, idx, param):
-        self._Oatm.setConstObs(self.aConst[idx])
-        par = param[self.aIdxParAtm[idx]]
+              
+    def computeFluxTheoIdx(self, idxFlux, param):
+        """
+        idxFlux : index flux measure
+        param   : parameter vector 
+        """
+        self._Oatm.setConstObs(self.aConst[idxFlux])
+        par = param[self.aIdxParAtm[idxFlux]]
         #print "atm par:", par
         self._Oatm.setParam(par)
         trans = self._Oatm.computeAtmTrans()
         # compute model flux
-        temp = param[self.aIdxParStar[idx]]
-        parStar =  self._Ostar.addMetGra(self.aIdxParStar[idx], temp)
+        temp = param[self.aIdxParStar[idxFlux]]
+        parStar =  self._Ostar.addMetGra(self.aIdxParStar[idxFlux], temp)
         flux = self._Ostar._oKur.getFluxInterLin(parStar)        
         atmStarMod = trans*flux
         return atmStarMod
