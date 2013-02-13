@@ -6,7 +6,7 @@ Created on 14 nov. 2012
 import unittest
 from kurucz import *
 import scipy.optimize as spo
-
+import numpy as np
 
 FileKuruczPic = '/home/colley/projet/lsst/stellar_spectra/k93.pic'
 
@@ -15,6 +15,7 @@ def test_plotFlux():
     oKur.setWLInterval(1000, 12000)
     oKur.plotFluxIdx(1540)
     oKur.plotMultiFluxesCont(1540,5)
+    
     oKur.plotFluxIdx(1544)
     
     
@@ -58,12 +59,12 @@ def test_fitTempGra():
     oKur = Kurucz(FileKuruczPic)
     oKur.setWLInterval(2500, 10000)        
     fluxTrue =oKur.getFluxInterLin(np.array([-2, 7125, 3.7]))
-    flux = (1+np.random.normal(0, 0.01,len(fluxTrue)))*fluxTrue
+    flux = (1+np.random.normal(0, 0.0001,len(fluxTrue)))*fluxTrue
     metUsed= -2.
     def errorModel(par, kur, ydata):
         parI = np.array([metUsed, 0. ,0.])
         parI[1:3] = par
-        res = (ydata - oKur.getFluxInterLin(parI))*1e-7
+        res = (ydata - oKur.getFluxInterLin(parI))
         print parI, (res**2).sum()
         return res.ravel()
     print "True parameter"
@@ -91,6 +92,31 @@ def test_fitTempGra():
     par[1:3] = res[0] 
     pl.plot(oKur.getWL(), oKur.getFluxInterLin(par))
     pl.legend(["True","Fit"])
+
+
+def test_fitWithBounds():
+    #np.random.seed(104)
+    oKur = Kurucz(FileKuruczPic)
+    oKur.setWLInterval(2500, 10000)    
+    oKur.setCoefUnit(1e-7)
+    #flux = np.copy(fluxTrue)
+    Met = np.random.uniform(oKur._BoundsMet[0], oKur._BoundsMet[1])
+    Temp = np.random.uniform(4000, 20000)
+    Gra = np.random.uniform(oKur._BoundsGra[0], oKur._BoundsGra[1])
+    parTrue = np.array([Met, Temp, Gra])
+    print parTrue
+    fluxTrue =oKur.getFluxInterLin(parTrue)
+    flux = (1+np.random.normal(0, 0.0001,len(fluxTrue)))*fluxTrue
+    print fluxTrue[:10]    
+    g0 = np.array([-3, 10000, 3])
+    sol = oKur.fitWithBounds2(flux, g0)
+    print "erreur relativeen %:",(sol - parTrue)*100/parTrue
+#    g0 = np.array([-1.0,  5100., 1.7])
+#    sol = oKur.fitNoBounds(flux, g0)
+#    print "erreur relative:",(sol - parTrue)*100/parTrue
+    #idx= oKur.getIdxNGP(np.array([3.65307192e-01  , 1.38417718e+04   ,8.56629378e-01]))
+    #oKur.plotFluxIdx(idx)
+
     
  
 class Test(unittest.TestCase):
@@ -348,10 +374,12 @@ class Test(unittest.TestCase):
         
 #test_setWLInterval()
 #test_plotFlux()
-test_getFluxInterLin()
+#test_getFluxInterLin()
 #test_resample()
-test_fitTempGra()
+#test_fitTempGra()
 #unittest.main()
+test_fitWithBounds()
+
 try:
     pl.show()
 except AttributeError:

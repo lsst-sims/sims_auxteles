@@ -101,7 +101,11 @@ class Kurucz(object):
         # may be useful for linear interpolated feature  
         self._deleteFluxNotDefined()
         self._CoefUnit = 1
-        self.setCoefUnit(1e-5)
+        #self.setCoefUnit(1e-7)
+        self._BoundsMet = (-4.5, 0.5)
+        self._BoundsGra = (0.5, 4.5)
+        self._BoundsTemp = (3600.0, 47500.0)
+        
         
     def setCoefUnit(self, coef):
         self._CoefUnit *= coef
@@ -329,6 +333,74 @@ class Kurucz(object):
         ret = np.copy(guess)
         ret[1] = res[0]        
         return ret
+    
+    def fitWithBounds(self, pFlux, guess=None):
+        """
+        guess : Met, Temp, Gra
+        """
+        assert (len(pFlux)== len(self.getWL()))
+        if guess == None:
+            guess = np.array([-2.5, 8000., 2.5])
+        def errorModel(par, kur, ydata):
+            fluxTheo = kur.getFluxInterLin(par) 
+            if np.isnan(fluxTheo[0]):
+                print   "fluxTheo is nan, used NGP "
+                fluxTheo = kur.getFluxNGP(par)                          
+            res = ((ydata - fluxTheo))**2
+            res = res.ravel().sum()
+            print par, res
+            return res
+        myBounds = (self._BoundsMet, self._BoundsTemp, self._BoundsGra)
+        # avec  test_fitWithBounds et    np.random.seed(10) 
+        #res = spo.minimize(errorModel, guess, args=(self, pFlux), method='SLSQP', bounds=myBounds)
+        # donne erreur !
+        #res = spo.minimize(errorModel, guess, args=(self, pFlux), method='SLSQP', bounds=myBounds)
+        res = spo.minimize(errorModel, guess, args=(self, pFlux), method='SLSQP', bounds=myBounds)
+        print res.message
+        return res.x
+    
+    def fitWithBounds2(self, pFlux, guess=None):
+        """
+        guess : Met, Temp, Gra
+        """
+        assert (len(pFlux)== len(self.getWL()))
+        if guess == None:
+            guess = np.array([-2.5, 8000., 2.5])
+        def errorModel(par, kur, ydata):
+            fluxTheo = kur.getFluxInterLin(par) 
+            if np.isnan(fluxTheo[0]):
+                print   "fluxTheo is nan, used NGP "
+                fluxTheo = kur.getFluxNGP(par)                          
+            res = ((ydata - fluxTheo))**2
+            res = res.ravel().sum()
+            print par, res
+            return res
+        myBounds = (self._BoundsMet, self._BoundsTemp, self._BoundsGra)
+        # avec  test_fitWithBounds et    np.random.seed(10) 
+        #res = spo.minimize(errorModel, guess, args=(self, pFlux), method='SLSQP', bounds=myBounds)
+        # donne erreur !
+        #res = spo.minimize(errorModel, guess, args=(self, pFlux), method='SLSQP', bounds=myBounds)
+        res = spo.minimize(errorModel, guess, args=(self, pFlux), method='SLSQP', bounds=myBounds)
+        print "sol1:", res.message, res.x
+        res2 = spo.minimize(errorModel,res.x , args=(self, pFlux), method='SLSQP', bounds=myBounds)
+        print "sol2:", res2.message, res2.x
+        return res2.x
+    
+    def fitNoBounds(self, pFlux, guess=None):
+        """
+        guess : Met, Temp, Gra
+        """
+        assert (len(pFlux)== len(self.getWL()))
+        if guess == None:
+            guess = np.array([-2.5, 8000., 2.5])
+        def errorModel(par, kur, ydata):                            
+            res = ((ydata - kur.getFluxInterLin(par)))**2
+            res = res.ravel().sum()
+            print par, res
+            return res        
+        res = spo.minimize(errorModel, guess, args=(self, pFlux), method='SLSQP')
+        print res.message
+        return res.x
     
     def fitLeastsqLinAll3Step(self, pFlux, guess=None):
         """

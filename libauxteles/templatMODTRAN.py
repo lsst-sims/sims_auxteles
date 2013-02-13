@@ -8,6 +8,7 @@ import tools as tl
 import pylab as pl
 import numpy as np
 
+
 class TemplateMODTRAN(object):
     '''
     read output MODTRAN file to extract template absorption of
@@ -31,7 +32,7 @@ class TemplateMODTRAN(object):
         self._Amola = self._Amola[perm]
         self._AH2O = self._AH2O [perm]
         self._wl = self._wl[perm]
-         
+                  
     def resampleBetween(self, pWLmin, pWLmax, pNb):
         newWL = np.linspace(pWLmin, pWLmax, pNb, True)
         self.resample(newWL)
