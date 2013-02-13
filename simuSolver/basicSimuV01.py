@@ -30,6 +30,7 @@ class SimuAtmStarSolve():
         self.oObs.readObsNight("")
         self.oSol = asSol.AtmStarSolverv1()
         self.oSol.init(self.oObs, self.oKur, self.oAtm)
+        self._parEst = 0 # parameter estimation
 
     def plotErrRel(self, estSol, pTitle =""):
         guessTrue = self.oObs.getTrueParam()
@@ -50,6 +51,18 @@ class SimuAtmStarSolve():
         pl.legend(["raw flux ","theo. flux"])
         pl.grid()
         
+    def plotTransTrueEst(self, idxFlux, pTitle=""):
+        pl.figure()
+        pl.title("Transmission associated flux %d %s"% (idxFlux, pTitle))
+        TransTrue = 100*self.oObs.computeTransTheoIdx(idxFlux, self.oObs.getTrueParam())
+        TransEst =100* self.oObs.computeTransTheoIdx(idxFlux, self._parEst)                
+        pl.plot(self.oKur.getWL(), TransTrue )       
+        pl.plot(self.oKur.getWL(), TransEst )
+        pl.xlabel("Angstrom")
+        pl.ylabel("%")
+        pl.legend(["True","Estimated"])
+        pl.grid()
+        
     def plotFluxTheo(self, idx, param):
         pl.figure()
         pl.title("Theoric Flux %d"% idx)       
@@ -57,7 +70,32 @@ class SimuAtmStarSolve():
         pl.plot(fluxTheo)       
         pl.grid()
         
-        
+    def plotDistribErrRelAtm(self, idxFlux, pTitle=""):
+        pl.figure()
+        pl.title("distribution relative error transmission for flux %d. %s"% (idxFlux, pTitle))        
+        TransTrue = self.oObs.computeTransTheoIdx(idxFlux, self.oObs.getTrueParam())
+        TransEst = self.oObs.computeTransTheoIdx(idxFlux, self._parEst)        
+        errRel = 100*(TransEst - TransTrue)/TransTrue
+        pl.hist(errRel, 50, facecolor='green', log=True)
+        pl.xlabel("%")       
+        pl.grid()
+            
+    def plotDistribErrRelAtmAll(self, pTitle=""):
+        pl.figure()
+        pl.title("distribution relative error transmission for all flux. %s"% (pTitle))
+        TruePar = self.oObs.getTrueParam()
+        for idxFlux in range(self.oObs._NbFlux):  
+            TransTrue = self.oObs.computeTransTheoIdx(idxFlux, TruePar)
+            TransEst  = self.oObs.computeTransTheoIdx(idxFlux, self._parEst)
+            errRel = 100*(TransEst - TransTrue)/TransTrue
+            if  idxFlux == 0:       
+                errRelTot = errRel
+            else: 
+                errRelTot = np.concatenate((errRelTot, errRel))
+        pl.hist(errRelTot, 50, facecolor='green', log=True)
+        pl.xlabel("%")       
+        pl.grid()
+       
 class SimuAtmStarSolve2(SimuAtmStarSolve):
     """
     used ObsSurveySimu02 and StarTargetSimuAll class
@@ -136,8 +174,8 @@ def simuOnlyTemp():
 def simuOnlyAtm():   
     # create simulation observation
     np.random.seed(103)
-    oSim = SimuAtmStarSolve2(1,10)
-    oSim.oObs.addNoise (500, True)
+    oSim = SimuAtmStarSolve2(1,20)
+    oSim.oObs.addNoisebySNR (500, True)
     guessTrue = oSim.oObs.getTrueParam() 
     guess = guessTrue*(1+np.random.normal(0,0.05,len(guessTrue)))
     guess = oSim.oObs.getGuessDefault()
@@ -146,13 +184,19 @@ def simuOnlyAtm():
     oSim.plotFluxRawTheo(2, guess, 'with guess')
     oSim.plotErrRel(guess, "guess")
     print oSim.oSol.getChi2(guess)
-    estSol = oSim.oSol.solveOnlyAtm(guess[4:])
+    oSim._parEst = oSim.oSol.solveOnlyAtm(guess[4:])
     tempStar = np.array([ 7700. , 6440. , 5150. , 9520.])
-    estSol = np.concatenate((tempStar, estSol))
-    oSim.plotErrRel(estSol, 'estimated')
+    oSim._parEst = np.concatenate((tempStar, oSim._parEst))
+    oSim.plotErrRel(oSim._parEst, 'estimated')
     oSim.oSol.plotCostFuncHistory()
-    oSim.plotFluxRawTheo(0, estSol, 'with param estimated')
-    oSim.plotFluxRawTheo(2, estSol, 'with param estimated')
+    oSim.plotFluxRawTheo(0, oSim._parEst, 'with param estimated')
+    oSim.plotFluxRawTheo(2, oSim._parEst, 'with param estimated')
+    oSim.plotDistribErrRelAtm(1)
+    oSim.plotDistribErrRelAtm(0)
+    oSim.plotDistribErrRelAtmAll()
+    oSim.plotTransTrueEst(1)
+    oSim.plotTransTrueEst(2)
+    oSim.plotTransTrueEst(3)
     
 #simuOnlyTemp()
 #simu01()
