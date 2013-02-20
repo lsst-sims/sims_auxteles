@@ -7,6 +7,69 @@ import numpy as np
 import burkeAtmModel as atm
 import starTargetSimu as star
 import pylab as pl
+import kurucz as kur
+import numpy as np
+
+
+class StarFluxArray(object):
+    """
+    memory cache star flux 
+    """
+    def __init__(self, nbStar, oKurucz):
+        assert isinstance(oKurucz, kur.Kurucz)
+        self._oKur = oKurucz                
+        self._nbStar = nbStar        
+        self._aParKur = np.zeros((nbStar, 3), dtype=np.float32)
+        sizeWl = len(self._oKur.getWL())
+        print "sizeWl:", sizeWl
+        self._aFlux = np.zeros((nbStar, sizeWl), dtype=np.float32)
+        print self._aFlux.shape
+        
+    def getFlux(self, idx, parKur):
+        if not np.array_equal(parKur, self._aParKur[idx]) :
+            print "New parameter %d"%idx,parKur
+            # comput new flux
+            oKur = self._oKur
+            assert isinstance(oKur, kur.Kurucz)
+            flux = oKur.getFluxInterLin(parKur)
+            self._aParKur[idx] = parKur
+            print flux.shape
+            print self._aFlux.shape
+            self._aFlux[idx,:] = flux
+        else:
+            #print "StarFluxArray: return memo flux"
+            pass
+        return self._aFlux[idx]
+
+
+class AtmTransArray(object):
+    """
+    memory cache atmosphere transmission
+    """    
+    def __init__(self, nbTrans, oBurkeMod):
+        assert isinstance(oBurkeMod, atm.BurkeAtmModel)
+        self._oBurke = oBurkeMod               
+        self._nbTrans = nbTrans      
+        self._aParBurke = np.zeros((nbTrans, 10), dtype=np.float64)
+        sizeWl = len(oBurkeMod._aWL)
+        print "sizeWl:", sizeWl
+        self._aTrans = np.zeros((nbTrans, sizeWl), dtype=np.float64)
+        
+    def getTrans(self, idx, constObs, par):
+        if not np.array_equal(par, self._aParBurke[idx]):
+            #print "New parameter %d"%idx,par
+            # comput new flux
+            oBurkeMod = self._oBurke
+            assert isinstance(oBurkeMod, atm.BurkeAtmModel)
+            oBurkeMod.setConstObs(constObs)
+            oBurkeMod.setParam(par)
+            trans = oBurkeMod.computeAtmTrans()
+            self._aParBurke[idx] = par
+            self._aTrans[idx,:]  = trans
+        else:
+            #print "AtmTransArray: return memo flux"
+            pass
+        return self._aTrans[idx]
 
 
 class ObsSurvey(object):
@@ -19,11 +82,14 @@ class ObsSurvey(object):
         self.aIdxParAtm = None
         # index relation with a flux measured and star parameters
         self.aIdxParStar= None
-        self.NbFlux = 0
+        self.NbFlux   = 0
         self._NbNight = 0
-        self._NbStar = 0
+        self._NbStar  = 0
         self._NbConst = 0
-        self._NbPatm = 0
+        self._NbPatm  = 0
+        self._memoStarFlux = None
+        self._memoAtmTrans = None
+        
         
     def readObsNight(self, pRep):
         """
@@ -54,12 +120,13 @@ class ObsSurveySimu01(ObsSurvey):
     
     """
     def __init__(self, pNbNight=1, pNbObsNight=1):
-        ObsSurvey.__class__(self)        
+        ObsSurvey.__init__(self)        
         self._NbNight = pNbNight
         self._NbObsNight = pNbObsNight
         self._NbConst = 4
         self._Oatm = atm.BurkeAtmModel("")
         self._TrueParam = None
+       
         
 # PRIVATE
 #########
@@ -273,11 +340,13 @@ class ObsSurveySimu01(ObsSurvey):
             pl.figure()
             pl.title("Add noise to spectrum")
             pl.plot(self._Oatm._aWL, self.aFlux[1])
+            pl.plot(self._Oatm._aWL, self.aFlux[2])
         self.aFlux += noise.reshape(self._NbFlux,self._NbWL)
         if doPlot:           
             pl.plot(self._Oatm._aWL,self.aFlux[1])
+            pl.plot(self._Oatm._aWL,self.aFlux[2])
             pl.xlabel("Angstrom")
-            pl.legend(["no noise","with noise" ])
+            pl.legend(["no noise","with noise","no noise","with noise" ])
             pl.grid()
     
     def computeTransTheoIdx(self, idx, param):
@@ -407,7 +476,9 @@ class ObsSurveySimu02(ObsSurveySimu01):
         atmStarMod = trans*flux
         return atmStarMod
    
-    def computeResidu(self, param):        
+    def computeResiduSlow(self, param):
+        if self._memoStarFlux == None:
+            self._memoStarFlux =  StarFluxArray(self._NbStar, self._Ostar._oKur) 
         residu = np.copy(self.aFlux)  
         print "================================"  
         #print param
@@ -423,7 +494,33 @@ class ObsSurveySimu02(ObsSurveySimu01):
             # compute model flux
             temp = param[self.aIdxParStar[idx]]
             parStar =  self._Ostar.addMetGra(self.aIdxParStar[idx], temp)
-            flux = self._Ostar._oKur.getFluxInterLin(parStar)
+            flux = self._memoStarFlux.getFlux(self._SimuParObsIdx[idx, 1], parStar)
+            #flux = self._Ostar._oKur.getFluxInterLin(parStar)
+            #if idx < self._NbStar: print "star par:", parStar
+            # model 
+            atmStarMod = trans*flux
+            residu[idx,:] -= atmStarMod        
+        return residu.ravel()
+    
+    def computeResidu(self, param):
+        if self._memoStarFlux == None:
+            self._memoStarFlux =  StarFluxArray(self._NbStar, self._Ostar._oKur) 
+        if self._memoAtmTrans == None:
+            self._memoAtmTrans =  AtmTransArray(self._NbFlux, self._Oatm) 
+        residu = np.copy(self.aFlux)  
+        print "================================"  
+        #print param
+        for idx in range(self._NbFlux):
+            #print idx
+            # compute model transmission 
+            constObs = self.aConst[idx]            
+            par = param[self.aIdxParAtm[idx]]
+            trans = self._memoAtmTrans.getTrans(idx, constObs, par)
+            # compute model flux
+            temp = param[self.aIdxParStar[idx]]
+            parStar = self._Ostar.addMetGra(self.aIdxParStar[idx], temp)
+            flux = self._memoStarFlux.getFlux(self._SimuParObsIdx[idx, 1], parStar)
+            #flux = self._Ostar._oKur.getFluxInterLin(parStar)
             #if idx < self._NbStar: print "star par:", parStar
             # model 
             atmStarMod = trans*flux

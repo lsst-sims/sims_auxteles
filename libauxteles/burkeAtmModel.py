@@ -57,8 +57,8 @@ class BurkeAtmModel(object):
         
     def resample(self, pWL):
         self._Tpl.resample(pWL)
-        self._aWL = self._Tpl._wl  
-        
+        self._aWL = self._Tpl._wl
+          
     def _transGrayAero(self):
         tau  = self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3]
         tau *= np.power(self._aWL/self._WL0, self._Par[4])        
@@ -71,11 +71,11 @@ class BurkeAtmModel(object):
     def _transMola(self): 
         #return self._razNeg(1.0 - np.sqrt(self._Par[5]*self._PresRat)*self._AbsO2Const*np.power(self._Tpl._Amola, self._AirMass))
         return self._razNeg(1.0 - np.sqrt(self._Par[5]*self._PresRat)*(1 - self._AbsO2Const*np.power(self._Tpl.getTrmola(), self._AirMass)))
-    
+     
     def _transO3(self):
         #return self._razNeg(1.0 - self._Par[6]*np.power(self._Tpl._A03, self._AirMass))
         return self._razNeg(1.0 - self._Par[6]*(1 - np.power(self._Tpl.getTr03(), self._AirMass)))
- 
+        
     def _transH2O(self):
         C_H20 = self._Par[7] + self._EW*self._Par[8] + self._NS*self._Par[9]
         #return self._razNeg(1.0 - C_H20*self._AbsH2OConst*np.power(self._Tpl._AH2O, self._AirMass))

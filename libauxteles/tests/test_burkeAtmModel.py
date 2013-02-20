@@ -251,7 +251,7 @@ class Test(unittest.TestCase):
         pass
     
     def test_covar2Correl(self):
-        oAtm= BurkeAtmModelv2(fileModtran)
+        oAtm= BurkeAtmModel(fileModtran)
         mat = np.array([[2,4],[4,9]])
         oAtm._covar2Correl(mat)
         

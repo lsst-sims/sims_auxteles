@@ -15,7 +15,6 @@ from burkeAtmModel import BurkeAtmModel
 import numpy as np
 import pylab as pl
 
-np.random.seed(12)
 
 class SimuAtmStarSolve():
     def __init__(self, night, obsByNight):
@@ -96,6 +95,7 @@ class SimuAtmStarSolve():
         pl.xlabel("%")       
         pl.grid()
        
+       
 class SimuAtmStarSolve2(SimuAtmStarSolve):
     """
     used ObsSurveySimu02 and StarTargetSimuAll class
@@ -174,7 +174,7 @@ def simuOnlyTemp():
 def simuOnlyAtm():   
     # create simulation observation
     np.random.seed(103)
-    oSim = SimuAtmStarSolve2(1,20)
+    oSim = SimuAtmStarSolve2(1,24)
     oSim.oObs.addNoisebySNR (500, True)
     guessTrue = oSim.oObs.getTrueParam() 
     guess = guessTrue*(1+np.random.normal(0,0.05,len(guessTrue)))
@@ -203,7 +203,9 @@ def simuOnlyAtm():
 simuOnlyAtm()
 
 try:
-    pl.show()
+    #pl.show()
+    pass
+
 except AttributeError:
     pass
 
