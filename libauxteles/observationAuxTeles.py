@@ -210,14 +210,14 @@ class ObsSurveySimu01(ObsSurvey):
         idx = np.arange(self._NbPeriodObs)
         self._SimuParObsIdx[:,2] = np.outer(idx,  np.ones(self._NbStar, dtype=np.int32) ).ravel()        
         ######## _SimuConstObs
-        # time
-        self._SimuConstObs[:,2] = np.arange(self._NbFlux)
         # ptg, alt , a
         self._SimuConstObs[:,0] = np.random.uniform(np.deg2rad(45), np.deg2rad(90), self._NbFlux)
         self._SimuConstObs[:,1] = np.random.uniform(0, 2*np.pi, self._NbFlux)
         # pressure
-        self._SimuConstObs[:,3] = np.random.uniform(750, 820, self._NbFlux)
+        self._SimuConstObs[:,2] = np.random.uniform(750, 820, self._NbFlux)
         #print self._SimuConstObs[:,3]
+        # time
+        self._SimuConstObs[:,3] = np.arange(self._NbFlux)
 
 # PUBLIC        
 ########    
