@@ -55,30 +55,41 @@ class TemplateMODTRAN(object):
         self._Unit = unit
                 
     def getTr03(self):
-        return 1 - self._A03
+        return 1.0 - self._A03
         
     def getTrmols(self):
-        return 1 - self._Amols    
+        return 1.0 - self._Amols    
     
     def getTrmola(self):
-        return 1 - self._Amola    
+        return 1.0 - self._Amola    
     
     def getTrH2O (self):
-        return 1 - self._AH2O     
+        return 1.0 - self._AH2O     
     
     def getTrAll(self):
         return self.getTr03()*self.getTrmols()*self.getTrmola()* self.getTrH2O()
     
-    def plotTemplate(self):
+    def plotTemplate(self, WLmin=None, WLmax=None, pTitle=""):
+        if WLmin ==None:
+            idxMin = 0
+        else:
+            idx = np.where(self._wl >= WLmin)[0]
+            idxMin = idx[0]
+            
+        if WLmax ==None:
+            idxMax = len(self._wl)
+        else:
+            idx = np.where(self._wl <= WLmax)[0]
+            idxMax = idx[-1]        
         pl.figure()
-        pl.plot(self._wl, self.getTr03())
-        pl.plot(self._wl, self.getTrmols())
-        pl.plot(self._wl, self.getTrmola())
-        pl.plot(self._wl, self.getTrH2O())
+        pl.plot(self._wl[idxMin:idxMax], self.getTr03()[idxMin:idxMax])
+        pl.plot(self._wl[idxMin:idxMax], self.getTrmols()[idxMin:idxMax])
+        pl.plot(self._wl[idxMin:idxMax], self.getTrmola()[idxMin:idxMax])
+        pl.plot(self._wl[idxMin:idxMax], self.getTrH2O()[idxMin:idxMax])
         TrAll = self.getTrAll()
-        pl.plot(self._wl, TrAll,'y')
-        pl.title("Template MODTRAN transmission")
-        pl.legend(["03","mols","mola/02","H2O","all"],loc=4)
+        pl.plot(self._wl[idxMin:idxMax], TrAll[idxMin:idxMax],'y')
+        pl.title("Template MODTRAN transmission "+pTitle)
+        pl.legend(["03","mols","mola/02","H2O","all"],loc=3)
         pl.grid()
         pl.xlabel("%gm"%self._Unit )
         pl.ylabel("%")
