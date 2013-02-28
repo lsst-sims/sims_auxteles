@@ -229,7 +229,7 @@ class AtmStarSolverv1(object):
             #print "getResidu ", param
             # add temp
             TempParam = np.concatenate((tempStar, param))
-            residu = self._Obs.computeResiduSlow(TempParam)
+            residu = self._Obs.computeResidu(TempParam)
             chi2 = (residu.ravel()**2).sum()
             print "chi2: ",chi2
             self._CostFunc.append(chi2)
