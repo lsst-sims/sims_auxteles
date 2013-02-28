@@ -74,13 +74,19 @@ class AtmTransArray(object):
 
 class ObsSurvey(object):
     def __init__(self):
-        # flux measured
+        # array flux measured
         self.aFlux = None
-        # constant model vector
+        # constant model vector for each flux
         self.aConst = None
-        # index relation with a flux measured and atmosphere parameters
+        # aIdxParAtm : indirection table for atmospheric parameters
+        # return for idx flux , idx in global vector parameter of atmospheric associated to input idx flux
+        # the order is coherent with convention used by BurkeAtmModel class ie:
+        #   Tgray, Tau0, Tau1 , Tau2, alpha, Cmol, C_O3, C_H2O, dC_{H2O}/dEW, dC_{H2O}/dNS 
         self.aIdxParAtm = None
-        # index relation with a flux measured and star parameters
+        # aIdxParStar : indirection table for star Kurucz parameters
+        # return for idx flux , idx in global vector parameter Kurucz associated to input idx flux
+        # the order is coherent with convention used by Kurucz class ie:
+        #   metallicity, temperature, gravity        
         self.aIdxParStar= None
         self.NbFlux   = 0
         self._NbNight = 0
@@ -89,7 +95,10 @@ class ObsSurvey(object):
         self._NbPatm  = 0
         self._memoStarFlux = None
         self._memoAtmTrans = None
-        
+        self._NameNightAtm = [r'$\tau_0$',r'$\tau_1$', r'$\tau_2$', r'$\alpha$', '$C_{mol}$', '$C_{O3}$','$dC_{H2O}/dEW$','$dC_{H2O}/dNS$']
+        self._NameTgray = '$T_{gray}$'
+        self._NameWater = '$C_{H2O}$'
+
         
     def readObsNight(self, pRep):
         """
@@ -106,6 +115,29 @@ class ObsSurvey(object):
         pl.title('Obs flux '+pTitle)
         pl.grid()
         
+    def _covar2Correl(self, mat):
+        matTp = np.copy(mat)
+        #print matTp
+        diag = np.sqrt(matTp.diagonal())
+        A = np.outer(np.ones(mat.shape[0]), diag)
+        #print A
+        res = matTp/(A*A.transpose())
+        #print res
+        return res
+    
+    def plotCorrelMatrix(self, mat, namePar, pTitle=''):
+        #pl.figure()        
+        #pl.pcolor(mat)
+        #pl.matshow(mat, cmap=pl.cm.gray)        
+        im = pl.matshow(self._covar2Correl(mat),vmin=-1, vmax=1)  
+        pl.title(pTitle)  
+        aIdx = np.arange(len(namePar))
+        pl.xticks(aIdx,  namePar)
+        for label in im.axes.xaxis.get_ticklabels():
+            label.set_rotation(45)
+        pl.yticks(aIdx, namePar)
+        pl.colorbar()
+
 
 class ObsSurveySimu01(ObsSurvey):
     """
@@ -132,17 +164,22 @@ class ObsSurveySimu01(ObsSurvey):
 #########
     def _createTrueParAndConst(self):
         # create true param
+        # parameter night variation[idx flux]: tau0, tau1, tau2, alpha, Cmol,C_O3,dC_H2O/dWE,dC_H2O/dNS
         self._SimuParNight  = np.zeros((self._NbNight, 8), dtype=np.float32)
+        # Tgray one by spectrum acquisition
         self._SimuParTgray  = np.zeros(self._NbFlux , dtype=np.float32)
-        self._SimuParC_H2O  = np.zeros(self._NbSimul , dtype=np.float32)
+        # C_H2O one by period of observation
+        self._SimuParC_H2O  = np.zeros(self._NbPeriodObs , dtype=np.float32)
+        # SimuParObsIdx [idx flux] = idx night, idx star, idx period observation
         self._SimuParObsIdx = np.zeros((self._NbFlux, 3) , dtype=np.int32)
+        # observation constant [idx flux]= time, alt, az, pressure
         self._SimuConstObs  = np.zeros((self._NbFlux, self._NbConst) , dtype=np.float32)        
         
     def _randomTrueParAndConst(self):
         self._createTrueParAndConst()
         #######:  _SimuParNight       
         # tau 0
-        self._SimuParNight[:,0] = np.random.uniform(0.0, 0.015, self._NbNight)
+        self._SimuParNight[:,0] = np.random.uniform(0.01, 0.05, self._NbNight)
         # tau 1
         self._SimuParNight[:,1] = np.random.uniform(-0.0005, 0.0005, self._NbNight)
         # tau 2
@@ -150,7 +187,7 @@ class ObsSurveySimu01(ObsSurvey):
         # alpha
         self._SimuParNight[:,3] = np.random.uniform(-2, -0.05, self._NbNight)
         # Cmol
-        self._SimuParNight[:,4] = np.random.uniform(0.5, 1.2, self._NbNight)
+        self._SimuParNight[:,4] = np.random.uniform(0.7, 1.2, self._NbNight)
         # C_O3
         self._SimuParNight[:,5] = np.random.uniform(0.5, 1.2, self._NbNight)
         # dC_H2O/dWE
@@ -159,18 +196,18 @@ class ObsSurveySimu01(ObsSurvey):
         self._SimuParNight[:,7] = np.random.uniform(-0.05, 0.05, self._NbNight)
         ######## _SimuParObs
         # Tgray
-        self._SimuParTgray = np.random.uniform(0.7, 0.8, self._NbFlux)
+        self._SimuParTgray = np.random.uniform(0.6, 0.99, self._NbFlux)
         # C_H2O
-        self._SimuParC_H2O = np.random.uniform(0.5, 1.2, self._NbSimul)
+        self._SimuParC_H2O = np.random.uniform(0.5, 1.2, self._NbPeriodObs)
         ######## _SimuParObsIdx
         # idx night
         idx = np.arange(self._NbNight)
         self._SimuParObsIdx[:,0] = np.outer(idx, np.ones(self._NbObsNight*self._NbStar, dtype=np.int32)).ravel()
         # idx star
         idx = np.arange(self._NbStar)
-        self._SimuParObsIdx[:,1] = np.outer( np.ones(self._NbSimul, dtype=np.int32), idx ).ravel()   
-        # idx simul     
-        idx = np.arange(self._NbSimul)
+        self._SimuParObsIdx[:,1] = np.outer( np.ones(self._NbPeriodObs, dtype=np.int32), idx ).ravel()   
+        # idx  period observation  
+        idx = np.arange(self._NbPeriodObs)
         self._SimuParObsIdx[:,2] = np.outer(idx,  np.ones(self._NbStar, dtype=np.int32) ).ravel()        
         ######## _SimuConstObs
         # time
@@ -179,7 +216,8 @@ class ObsSurveySimu01(ObsSurvey):
         self._SimuConstObs[:,0] = np.random.uniform(np.deg2rad(45), np.deg2rad(90), self._NbFlux)
         self._SimuConstObs[:,1] = np.random.uniform(0, 2*np.pi, self._NbFlux)
         # pressure
-        self._SimuConstObs[:,3] = np.random.normal(782, 20, self._NbFlux)
+        self._SimuConstObs[:,3] = np.random.uniform(750, 820, self._NbFlux)
+        #print self._SimuConstObs[:,3]
 
 # PUBLIC        
 ########    
@@ -192,8 +230,8 @@ class ObsSurveySimu01(ObsSurvey):
         self._NbStar = self._Ostar._NbStar
         self._NbWL = self._Ostar._NbWL
         self._NbPstar  = self._Ostar._NbPstar
-        self._NbSimul = self._NbNight*self._NbObsNight
-        self._NbFlux  = self._NbSimul*self._NbStar
+        self._NbPeriodObs = self._NbNight*self._NbObsNight
+        self._NbFlux  = self._NbPeriodObs*self._NbStar
                 
     def setAtmModel(self, pOatm):
         assert isinstance(pOatm, atm.BurkeAtmModel)                       
@@ -282,19 +320,24 @@ class ObsSurveySimu01(ObsSurvey):
         idxFlux = 0
         # index vector parameters : star param, atm param
         idxPar = self._NbStar*self._NbPstar
-        self.aFlux = np.zeros((self._NbFlux, self._NbWL), dtype=np.float64)       
+        self.aFlux = np.zeros((self._NbFlux, self._NbWL), dtype=np.float64) 
+        #  aConst =  _SimuConstObs    
         self.aConst = np.zeros((self._NbFlux, self._NbConst), dtype=np.float64)
         self.aIdxParAtm = np.zeros((self._NbFlux, self._NbPatm), dtype=np.int16)
-        self.aIdxParStar = np.zeros((self._NbFlux, self._NbPstar), dtype=np.int16)
+        self.aIdxParStar = np.zeros((self._NbFlux, self._NbPstar), dtype=np.int16)       
         # random parameters
         ###
         self._randomTrueParAndConst()
         idxParNight = idxPar 
         idxParCH20  = idxParNight + 8 
-        idxParTgray = idxParNight + 9        
+        idxParTgray = idxParNight + 9  
+        self._NameAtm = []      
         for idxN in range(self._NbNight): 
-            for idxO in range(self._NbObsNight):                
+            [self._NameAtm.append(x) for x in self._NameNightAtm]
+            for idxO in range(self._NbObsNight):
+                self._NameAtm.append(self._NameWater)            
                 for idxS in range(self._NbStar):
+                    self._NameAtm.append(self._NameTgray) 
                     print idxN,idxO,idxS
                     # compute flux 
                     self.aFlux[idxFlux,:] = self._Ostar.getFluxIdx(self._SimuParObsIdx[idxFlux,1])
@@ -327,9 +370,9 @@ class ObsSurveySimu01(ObsSurvey):
             idxParCH20 =   idxParNight + 8 
             idxParTgray =  idxParNight + 9                
         # with last observation    
-        self._NbParam = self._NbStar*self._NbPstar + self._NbNight*8 + self._NbSimul*(1+self._NbStar)
+        self._NbParam = self._NbStar*self._NbPstar + self._NbNight*8 + self._NbPeriodObs*(1+self._NbStar)
     
-    def addNoisebySNR(self, snr=100, doPlot=False):
+    def addNoisebySNRglobal(self, snr=100, doPlot=False):
         mean = self.aFlux.ravel().mean()
         sigma =  mean/ snr 
         print "mean signal :", mean
@@ -347,6 +390,25 @@ class ObsSurveySimu01(ObsSurvey):
             pl.plot(self._Oatm._aWL,self.aFlux[2])
             pl.xlabel("Angstrom")
             pl.legend(["no noise","with noise","no noise","with noise" ])
+            pl.grid()
+            
+    def addNoisebySNR(self, snr=100, doPlot=[]):
+        aFlux = self.aFlux.copy()
+        for idxF in range(self._NbFlux):
+            flux = self.aFlux[idxF]
+            mean = flux.mean()
+            sigma =  mean/ snr 
+            print "mean signal :", mean
+            print "sigma for SNR %f: ", sigma
+            noise = np.random.normal(0, sigma, self._NbWL)
+            self.aFlux[idxF] += noise
+        if doPlot != []:
+            pl.figure()
+            pl.title("Add noise to flux SNR %f"%snr)
+            for idx in doPlot:
+                pl.plot(self._Oatm._aWL, self.aFlux[idx],'.')
+                pl.plot(self._Oatm._aWL, aFlux[idx])
+            pl.xlabel("Angstrom")            
             pl.grid()
     
     def computeTransTheoIdx(self, idx, param):
@@ -533,7 +595,7 @@ class ObsSurveySimu02(ObsSurveySimu01):
         self._NbStar = self._Ostar._NbStar
         self._NbWL = self._Ostar._NbWL
         self._NbPstar  = self._Ostar._NbPstar
-        self._NbSimul = self._NbNight*self._NbObsNight
-        self._NbFlux  = self._NbSimul*self._NbStar
+        self._NbPeriodObs = self._NbNight*self._NbObsNight
+        self._NbFlux  = self._NbPeriodObs*self._NbStar
     
     
