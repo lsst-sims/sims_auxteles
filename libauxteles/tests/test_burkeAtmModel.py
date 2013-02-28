@@ -30,8 +30,9 @@ def test_ComputeAtmTransmission():
     oAtm.setParamExample1()
     oAtm.computeAtmTransAtConstObs(np.pi/3, np.pi/2, 800)    
     oAtm.plotCurrentTrans()
-    oAtm.computeAtmTransAtConstObs(np.pi/4, np.pi/2, 850)
-    oAtm.plotCurrentTrans()
+#    oAtm.computeAtmTransAtConstObs(np.pi/4, np.pi/2, 850)
+#    oAtm.plotCurrentTrans()
+    oAtm.printBurkeModel()
     
 def test_AltVariation():
     oAtm= BurkeAtmModel(fileModtran)   
@@ -121,7 +122,7 @@ def test_leastsq01():
 
 
 def test_leastsq02():
-    oAtm= BurkeAtmModelv1(fileModtran, np.array([0]))
+    oAtm= BurkeAtmModel(fileModtran, np.array([0]))
     oAtm.setConstObsComp(np.pi/3, np.pi/4, np.array([0.]), 750)
     oAtm.setParamExample1()
     #oAtm.setParamNoEffect()
@@ -257,13 +258,13 @@ class Test(unittest.TestCase):
         
 #test_init()
 #test_setDefaultModel()
-#test_ComputeAtmTransmission()
+test_ComputeAtmTransmission()
 #test_AltVariation()
 #test_PresVariation()
 #test_CH20Variation()
 
 #np.random.seed(150)
-test_leastsq03()
+#test_leastsq03()
 #test_leastsq03_v2()
 
 try:

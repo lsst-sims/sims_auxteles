@@ -19,8 +19,8 @@ class BurkeAtmModel(object):
         Cmol :   self._Par[5]
         C_O3 :   self._Par[6]
         C_H2O :   self._Par[7]
-        C_{H2O}/dEW :   self._Par[8]
-        C_{H2O}/dNS : self._Par[9]
+        dC_{H2O}/dEW :   self._Par[8]
+        dC_{H2O}/dNS : self._Par[9]
     """
     
     def _razNeg(self, pAr):
@@ -61,25 +61,26 @@ class BurkeAtmModel(object):
           
     def _transGrayAero(self):
         tau  = self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3]
+        #print 'rap:', self._aWL[0]/self._WL0, self._aWL[-1]/self._WL0
         tau *= np.power(self._aWL/self._WL0, self._Par[4])        
         return self._razNeg(self._Par[0]*np.exp(-self._AirMass*tau))
         
     def _transMols(self):
         #return self._razNeg(1.0 - self._Par[5]*self._PresRat*np.power(self._Tpl._Amols, self._AirMass))
-        return self._razNeg(1.0 - self._Par[5]*self._PresRat*(1 - np.power(self._Tpl.getTrmols(), self._AirMass)))
+        return self._razNeg(1.0 - self._Par[5]*self._PresRat*(1.0 - np.power(self._Tpl.getTrmols(), self._AirMass)))
     
     def _transMola(self): 
         #return self._razNeg(1.0 - np.sqrt(self._Par[5]*self._PresRat)*self._AbsO2Const*np.power(self._Tpl._Amola, self._AirMass))
-        return self._razNeg(1.0 - np.sqrt(self._Par[5]*self._PresRat)*(1 - self._AbsO2Const*np.power(self._Tpl.getTrmola(), self._AirMass)))
+        return self._razNeg(1.0 - np.sqrt(self._Par[5]*self._PresRat)*(1.0 - self._AbsO2Const*np.power(self._Tpl.getTrmola(), self._AirMass)))
      
     def _transO3(self):
         #return self._razNeg(1.0 - self._Par[6]*np.power(self._Tpl._A03, self._AirMass))
-        return self._razNeg(1.0 - self._Par[6]*(1 - np.power(self._Tpl.getTr03(), self._AirMass)))
+        return self._razNeg(1.0 - self._Par[6]*(1.0 - np.power(self._Tpl.getTr03(), self._AirMass)))
         
     def _transH2O(self):
         C_H20 = self._Par[7] + self._EW*self._Par[8] + self._NS*self._Par[9]
         #return self._razNeg(1.0 - C_H20*self._AbsH2OConst*np.power(self._Tpl._AH2O, self._AirMass))
-        return self._razNeg(1.0 - C_H20*(1 - self._AbsH2OConst*np.power(self._Tpl.getTrH2O(), self._AirMass)))
+        return self._razNeg(1.0 - C_H20*(1.0 - self._AbsH2OConst*np.power(self._Tpl.getTrH2O(), self._AirMass)))
     
 #       
 # PUBLIC
@@ -147,6 +148,7 @@ class BurkeAtmModel(object):
         self._EW = np.cos(alt)*np.sin(az)  
         self._NS = np.cos(alt)*np.cos(az)            
         self._PresRat = pressure*1.0/self._PressureRef
+        #print "PresRat: ",self._PresRat, pressure
         
 # getter
     def computeAtmTrans(self, flagPlot=False):
@@ -154,18 +156,20 @@ class BurkeAtmModel(object):
         if flagPlot: 
             pl.figure()
             ret = self._transGrayAero()
-            pl.plot(ret)
-            ret *= self._transMols()
-            pl.plot(ret)
-            ret *= self._transMola()
-            pl.plot(ret)
-            ret *= self._transO3()
-            pl.plot(ret)
-            ret *= self._transH2O()
-            pl.plot(ret)
-            pl.legend(["gray","Mols","Mola","O3","H2O"])
+            pl.plot(self._aWL,ret,'r--')
+            ret1 = self._transMols()
+            pl.plot(self._aWL,ret1,'y--.')
+            ret2= self._transMola()
+            pl.plot(self._aWL,ret2,'b:')
+            ret3= self._transO3()
+            pl.plot(self._aWL,ret3,'y--')
+            ret4= self._transH2O()
+            pl.plot(self._aWL,ret4,'r--.')
+            pl.plot(self._aWL,ret*ret1*ret2*ret3*ret4)
+            pl.legend(["gray-aero","Mols","Mola","O3","H2O","all"],loc=3)
             #pl.legend(["gray"])
             pl.title("composant modtran")
+            pl.grid()
             self._CurtTrans = ret
         else:
             ret = self._transGrayAero()
@@ -293,8 +297,8 @@ class BurkeAtmModelTauPos(BurkeAtmModel):
         Cmol :   self._Par[5]
         C_O3 :   self._Par[6]
         C_H2O :   self._Par[7]
-        C_{H2O}/dEW :   self._Par[8]
-        C_{H2O}/dNS : self._Par[9]
+        dC_{H2O}/dEW :   self._Par[8]
+        dC_{H2O}/dNS : self._Par[9]
     """
     
     def __init__(self, ModFileTempl, pressure=782):

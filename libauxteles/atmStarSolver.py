@@ -22,7 +22,7 @@ class AtmStarSolverv1(object):
         self._StarMod = kur.Kurucz("")
         self._AtmMod = atm.BurkeAtmModel("")
         self._CostFunc = []
-        
+        self._parEst = 0 # parameter estimation
         
     def init(self, oObs, oKur, oAtm):
         """        
@@ -229,7 +229,7 @@ class AtmStarSolverv1(object):
             #print "getResidu ", param
             # add temp
             TempParam = np.concatenate((tempStar, param))
-            residu = self._Obs.computeResidu(TempParam)
+            residu = self.getResidus(TempParam)
             chi2 = (residu.ravel()**2).sum()
             print "chi2: ",chi2
             self._CostFunc.append(chi2)

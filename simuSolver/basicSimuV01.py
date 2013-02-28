@@ -13,7 +13,7 @@ import kurucz as kur
 import pylab as pl
 from burkeAtmModel import BurkeAtmModel
 import numpy as np
-import pylab as pl
+
 
 
 class SimuAtmStarSolve():
@@ -29,7 +29,7 @@ class SimuAtmStarSolve():
         self.oObs.readObsNight("")
         self.oSol = asSol.AtmStarSolverv1()
         self.oSol.init(self.oObs, self.oKur, self.oAtm)
-        self._parEst = 0 # parameter estimation
+       
 
     def plotErrRel(self, estSol, pTitle =""):
         guessTrue = self.oObs.getTrueParam()
@@ -39,7 +39,19 @@ class SimuAtmStarSolve():
         pl.grid()
         pl.title('Relative error on parameters '+pTitle)
         pl.ylabel("%")
+        
+    def aeroErrRel(self, estSol):
+        guessTrue = self.oObs.getTrueParam()
+        idxStart = self.oObs.getFirstIdxAtm()
+        errRel = 100*(estSol[idxStart:idxStart+4] - guessTrue[idxStart:idxStart+4])/guessTrue[idxStart:idxStart+4]
+        return errRel
     
+    def noAeroErrRel(self, estSol):
+        guessTrue = self.oObs.getTrueParam()
+        idxStart = self.oObs.getFirstIdxAtm()
+        errRel = 100*(estSol[idxStart+4:] - guessTrue[idxStart+4:])/guessTrue[idxStart+4:]
+        return errRel
+   
     def plotFluxRawTheo(self, idx, param, pTitle=""):
         pl.figure()
         pl.title("Flux index %d %s"% (idx, pTitle))
@@ -59,7 +71,7 @@ class SimuAtmStarSolve():
         pl.plot(self.oKur.getWL(), TransEst )
         pl.xlabel("Angstrom")
         pl.ylabel("%")
-        pl.legend(["True","Estimated"])
+        pl.legend(["True","Estimated"],loc=2)
         pl.grid()
         
     def plotFluxTheo(self, idx, param):
@@ -79,6 +91,21 @@ class SimuAtmStarSolve():
         pl.xlabel("%")       
         pl.grid()
             
+    def transmisErrRelAtmAll(self):
+        """
+        return vector true relative error transmission function estimated
+        """
+        TruePar = self.oObs.getTrueParam()
+        for idxFlux in range(self.oObs._NbFlux):  
+            TransTrue = self.oObs.computeTransTheoIdx(idxFlux, TruePar)
+            TransEst  = self.oObs.computeTransTheoIdx(idxFlux, self._parEst)
+            errRel = 100*(TransEst - TransTrue)/TransTrue
+            if  idxFlux == 0:       
+                errRelTot = errRel
+            else: 
+                errRelTot = np.concatenate((errRelTot, errRel))
+        return errRelTot
+        
     def plotDistribErrRelAtmAll(self, pTitle=""):
         pl.figure()
         pl.title("distribution relative error transmission for all flux. %s"% (pTitle))
@@ -94,7 +121,7 @@ class SimuAtmStarSolve():
         pl.hist(errRelTot, 50, facecolor='green', log=True)
         pl.xlabel("%")       
         pl.grid()
-       
+      
        
 class SimuAtmStarSolve2(SimuAtmStarSolve):
     """
@@ -173,9 +200,10 @@ def simuOnlyTemp():
     
 def simuOnlyAtm():   
     # create simulation observation
-    np.random.seed(103)
+    np.random.seed(109)
     oSim = SimuAtmStarSolve2(1,24)
-    oSim.oObs.addNoisebySNR (500, True)
+    #oSim.oObs.addNoisebySNR (400, [0,1,2,3])
+    oSim.oObs.addNoisebySNR (400)
     guessTrue = oSim.oObs.getTrueParam() 
     guess = guessTrue*(1+np.random.normal(0,0.05,len(guessTrue)))
     guess = oSim.oObs.getGuessDefault()
@@ -191,21 +219,24 @@ def simuOnlyAtm():
     oSim.oSol.plotCostFuncHistory()
     oSim.plotFluxRawTheo(0, oSim._parEst, 'with param estimated')
     oSim.plotFluxRawTheo(2, oSim._parEst, 'with param estimated')
-    oSim.plotDistribErrRelAtm(1)
-    oSim.plotDistribErrRelAtm(0)
-    oSim.plotDistribErrRelAtmAll()
+#    oSim.plotDistribErrRelAtm(1)
+#    oSim.plotDistribErrRelAtm(0)
+#    oSim.plotDistribErrRelAtmAll()
     oSim.plotTransTrueEst(1)
     oSim.plotTransTrueEst(2)
     oSim.plotTransTrueEst(3)
-    
+    oSim.oObs.plotCorrelMatrix(oSim.oSol._FitRes[1], oSim.oObs._NameAtm )
+    oSim.oAtm.computeAtmTrans(True)
+    oSim.oAtm.printAndPlotBurkeModel()
 #simuOnlyTemp()
 #simu01()
-simuOnlyAtm()
-
-try:
-    #pl.show()
-    pass
-
-except AttributeError:
-    pass
+if __name__ == '__main__':    
+    simuOnlyAtm()
+    
+    try:
+        pl.show()
+        pass
+    
+    except AttributeError:
+        pass
 

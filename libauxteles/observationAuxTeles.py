@@ -98,7 +98,6 @@ class ObsSurvey(object):
         self._NameNightAtm = [r'$\tau_0$',r'$\tau_1$', r'$\tau_2$', r'$\alpha$', '$C_{mol}$', '$C_{O3}$','$dC_{H2O}/dEW$','$dC_{H2O}/dNS$']
         self._NameTgray = '$T_{gray}$'
         self._NameWater = '$C_{H2O}$'
-
         
     def readObsNight(self, pRep):
         """
@@ -257,7 +256,7 @@ class ObsSurveySimu01(ObsSurvey):
         
     def getConst(self, pIdx):
         """
-        return observation constante for Burke model format for flux pIdx
+        return observation constants for Burke model format for flux pIdx
         """
         return self._SimuConstObs[pIdx,:]
     
@@ -295,18 +294,7 @@ class ObsSurveySimu01(ObsSurvey):
                 par[idxS*2+1] = self._Ostar._aParam[idxS, 1]
             for idx in range(self._NbFlux):
                 print self.aIdxParAtm[idx,:]            
-                par[self.aIdxParAtm[idx]] = self.getTrueParamAtmIdx(idx)                
-#            idx = 2*self._NbStar
-#            idxObs = 0
-#            for idxN in range(self._NbNight):
-#                print idx,  self._SimuParNight[idxN]
-#                par[idx:idx+8] = self._SimuParNight[idxN]
-#                idx += 8
-#                for idxO in range(self._NbObsNight):
-#                    print idx
-#                    par[idx:idx+2] = self._SimuParObs[idxObs]
-#                    idxObs += 1
-#                    idx += 2
+                par[self.aIdxParAtm[idx]] = self.getTrueParamAtmIdx(idx)
             self._TrueParam = par
         return np.copy(self._TrueParam)
 

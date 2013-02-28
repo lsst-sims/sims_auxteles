@@ -16,11 +16,11 @@ def test_plotTemplate():
     
 def test_resampleBetween():
     oMOD = TemplateMODTRAN(FileMOD)
-    oMOD.plotTemplate()
-    print oMOD._wl[0], oMOD._wl[-1]
-    print oMOD._wl
+    oMOD.plotTemplate(500, 1000, "raw")
+    #print oMOD._wl[0], oMOD._wl[-1]
+    #print oMOD._wl
     oMOD.resampleBetween(500, 1000, 512)
-    oMOD.plotTemplate()
+    oMOD.plotTemplate(500, 1000, "resample")
     
 class Test(unittest.TestCase):
 
@@ -29,7 +29,7 @@ class Test(unittest.TestCase):
         pass
 
 
-test_plotTemplate()
+#test_plotTemplate()
 test_resampleBetween()
 
 try:
