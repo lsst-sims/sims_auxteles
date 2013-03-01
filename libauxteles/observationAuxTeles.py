@@ -11,67 +11,6 @@ import kurucz as kur
 import numpy as np
 
 
-class StarFluxArray(object):
-    """
-    memory cache star flux 
-    """
-    def __init__(self, nbStar, oKurucz):
-        assert isinstance(oKurucz, kur.Kurucz)
-        self._oKur = oKurucz                
-        self._nbStar = nbStar        
-        self._aParKur = np.zeros((nbStar, 3), dtype=np.float32)
-        sizeWl = len(self._oKur.getWL())
-        print "sizeWl:", sizeWl
-        self._aFlux = np.zeros((nbStar, sizeWl), dtype=np.float32)
-        print self._aFlux.shape
-        
-    def getFlux(self, idx, parKur):
-        if not np.array_equal(parKur, self._aParKur[idx]) :
-            print "New parameter %d"%idx,parKur
-            # comput new flux
-            oKur = self._oKur
-            assert isinstance(oKur, kur.Kurucz)
-            flux = oKur.getFluxInterLin(parKur)
-            self._aParKur[idx] = parKur
-            print flux.shape
-            print self._aFlux.shape
-            self._aFlux[idx,:] = flux
-        else:
-            #print "StarFluxArray: return memo flux"
-            pass
-        return self._aFlux[idx]
-
-
-class AtmTransArray(object):
-    """
-    memory cache atmosphere transmission
-    """    
-    def __init__(self, nbTrans, oBurkeMod):
-        assert isinstance(oBurkeMod, atm.BurkeAtmModel)
-        self._oBurke = oBurkeMod               
-        self._nbTrans = nbTrans      
-        self._aParBurke = np.zeros((nbTrans, 10), dtype=np.float64)
-        sizeWl = len(oBurkeMod._aWL)
-        print "sizeWl:", sizeWl
-        self._aTrans = np.zeros((nbTrans, sizeWl), dtype=np.float64)
-        
-    def getTrans(self, idx, constObs, par):
-        if not np.array_equal(par, self._aParBurke[idx]):
-            #print "New parameter %d"%idx,par
-            # comput new flux
-            oBurkeMod = self._oBurke
-            assert isinstance(oBurkeMod, atm.BurkeAtmModel)
-            oBurkeMod.setConstObs(constObs)
-            oBurkeMod.setParam(par)
-            trans = oBurkeMod.computeAtmTrans()
-            self._aParBurke[idx] = par
-            self._aTrans[idx,:]  = trans
-        else:
-            #print "AtmTransArray: return memo flux"
-            pass
-        return self._aTrans[idx]
-
-
 class ObsSurvey(object):
     def __init__(self):
         # array flux measured
@@ -93,9 +32,7 @@ class ObsSurvey(object):
         self._NbStar  = 0
         self._NbConst = 0
         self._NbPatm  = 0
-        self._memoStarFlux = None
-        self._memoAtmTrans = None
-        self._NameNightAtm = [r'$\tau_0$',r'$\tau_1$', r'$\tau_2$', r'$\alpha$', '$C_{mol}$', '$C_{O3}$','$dC_{H2O}/dEW$','$dC_{H2O}/dNS$']
+        self._NameNightAtm = [r'$\tau_0$',r'$\tau_1$', r'$\tau_2$', r'$\alpha$', '$C_{mol}$', '$C_{O3}$',r'$\partial_NC_{H_2O}$',r'$\partial_EC_{H_2O}$']
         self._NameTgray = '$T_{gray}$'
         self._NameWater = '$C_{H2O}$'
         
@@ -114,29 +51,6 @@ class ObsSurvey(object):
         pl.title('Obs flux '+pTitle)
         pl.grid()
         
-    def _covar2Correl(self, mat):
-        matTp = np.copy(mat)
-        #print matTp
-        diag = np.sqrt(matTp.diagonal())
-        A = np.outer(np.ones(mat.shape[0]), diag)
-        #print A
-        res = matTp/(A*A.transpose())
-        #print res
-        return res
-    
-    def plotCorrelMatrix(self, mat, namePar, pTitle=''):
-        #pl.figure()        
-        #pl.pcolor(mat)
-        #pl.matshow(mat, cmap=pl.cm.gray)        
-        im = pl.matshow(self._covar2Correl(mat),vmin=-1, vmax=1)  
-        pl.title(pTitle)  
-        aIdx = np.arange(len(namePar))
-        pl.xticks(aIdx,  namePar)
-        for label in im.axes.xaxis.get_ticklabels():
-            label.set_rotation(45)
-        pl.yticks(aIdx, namePar)
-        pl.colorbar()
-
 
 class ObsSurveySimu01(ObsSurvey):
     """
@@ -225,10 +139,10 @@ class ObsSurveySimu01(ObsSurvey):
 # SETTER              
     def setStarTarget(self, pOstar):
         assert isinstance(pOstar, star.StarTargetSimu)    
-        self._Ostar = pOstar
-        self._NbStar = self._Ostar._NbStar
-        self._NbWL = self._Ostar._NbWL
-        self._NbPstar  = self._Ostar._NbPstar
+        self._oStarCat = pOstar
+        self._NbStar = self._oStarCat._NbStar
+        self._NbWL = self._oStarCat._NbWL
+        self._NbPstar  = self._oStarCat._NbPstar
         self._NbPeriodObs = self._NbNight*self._NbObsNight
         self._NbFlux  = self._NbPeriodObs*self._NbStar
                 
@@ -280,7 +194,19 @@ class ObsSurveySimu01(ObsSurvey):
         """
         return index of first parameter relative to atmopshere in parameter vector 
         """
-        return  2*self._NbStar    
+        return  2*self._NbStar
+    
+    def getAtmPart(self, pParam):
+        """
+        get atmosphere part of parameter pParam
+        """
+        return pParam[self.getFirstIdxAtm():]
+    
+    def getStarPart(self, pParam):
+        """
+        get star part of parameter pParam
+        """
+        return pParam[:self.getFirstIdxAtm()]
     
     def getTrueParam(self):
         """
@@ -290,8 +216,8 @@ class ObsSurveySimu01(ObsSurvey):
             par = np.zeros(self._NbParam)
             print "_NbParam",self._NbParam
             for idxS in range(self._NbStar):
-                par[idxS*2] = self._Ostar._aParam[idxS, 0]
-                par[idxS*2+1] = self._Ostar._aParam[idxS, 1]
+                par[idxS*2] = self._oStarCat._aParam[idxS, 0]
+                par[idxS*2+1] = self._oStarCat._aParam[idxS, 1]
             for idx in range(self._NbFlux):
                 print self.aIdxParAtm[idx,:]            
                 par[self.aIdxParAtm[idx]] = self.getTrueParamAtmIdx(idx)
@@ -328,7 +254,7 @@ class ObsSurveySimu01(ObsSurvey):
                     self._NameAtm.append(self._NameTgray) 
                     print idxN,idxO,idxS
                     # compute flux 
-                    self.aFlux[idxFlux,:] = self._Ostar.getFluxIdx(self._SimuParObsIdx[idxFlux,1])
+                    self.aFlux[idxFlux,:] = self._oStarCat.getFluxIdx(self._SimuParObsIdx[idxFlux,1])
                     # compute transmission atm 
                     self._Oatm.setConstObs(self.getConst(idxFlux))
                     self._Oatm.setParam(self.getTrueParamAtmIdx(idxFlux))                   
@@ -423,32 +349,11 @@ class ObsSurveySimu01(ObsSurvey):
         trans = self._Oatm.computeAtmTrans()
         # compute model flux
         parStar[1:] = param[self.aIdxParStar[idx]]
-        flux = self._Ostar._oKur.getFluxInterLin(parStar)            
+        flux = self._oStarCat._oKur.getFluxInterLin(parStar)            
         # model 
         atmStarMod = trans*flux            
         return atmStarMod
-             
-                
-    def computeResidu(self, param):
-        """
-        return residu vector for parameter vector param
-        """
-        parStar = np.array([-3, 0.0, 0.0])
-        residu = np.copy(self.aFlux)         
-        for idx in range(self._NbFlux):           
-            # compute model transmission                
-            self._Oatm.setConstObs(self.aConst[idx])
-            par = param[self.aIdxParAtm[idx]]
-            self._Oatm.setParam(par)
-            trans = self._Oatm.computeAtmTrans()
-            # compute model flux
-            parStar[1:] = param[self.aIdxParStar[idx]]
-            flux = self._Ostar._oKur.getFluxInterLin(parStar)            
-            # model 
-            atmStarMod = trans*flux
-            residu[idx,:] -= atmStarMod           
-        return residu.ravel()
-    
+                                 
 # PLOT FUNCTION
     def plotFlux(self,idx):
         pl.figure()
@@ -501,14 +406,13 @@ class ObsSurveySimu02(ObsSurveySimu01):
             par = np.zeros(self._NbParam)
             print "_NbParam",self._NbParam
             for idxS in range(self._NbStar):                
-                par[idxS] = self._Ostar._aParam[idxS, 1]
+                par[idxS] = self._oStarCat._aParam[idxS, 1]
             for idx in range(self._NbFlux):
                 print self.aIdxParAtm[idx,:]            
                 par[self.aIdxParAtm[idx]] = self.getTrueParamAtmIdx(idx)                
             self._TrueParam = par
         return np.copy(self._TrueParam)  
-    
-              
+                  
     def computeFluxTheoIdx(self, idxFlux, param):
         """
         idxFlux : index flux measure
@@ -521,68 +425,17 @@ class ObsSurveySimu02(ObsSurveySimu01):
         trans = self._Oatm.computeAtmTrans()
         # compute model flux
         temp = param[self.aIdxParStar[idxFlux]]
-        parStar =  self._Ostar.addMetGra(self.aIdxParStar[idxFlux], temp)
-        flux = self._Ostar._oKur.getFluxInterLin(parStar)        
+        parStar =  self._oStarCat.addMetGra(self.aIdxParStar[idxFlux], temp)
+        flux = self._oStarCat._oKur.getFluxInterLin(parStar)        
         atmStarMod = trans*flux
         return atmStarMod
-   
-    def computeResiduSlow(self, param):
-        if self._memoStarFlux == None:
-            self._memoStarFlux =  StarFluxArray(self._NbStar, self._Ostar._oKur) 
-        residu = np.copy(self.aFlux)  
-        print "================================"  
-        #print param
-        for idx in range(self._NbFlux):
-            #print idx
-            # compute model transmission 
-            self._Oatm.setConstObs(self.aConst[idx])
-            par = param[self.aIdxParAtm[idx]]
-            #print self.aIdxParAtm[idx]
-            #print "atm par:", par
-            self._Oatm.setParam(par)
-            trans = self._Oatm.computeAtmTrans()
-            # compute model flux
-            temp = param[self.aIdxParStar[idx]]
-            parStar =  self._Ostar.addMetGra(self.aIdxParStar[idx], temp)
-            flux = self._memoStarFlux.getFlux(self._SimuParObsIdx[idx, 1], parStar)
-            #flux = self._Ostar._oKur.getFluxInterLin(parStar)
-            #if idx < self._NbStar: print "star par:", parStar
-            # model 
-            atmStarMod = trans*flux
-            residu[idx,:] -= atmStarMod        
-        return residu.ravel()
-    
-    def computeResidu(self, param):
-        if self._memoStarFlux == None:
-            self._memoStarFlux =  StarFluxArray(self._NbStar, self._Ostar._oKur) 
-        if self._memoAtmTrans == None:
-            self._memoAtmTrans =  AtmTransArray(self._NbFlux, self._Oatm) 
-        residu = np.copy(self.aFlux)  
-        print "================================"  
-        #print param
-        for idx in range(self._NbFlux):
-            #print idx
-            # compute model transmission 
-            constObs = self.aConst[idx]            
-            par = param[self.aIdxParAtm[idx]]
-            trans = self._memoAtmTrans.getTrans(idx, constObs, par)
-            # compute model flux
-            temp = param[self.aIdxParStar[idx]]
-            parStar = self._Ostar.addMetGra(self.aIdxParStar[idx], temp)
-            flux = self._memoStarFlux.getFlux(self._SimuParObsIdx[idx, 1], parStar)
-            #flux = self._Ostar._oKur.getFluxInterLin(parStar)
-            #if idx < self._NbStar: print "star par:", parStar
-            # model 
-            atmStarMod = trans*flux
-            residu[idx,:] -= atmStarMod        
-        return residu.ravel()
-    
+       
     def setStarTarget(self, pOstar):
         assert isinstance(pOstar, star.StarTargetSimuAll)    
-        self._Ostar = pOstar
-        self._NbStar = self._Ostar._NbStar
-        self._NbWL = self._Ostar._NbWL
-        self._NbPstar  = self._Ostar._NbPstar
+        self._oStarCat = pOstar
+        self._NbStar = self._oStarCat._NbStar
+        self._NbWL = self._oStarCat._NbWL
+        self._NbPstar  = self._oStarCat._NbPstar
         self._NbPeriodObs = self._NbNight*self._NbObsNight
         self._NbFlux  = self._NbPeriodObs*self._NbStar
     

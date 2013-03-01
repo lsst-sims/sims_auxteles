@@ -54,7 +54,10 @@ class BurkeAtmModel(object):
         self._NameParam.append('$dC_{H2O}/dNS$')
         self._AbsH2OConst = 10.0**(-0.4*0.01)
         self._AbsO2Const  = 10.0**(-0.4*0.005)
-        
+    
+    def getWL(self):
+        return self._aWL 
+    
     def resample(self, pWL):
         self._Tpl.resample(pWL)
         self._aWL = self._Tpl._wl

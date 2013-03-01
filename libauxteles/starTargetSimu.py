@@ -7,6 +7,7 @@ import kurucz as kur
 import numpy as np 
 
 
+
 class StarTargetSimu(object):
 
     def __init__(self, oKur):
@@ -66,7 +67,10 @@ class StarTargetSimuAll(object):
                                  [0.0 , 9520, 4.14 ]], dtype=np.float32)        
         self._NbWL = len(oKur.getWL())       
         self._aFlux= np.zeros((self._NbStar, self._NbWL), dtype = np.float32)
-        self._setFlux()        
+        self._setFlux() 
+               
+    def getAllTemperature(self):
+        return self._aParam[:,1]
     
     def addStar(self, pParm):
         self._NbStar += 1
