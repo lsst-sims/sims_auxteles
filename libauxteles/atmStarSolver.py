@@ -10,11 +10,6 @@ import kurucz as kur
 import burkeAtmModel as atm
 import pylab as pl
 
-#from matplotlib import rc
-
-#rc('text', usetex=True)
-#rc('font', family='serif')
-
 
 
 class StarFluxArray(object):
@@ -25,15 +20,15 @@ class StarFluxArray(object):
         assert isinstance(oKurucz, kur.Kurucz)
         self._oKur = oKurucz                
         self._nbStar = nbStar        
-        self._aParKur = np.zeros((nbStar, 3), dtype=np.float32)
+        self._aParKur = np.zeros((nbStar, 3), dtype=np.float64)
         sizeWl = len(self._oKur.getWL())
         print "sizeWl:", sizeWl
-        self._aFlux = np.zeros((nbStar, sizeWl), dtype=np.float32)
+        self._aFlux = np.zeros((nbStar, sizeWl), dtype=np.float64)
         print self._aFlux.shape
                 
     def getFlux(self, idx, parKur):
         if not np.array_equal(parKur, self._aParKur[idx]) :
-            print "New parameter %d"%idx,parKur
+            print "New temp %d"%idx,parKur
             # comput new flux
             oKur = self._oKur
             assert isinstance(oKur, kur.Kurucz)
@@ -42,6 +37,7 @@ class StarFluxArray(object):
             print flux.shape
             print self._aFlux.shape
             self._aFlux[idx,:] = flux
+            #print flux
         else:
             #print "StarFluxArray: return memo flux"
             pass
@@ -63,10 +59,12 @@ class AtmTransArray(object):
         
     def getTrans(self, idx, constObs, par):
         if not np.array_equal(par, self._aParBurke[idx]):
-            #print "New parameter %d"%idx,par
+            #diff =par- self._aParBurke[idx]
+            #print "Atm change :", np.where(diff != 0.0)[0],' flux idx', idx
             # comput new flux
             oBurkeMod = self._oBurke
             assert isinstance(oBurkeMod, atm.BurkeAtmModel)
+            #print oBurkeMod
             oBurkeMod.setConstObs(constObs)
             oBurkeMod.setParam(par)
             trans = oBurkeMod.computeAtmTrans()
@@ -78,7 +76,7 @@ class AtmTransArray(object):
         return self._aTrans[idx]
         
 
-class AtmSolver(object):
+class AtmStarSolver(object):
     """
     with leastsq() from scipy optimize package
     """
@@ -188,12 +186,21 @@ class AtmSolver(object):
         guessTrue = self._oObs.getTrueParam()
         errRel = 100*(estSol - guessTrue)/guessTrue
         pl.figure()
+        aIdx = np.arange(len(errRel))
+        pl.xticks(aIdx, self._oObs.getNameVecParam(), rotation=90)        
+        pl.plot(errRel,"*")      
+        pl.grid()
+        pl.title('Relative error on parameters '+pTitle)
+        pl.ylabel("%")
+        
+    def plotErrRelAtm(self, estSol, pTitle =""):
+        guessTrue = self._oObs.getTrueParam()
+        errRel = 100*(estSol - guessTrue)/guessTrue
+        pl.figure()
         errRelAtm = self._oObs.getAtmPart(errRel)
         aIdx = np.arange(len(errRelAtm))
-        pl.xticks(aIdx, self._oObs._NameAtm, rotation=90)
-        
-        pl.plot(errRelAtm,"*")
-      
+        pl.xticks(aIdx, self._oObs._NameAtm, rotation=90)        
+        pl.plot(errRelAtm,"*")      
         pl.grid()
         pl.title('Relative error on parameters '+pTitle)
         pl.ylabel("%")
@@ -258,49 +265,33 @@ class AtmSolver(object):
 # Slover method
 #     
                
-    def solve(self, guess = None):
+    def solveAtmStarTempGra(self, guess = None):
+        """
+        fit atmosphere parameters, temperature and gravity for star
+        """
         if guess == None:
-            guess = self._oObs.getGuessDefault()        
-        #guess += np.random.uniform(0, 0.05, len(guess))*guess
-        print guess
-        pl.figure()
-        leg=[]
-        def residus(param):
-            obs = self._oObs
-            parStar = np.array([-3, 0.0, 0.0])
-            residu = np.copy(obs.aFlux)  
-            print "================================"  
-            for idx in range(obs._NbFlux):
-                #print idx
-                # compute model transmission                
-                self._oAtm.setConstObs(obs.aConst[idx])
-                par = param[obs.aIdxParAtm[idx]]
-                #print "atm par:", par
-                self._oAtm.setParam(par)
-                trans = self._oAtm.computeAtmTrans()
-                # compute model flux
-                parStar[1:] = param[obs.aIdxParStar[idx]]
-                flux = self._oStar.getFluxInterLin(parStar)
-                if idx <= self._oObs._NbStar: print "star par:", parStar
-                # model 
-                atmStarMod = trans*flux
-                residu[idx,:] -= atmStarMod
-                if idx %4 ==1 and False:                    
-                    #pl.plot(self._oAtm._aWL,atmStarMod)
-                    pl.plot(self._oAtm._aWL,obs.aFlux[idx])                    
-                    leg.append("Tgray %.2f ,C_H2O %.2f ,C_mol %.2f"%(par[0],par[7],par[5]))
-            #pl.legend(leg)
-            #pl.grid()
-            #pl.xlabel("Angstrom")
-            #pl.ylabel("flux in arbitrary unit")
-            #pl.title("Same star spectrum for different atmospheric conditions")
-            #print self._oAtm._aWL
-            #print atmStarMod.sum(),residu.ravel().sum()
-            #pl.show()
-            return residu.ravel()
-        self._FitRes = spo.leastsq(residus, guess, full_output=True)
-        print self._FitRes[0]
-        return self._FitRes[0]
+            guess = self._oObs.getGuessDefault()
+        self._cptIte =0 
+        def getResidu(param):
+            print "================== START %d =============="%self._cptIte
+            #print "getResidu ", param
+            # add temp  
+            #print "param: ", param            
+            residu = self.getResidusTempGra(param)
+            chi2 = (residu.ravel()**2).sum()
+            print "chi2: ", chi2
+            self._CostFunc.append(chi2)
+            self._cptIte += 1
+            #if self._cptIte == 20: raise
+            return residu        
+        res = self._FitRes = spo.leastsq(getResidu, guess, full_output=True)
+        self._parEst = self._FitRes[0].copy()
+        if res[4] >= 0 and res[4]<=4:
+            print "FIT OK :",  res[3]
+            return True
+        else:
+            print "FIT NOK : ",  res[3]
+            return False
     
                 
     def _solveStarParam(self, guess):
@@ -430,13 +421,33 @@ class AtmSolver(object):
             residu[idx,:] -= atmStarMod           
         return residu.ravel()
        
-    def solve3(self, guess=None):
+    def solveAtmAndTemperature(self, guess=None):
+        """
+        used scale factor for star temperature
+        """
         if guess == None:
             guess = self._oObs.getGuessDefault()
-        self._FitRes = spo.leastsq(self._oObs.computeResidu, guess, full_output=True)
-        #self._FitRes = spo.minimize(self._oObs.computeResidu, guess, method='powell')
-        print self._FitRes[0]
-        return self._FitRes[0]
+        self._cptIte = 0        
+        def getResidu(param):
+            print "================== START %d =============="%self._cptIte
+            #print "getResidu ", param
+            # add temp  
+            #print "param: ", param            
+            residu = self.getResidus(param)
+            chi2 = (residu.ravel()**2).sum()
+            print "chi2: ", chi2
+            self._CostFunc.append(chi2)
+            self._cptIte += 1
+            #if self._cptIte == 20: raise
+            return residu        
+        res = self._FitRes = spo.leastsq(getResidu, guess, full_output=True)
+        self._parEst = self._FitRes[0].copy()
+        if res[4] >= 0 and res[4]<=4:
+            print "FIT OK :",  res[3]
+            return True
+        else:
+            print "FIT NOK : ",  res[3]
+            return False
 
 
     def computeResiduSlow(self, param):
@@ -465,23 +476,50 @@ class AtmSolver(object):
             residu[idx,:] -= atmStarMod        
         return residu.ravel()
     
-    def getResidus(self, param):
+    def getResidusTempGra(self, param):
+        """
+        with temperature star and gravity
+        """
         if self._memoStarFlux == None:
             self._memoStarFlux =  StarFluxArray(self._oObs._NbStar, self._oStar) 
         if self._memoAtmTrans == None:
             self._memoAtmTrans =  AtmTransArray(self._oObs._NbFlux, self._oAtm) 
         residu = np.copy(self._oObs.aFlux)  
-        print "================================"  
+        #print "================================"  
+        #print param
+        for idx in range(self._oObs._NbFlux):            
+            # compute model transmission 
+            constObs = self._oObs.aConst[idx]            
+            par = param[self._oObs.aIdxParAtm[idx]]            
+            trans = self._memoAtmTrans.getTrans(idx, constObs, par)
+            # compute model flux
+            tempGra = param[self._oObs.aIdxParStar[idx]]            
+            parStar = self._oObs._oStarCat.addMet(self._oObs._SimuParObsIdx[idx, 1], tempGra)            
+            flux = self._memoStarFlux.getFlux(self._oObs._SimuParObsIdx[idx, 1], parStar)           
+            residu[idx,:] -= trans*flux      
+        return residu.ravel()
+
+    def getResidus(self, param):
+        """
+        with only temperature star
+        """
+        if self._memoStarFlux == None:
+            self._memoStarFlux =  StarFluxArray(self._oObs._NbStar, self._oStar) 
+        if self._memoAtmTrans == None:
+            self._memoAtmTrans =  AtmTransArray(self._oObs._NbFlux, self._oAtm) 
+        residu = np.copy(self._oObs.aFlux)  
+        #print "================================"  
         #print param
         for idx in range(self._oObs._NbFlux):
             #print idx
             # compute model transmission 
             constObs = self._oObs.aConst[idx]            
-            par = param[self._oObs.aIdxParAtm[idx]]
+            par = param[self._oObs.aIdxParAtm[idx]]            
             trans = self._memoAtmTrans.getTrans(idx, constObs, par)
             # compute model flux
-            temp = param[self._oObs.aIdxParStar[idx]]
-            parStar = self._oObs._oStarCat.addMetGra(self._oObs.aIdxParStar[idx], temp)
+            temp = param[self._oObs.aIdxParStar[idx]]            
+            parStar = self._oObs._oStarCat.addMetGra(self._oObs._SimuParObsIdx[idx, 1], temp)
+            #print 'temperature:', temp, parStar[1]
             flux = self._memoStarFlux.getFlux(self._oObs._SimuParObsIdx[idx, 1], parStar)
             #flux = self._oStarCat._oKur.getFluxInterLin(parStar)
             #if idx < self._NbStar: print "star par:", parStar
@@ -505,15 +543,16 @@ class AtmSolver(object):
             self._CostFunc.append(chi2)
             return residu
         self._FitRes = spo.leastsq(getResidu, guess, full_output=True)
+        res = self._FitRes
         #self._FitRes = spo.minimize(getResiduself._oObs.computeResidu, guess, method='powell')
         print self._FitRes[0]
         self._parEst = self._FitRes[0].copy()
-        return self._parEst           
-       
+        if res[4] >= 0 and res[4]<=4:
+            print "FIT OK :",  res[3]
+            return True
+        else:
+            print "FIT NOK : ",  res[3]
+            return False
+              
         
-class AtmStarSolverv(AtmSolver):
-    def __init__(self):
-        pass
-    
-  
         

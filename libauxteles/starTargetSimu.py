@@ -7,47 +7,46 @@ import kurucz as kur
 import numpy as np 
 
 
-
-class StarTargetSimu(object):
-
-    def __init__(self, oKur):
-        self.ParAll = np.zeros(3,  dtype = np.float32)
-        assert isinstance(oKur, kur.Kurucz)
-        self._oKur = oKur
-        self._NbStar = 4
-        self._NbWL = len(oKur.getWL())
-        self._NbPstar = 2
-        self._aParam = np.zeros((self._NbStar,2), dtype = np.float32)
-        self._aFlux= np.zeros((self._NbStar, self._NbWL), dtype = np.float32)
-        # F
-        self._aParam[0,0] = 7200
-        self._aParam[0,1] = 4.34
-        # F
-        self._aParam[1,0] = 6440
-        self._aParam[1,1] = 4.2
-        # G 
-        self._aParam[2,0] = 5770
-        self._aParam[2,1] = 4.49
-        # A
-        self._aParam[3,0] = 9520    
-        self._aParam[3,1] = 4.14
-        # precompute flux
-        self.ParAll[0] = -3
-        self._setaFlux()    
-    
-    
-    def _setaFlux(self):    
-        for idx in range( self._NbStar):
-            self.getAllParam(self._aParam[idx])
-            self._aFlux[idx] = self._oKur.getFluxInterLin(self.ParAll)
-    
-                
-    def getFluxIdx(self, pIdx):
-        return  self._aFlux[pIdx]
-    
-    def getAllParam(self, pAr):
-        self.ParAll[1:] = pAr
-        return self.ParAll
+#class StarTargetSimu(object):
+#
+#    def __init__(self, oKur):
+#        self.ParAll = np.zeros(3,  dtype = np.float32)
+#        assert isinstance(oKur, kur.Kurucz)
+#        self._oKur = oKur
+#        self._NbStar = 4
+#        self._NbWL = len(oKur.getWL())
+#        self._NbPstar = 2
+#        self._aParam = np.zeros((self._NbStar,2), dtype = np.float32)
+#        self._aFlux= np.zeros((self._NbStar, self._NbWL), dtype = np.float32)
+#        # F
+#        self._aParam[0,0] = 7200
+#        self._aParam[0,1] = 4.34
+#        # F
+#        self._aParam[1,0] = 6440
+#        self._aParam[1,1] = 4.2
+#        # G 
+#        self._aParam[2,0] = 5770
+#        self._aParam[2,1] = 4.49
+#        # A
+#        self._aParam[3,0] = 9520    
+#        self._aParam[3,1] = 4.14
+#        # precompute flux
+#        self.ParAll[0] = -3
+#        self._setaFlux()    
+#    
+#    
+#    def _setaFlux(self):    
+#        for idx in range( self._NbStar):
+#            self.getAllParam(self._aParam[idx])
+#            self._aFlux[idx] = self._oKur.getFluxInterLin(self.ParAll)
+#    
+#                
+#    def getFluxIdx(self, pIdx):
+#        return  self._aFlux[pIdx]
+#    
+#    def getAllParam(self, pAr):
+#        self.ParAll[1:] = pAr
+#        return self.ParAll
         
         
 class StarTargetSimuAll(object):
@@ -56,19 +55,21 @@ class StarTargetSimuAll(object):
         oKur: kurucz model to compute star flux with param target stars
         pNbpar :  fix number of parameter other are considered as constant
         """
-        assert isinstance(oKur, kur.Kurucz)   
-        self._NbPstar = pNbpar
-        self._oKur = oKur     
-        self._NbStar = 4
-        self._aParam = np.zeros((self._NbStar, 3), dtype = np.float32)
-        self._aParam = np.array([[0.0 , 7700, 1.74],
-                                 [0.0 , 6440, 4.34],
-                                 [0.0 , 5150, 2.54],
-                                 [0.0 , 9520, 4.14 ]], dtype=np.float32)        
+        assert isinstance(oKur, kur.Kurucz)
+        self._NbPstar = pNbpar 
+        self._oKur = oKur             
+        self._aParam = np.array([ [0.0 , 7700, 1.74],
+                                  [0.0 , 6440, 4.34],
+                                  [0.0 , 5150, 2.54],
+                                  [0.0 , 9520, 4.14] ], dtype=np.float64) 
+        self._NbStar = self._aParam.shape[0]      
         self._NbWL = len(oKur.getWL())       
         self._aFlux= np.zeros((self._NbStar, self._NbWL), dtype = np.float32)
         self._setFlux() 
-               
+    
+    def getMeanTemp(self):
+        return  self._aParam[:,1].mean()
+           
     def getAllTemperature(self):
         return self._aParam[:,1]
     
@@ -90,11 +91,10 @@ class StarTargetSimuAll(object):
         return par
     
     def addMet(self, idx, pTempGra):
-        par = np.copy(self._aParam[idx])
+        par = np.copy(self._aParam[idx]).ravel()       
+        print pTempGra, par[1:]
         par[1:] = pTempGra
         return par
   
     def getFluxIdx(self, pIdx):
         return  self._aFlux[pIdx]
-        
-        

@@ -86,12 +86,15 @@ class Kurucz(object):
         line 2 : gravity log_g : 0 to 5
     '''
 
-    def __init__(self, filePickle):
+    def __init__(self, filePickle, test=False):
         try:
             f=open(filePickle, "rb")
         except:
             print "can't open file ", filePickle
             return 
+        if test:
+            print "add _ParamNotDef attribut"
+            self._ParamNotDef = []    
         self._Flux = pk.load(f)
         self._oNGP = None
         self._oInterLin = None
@@ -102,7 +105,7 @@ class Kurucz(object):
         self._deleteFluxNotDefined()
         self._CoefUnit = 1
         #self.setCoefUnit(1e-7)
-        self._BoundsMet = (-4.5, 0.5)
+        self._BoundsMet = (-4, 0)
         self._BoundsGra = (0.5, 4.5)
         self._BoundsTemp = (3600.0, 47500.0)
         
@@ -134,15 +137,32 @@ class Kurucz(object):
         self._oNGP = None
                 
     def _deleteFluxNotDefined(self):
-        aColNOK = []        
+        """
+        star flux is not defined everywhere but Kurucz set array flux at zero in this case
+        With linear interpolation this zero array may be distort result  ... ?
+        so erase all zero array 
+        """
+        aColNOK = []
+        if hasattr(self, '_ParamNotDef'):
+            NotDefined = True
+            # to visualize where Kurucz model isn't defined, see test
+            self._ParamNotDef = []    
+        else:
+            NotDefined = False
         for idx in np.arange(1, len(self._Flux[0,:])):            
             if self._Flux[3:,idx].sum() == 0.0:
                 #print "%d not defined"%idx
-                #print self.getParam(idx)
+                if NotDefined :                   
+                    par = self.getParam(idx)
+                    self._ParamNotDef.append(par[0])
+                    self._ParamNotDef.append(par[1])
+                    self._ParamNotDef.append(par[2])
                 aColNOK.append(idx)
         if aColNOK != []:
-            print "delete %d column not defined "%len(aColNOK)
+            print "delete %d columns not defined "%len(aColNOK)
             self._Flux = np.delete(self._Flux, aColNOK, 1)
+            if NotDefined :                
+                self._ParamNotDef = np.array(self._ParamNotDef).reshape(len(aColNOK),3)
                 
     def setWLuseAll(self):
         self._IdxMin = 3
@@ -367,13 +387,14 @@ class Kurucz(object):
         if guess == None:
             guess = np.array([-2.5, 8000., 2.5])
         def errorModel(par, kur, ydata):
+            print "input par", par
             fluxTheo = kur.getFluxInterLin(par) 
             if np.isnan(fluxTheo[0]):
                 print   "fluxTheo is nan, used NGP "
                 fluxTheo = kur.getFluxNGP(par)                          
             res = ((ydata - fluxTheo))**2
             res = res.ravel().sum()
-            print par, res
+            print res
             return res
         myBounds = (self._BoundsMet, self._BoundsTemp, self._BoundsGra)
         # avec  test_fitWithBounds et    np.random.seed(10) 
@@ -382,9 +403,9 @@ class Kurucz(object):
         #res = spo.minimize(errorModel, guess, args=(self, pFlux), method='SLSQP', bounds=myBounds)
         res = spo.minimize(errorModel, guess, args=(self, pFlux), method='SLSQP', bounds=myBounds)
         print "sol1:", res.message, res.x
-        res2 = spo.minimize(errorModel,res.x , args=(self, pFlux), method='SLSQP', bounds=myBounds)
-        print "sol2:", res2.message, res2.x
-        return res2.x
+        #res2 = spo.minimize(errorModel,res.x , args=(self, pFlux), method='SLSQP', bounds=myBounds)
+        #print "sol2:", res2.message, res2.x
+        return res.x
     
     def fitNoBounds(self, pFlux, guess=None):
         """

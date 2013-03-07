@@ -14,7 +14,7 @@ class BurkeAtmModel(object):
         Tgray :   self._Par[0]
         Tau0 :   self._Par[1]
         Tau1 :   self._Par[2]
-        Tau2 :   self._Par[3]
+        Tau2 :   self._Par[3] 
         alpha :   self._Par[4]
         Cmol :   self._Par[5]
         C_O3 :   self._Par[6]
@@ -63,7 +63,8 @@ class BurkeAtmModel(object):
         self._aWL = self._Tpl._wl
           
     def _transGrayAero(self):
-        tau  = self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3]
+        tau  = np.fabs(self._Par[1]) + self._EW*self._Par[2] + self._NS*self._Par[3]
+        #tau  = self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3]
         #print 'rap:', self._aWL[0]/self._WL0, self._aWL[-1]/self._WL0
         tau *= np.power(self._aWL/self._WL0, self._Par[4])        
         return self._razNeg(self._Par[0]*np.exp(-self._AirMass*tau))
@@ -124,13 +125,9 @@ class BurkeAtmModel(object):
         to have template MODTRAN with any modification
         """
         self._Par = np.zeros(self._NbPar, dtype=np.float32)
-        # from [1], table 3, 2007, 2nov
-        self.setParamAerosolGray(1.0, 0.0, 0, 0, -1)
-        # from [1], 4.results , first line
+        self.setParamAerosolGray(1.0, 0.05, 0.0, 0.0, -1)
         self.setParamMol(1.0)
-        # from [1], table 3, 2007, 2nov
         self.setParamOzone(1.0)
-        #
         self.setParamH20(np.array([1, 0, 0]))
         
     def setParam(self, par):
@@ -276,7 +273,7 @@ class BurkeAtmModel(object):
         pl.yticks(aIdx, self._NameParam)
         pl.colorbar()
 
-    def plotErrRel(self, pTrue, pEst, pTitle=""):    
+    def plotErrRelAtm(self, pTrue, pEst, pTitle=""):    
         pl.figure()       
         pl.title(pTitle)
         Err = 100*(pTrue- pEst)/pTrue
@@ -285,6 +282,9 @@ class BurkeAtmModel(object):
         aIdx = np.arange(len(self._NameParam))
         pl.xticks(aIdx,  self._NameParam)
         pl.grid()
+        
+    def __str__(self):
+        return "BurkeAtmModel"
 
 
 
@@ -306,24 +306,30 @@ class BurkeAtmModelTauPos(BurkeAtmModel):
     
     def __init__(self, ModFileTempl, pressure=782):
         BurkeAtmModel.__init__(self, ModFileTempl, pressure)
+    
+    def __str__(self):
+        return "BurkeAtmModelTauPos"
         
     def _transGrayAero(self):
         tau  = self._Par[1]**2 + self._EW*self._Par[2] + self._NS*self._Par[3]
         tau *= np.power(self._aWL/self._WL0, self._Par[4])        
         return self._razNeg(self._Par[0]*np.exp(-self._AirMass*tau))
 # setter
-
-    def setParamAerosolGray(self, Tgray, tau0, tau1, tau2, alpha):
-        BurkeAtmModel.setParamAerosolGray(Tgray, tau0, tau1, tau2, alpha)        
-        self._Par[1] = np.sqrt(tau0)
     
     def printBurkeModelParam(self):
         print "Parameters"
         print "  Tgray :   ", self._Par[0]
-        print "  Tau0 :   ", self._Par[1]**2
+        print "  sqrt(Tau0) :   ", self._Par[1]
         print "  Tau1 :   ", self._Par[2]
         print "  Tau2 :   ", self._Par[3]
         print "  alpha :   ", self._Par[4]
         print "  Cmol :   ", self._Par[5]
         print "  C_O3 :   ", self._Par[6]
         print "  C_H2O :   ", self._Par[7:]
+
+    def setParamNoEffect(self):
+        """
+        to have template MODTRAN with any modification
+        """
+        BurkeAtmModel.setParamNoEffect(self)
+        self.setParamAerosolGray(1.0, 0.22, 0.0, 0.0, -1)

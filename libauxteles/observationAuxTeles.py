@@ -3,7 +3,7 @@ Created on 30 nov. 2012
 
 @author: colley
 '''
-import numpy as np
+
 import burkeAtmModel as atm
 import starTargetSimu as star
 import pylab as pl
@@ -35,6 +35,7 @@ class ObsSurvey(object):
         self._NameNightAtm = [r'$\tau_0$',r'$\tau_1$', r'$\tau_2$', r'$\alpha$', '$C_{mol}$', '$C_{O3}$',r'$\partial_NC_{H_2O}$',r'$\partial_EC_{H_2O}$']
         self._NameTgray = '$T_{gray}$'
         self._NameWater = '$C_{H2O}$'
+        self._NameStar = []
         
     def readObsNight(self, pRep):
         """
@@ -67,7 +68,7 @@ class ObsSurveySimu01(ObsSurvey):
     def __init__(self, pNbNight=1, pNbObsNight=1):
         ObsSurvey.__init__(self)        
         self._NbNight = pNbNight
-        self._NbObsNight = pNbObsNight
+        self._NbPeriodObsByNight = pNbObsNight
         self._NbConst = 4
         self._Oatm = atm.BurkeAtmModel("")
         self._TrueParam = None
@@ -92,30 +93,31 @@ class ObsSurveySimu01(ObsSurvey):
         self._createTrueParAndConst()
         #######:  _SimuParNight       
         # tau 0
-        self._SimuParNight[:,0] = np.random.uniform(0.01, 0.05, self._NbNight)
+        self._SimuParNight[:,0] = np.random.uniform(0.01, 0.08, self._NbNight)
+        #self._SimuParNight[:,0] = np.random.uniform(np.sqrt(0.01), np.sqrt(0.05), self._NbNight)
         # tau 1
-        self._SimuParNight[:,1] = np.random.uniform(-0.0005, 0.0005, self._NbNight)
+        self._SimuParNight[:,1] = np.random.uniform(-0.005, 0.005, self._NbNight)
         # tau 2
-        self._SimuParNight[:,2] = np.random.uniform(-0.0005, 0.0005, self._NbNight)
+        self._SimuParNight[:,2] = np.random.uniform(-0.005, 0.05, self._NbNight)
         # alpha
         self._SimuParNight[:,3] = np.random.uniform(-2, -0.05, self._NbNight)
         # Cmol
-        self._SimuParNight[:,4] = np.random.uniform(0.7, 1.2, self._NbNight)
+        self._SimuParNight[:,4] = np.random.uniform(0.5, 1.2, self._NbNight)
         # C_O3
         self._SimuParNight[:,5] = np.random.uniform(0.5, 1.2, self._NbNight)
         # dC_H2O/dWE
-        self._SimuParNight[:,6] = np.random.uniform(-0.05, 0.05, self._NbNight)
+        self._SimuParNight[:,6] = np.random.uniform(-0.01, 0.01, self._NbNight)
         # dC_H2O/dNS
-        self._SimuParNight[:,7] = np.random.uniform(-0.05, 0.05, self._NbNight)
+        self._SimuParNight[:,7] = np.random.uniform(-0.01, 0.01, self._NbNight)
         ######## _SimuParObs
         # Tgray
-        self._SimuParTgray = np.random.uniform(0.6, 0.99, self._NbFlux)
+        self._SimuParTgray = np.random.uniform(0.6, 1.0, self._NbFlux)
         # C_H2O
         self._SimuParC_H2O = np.random.uniform(0.5, 1.2, self._NbPeriodObs)
         ######## _SimuParObsIdx
         # idx night
         idx = np.arange(self._NbNight)
-        self._SimuParObsIdx[:,0] = np.outer(idx, np.ones(self._NbObsNight*self._NbStar, dtype=np.int32)).ravel()
+        self._SimuParObsIdx[:,0] = np.outer(idx, np.ones(self._NbPeriodObsByNight*self._NbStar, dtype=np.int32)).ravel()
         # idx star
         idx = np.arange(self._NbStar)
         self._SimuParObsIdx[:,1] = np.outer( np.ones(self._NbPeriodObs, dtype=np.int32), idx ).ravel()   
@@ -138,13 +140,16 @@ class ObsSurveySimu01(ObsSurvey):
 
 # SETTER              
     def setStarTarget(self, pOstar):
-        assert isinstance(pOstar, star.StarTargetSimu)    
+        assert isinstance(pOstar, star.StarTargetSimuAll)    
         self._oStarCat = pOstar
         self._NbStar = self._oStarCat._NbStar
         self._NbWL = self._oStarCat._NbWL
         self._NbPstar  = self._oStarCat._NbPstar
-        self._NbPeriodObs = self._NbNight*self._NbObsNight
+        self._NbPeriodObs = self._NbNight*self._NbPeriodObsByNight
         self._NbFlux  = self._NbPeriodObs*self._NbStar
+        for idx in range(self._NbStar):
+            self._NameStar.append('$t\degree$')   
+            self._NameStar.append('$gravity$')
                 
     def setAtmModel(self, pOatm):
         assert isinstance(pOatm, atm.BurkeAtmModel)                       
@@ -155,7 +160,10 @@ class ObsSurveySimu01(ObsSurvey):
         pass
     
 # GETTER
-        
+    
+    def getNameVecParam(self):
+        return self._NameStar+self._NameAtm    
+    
     def getTrueParamAtmIdx(self, pIdx):
         """
         return true parameter in Burke model format (10 values) for flux pIdx
@@ -181,11 +189,12 @@ class ObsSurveySimu01(ObsSurvey):
         guess = np.zeros(self._NbParam, dtype=np.float64)        
         self._Oatm.setParamNoEffect()
         g0 = self._Oatm._Par
-        print "g0:",g0
+        #print "g0:",g0
+        meanTemp = self._oStarCat.getMeanTemp()
         for idxS in range(self._NbStar):
-            guess[idxS*2] = 6100
-            guess[idxS*2+1] = 3
-        for idx in range(self._NbFlux):
+            guess[idxS*2] = meanTemp
+            guess[idxS*2+1] = 2.5
+        for idx in range(self.getFirstIdxAtm(), self._NbFlux):
             print self.aIdxParAtm[idx,:]            
             guess[self.aIdxParAtm[idx,:]] = g0
         return guess
@@ -208,35 +217,54 @@ class ObsSurveySimu01(ObsSurvey):
         """
         return pParam[:self.getFirstIdxAtm()]
     
+    def _getxNightParam(self, offset, pParam):
+        ret = np.zeros(self._NbNight, dtype=pParam.dtype)
+        start = self.getFirstIdxAtm()       
+        offsetNight = self.getNbParamAtmByNight()
+        for idx in range(self._NbNight):
+            ret[idx] = pParam[start + offset + offsetNight*idx]
+        return ret
+    
+    def getTau0Param(self,pParam):
+        """
+        extract Tau0 parameters from pParam
+        """
+        return self._getxNightParam(0, pParam)
+    
+    def getAlphaParam(self,pParam):
+        """
+        extract Alpha parameters from pParam
+        """
+        return self._getxNightParam(3, pParam)
+    
     def getTrueParam(self):
         """
         return true parameter vector for all flux
         """
         if self._TrueParam == None:
-            par = np.zeros(self._NbParam)
+            par = np.zeros(self._NbParam, dtype=np.float64)
             print "_NbParam",self._NbParam
             for idxS in range(self._NbStar):
-                par[idxS*2] = self._oStarCat._aParam[idxS, 0]
-                par[idxS*2+1] = self._oStarCat._aParam[idxS, 1]
+                par[idxS*2] = self._oStarCat._aParam[idxS, 1]
+                par[idxS*2+1] = self._oStarCat._aParam[idxS, 2]
             for idx in range(self._NbFlux):
                 print self.aIdxParAtm[idx,:]            
                 par[self.aIdxParAtm[idx]] = self.getTrueParamAtmIdx(idx)
             self._TrueParam = par
         return np.copy(self._TrueParam)
-
         
     def readObsNight(self, pRep):
         """
         fill self.aFlux (array flux)  , here by simulation atmosphere and star
         """
-        assert isinstance(self._Oatm, atm.BurkeAtmModel)
+        #assert isinstance(self._Oatm, atm.BurkeAtmModel)
         #
         idxFlux = 0
         # index vector parameters : star param, atm param
         idxPar = self._NbStar*self._NbPstar
         self.aFlux = np.zeros((self._NbFlux, self._NbWL), dtype=np.float64) 
         #  aConst =  _SimuConstObs    
-        self.aConst = np.zeros((self._NbFlux, self._NbConst), dtype=np.float64)
+        self.aConst = np.zeros((self._NbFlux, self._NbConst), dtype=np.float32)
         self.aIdxParAtm = np.zeros((self._NbFlux, self._NbPatm), dtype=np.int16)
         self.aIdxParStar = np.zeros((self._NbFlux, self._NbPstar), dtype=np.int16)       
         # random parameters
@@ -245,20 +273,24 @@ class ObsSurveySimu01(ObsSurvey):
         idxParNight = idxPar 
         idxParCH20  = idxParNight + 8 
         idxParTgray = idxParNight + 9  
-        self._NameAtm = []      
+        self._NameAtm = []        
         for idxN in range(self._NbNight): 
             [self._NameAtm.append(x) for x in self._NameNightAtm]
-            for idxO in range(self._NbObsNight):
+            for idxO in range(self._NbPeriodObsByNight):
                 self._NameAtm.append(self._NameWater)            
                 for idxS in range(self._NbStar):
                     self._NameAtm.append(self._NameTgray) 
                     print idxN,idxO,idxS
-                    # compute flux 
+                    #
+                    # compute star flux
+                    # 
                     self.aFlux[idxFlux,:] = self._oStarCat.getFluxIdx(self._SimuParObsIdx[idxFlux,1])
                     # compute transmission atm 
                     self._Oatm.setConstObs(self.getConst(idxFlux))
-                    self._Oatm.setParam(self.getTrueParamAtmIdx(idxFlux))                   
-                    # multiply by transmission atm 
+                    self._Oatm.setParam(self.getTrueParamAtmIdx(idxFlux))
+                    #                   
+                    # * transmission atm
+                    #  
                     self.aFlux[idxFlux,:] *= self._Oatm.computeAtmTrans()
                     #self._Oatm.printBurkeModel()
                     #self._Oatm.plotCurrentTrans()
@@ -284,13 +316,16 @@ class ObsSurveySimu01(ObsSurvey):
             idxParCH20 =   idxParNight + 8 
             idxParTgray =  idxParNight + 9                
         # with last observation    
-        self._NbParam = self._NbStar*self._NbPstar + self._NbNight*8 + self._NbPeriodObs*(1+self._NbStar)
+        self._NbParam = self._NbStar*self._NbPstar + self._NbNight*(self.getNbParamAtmByNight())
+    
+    def getNbParamAtmByNight(self):
+        return 8 + self._NbPeriodObsByNight*(1+self._NbStar)
     
     def addNoisebySNRglobal(self, snr=100, doPlot=False):
         mean = self.aFlux.ravel().mean()
         sigma =  mean/ snr 
         print "mean signal :", mean
-        print "sigma for SNR %f: ", sigma
+        print "sigma for SNR : ", sigma
         size = self._NbFlux*self._NbWL
         noise = np.random.normal(0, sigma, size)
         if doPlot:
@@ -313,7 +348,7 @@ class ObsSurveySimu01(ObsSurvey):
             mean = flux.mean()
             sigma =  mean/ snr 
             print "mean signal :", mean
-            print "sigma for SNR %f: ", sigma
+            print "sigma for SNR : ", sigma
             noise = np.random.normal(0, sigma, self._NbWL)
             self.aFlux[idxF] += noise
         if doPlot != []:
@@ -391,8 +426,9 @@ class ObsSurveySimu02(ObsSurveySimu01):
         self._Oatm.setParamNoEffect()
         g0 = self._Oatm._Par
         print "g0:",g0
+        meanTemp = self._oStarCat.getMeanTemp()
         for idxS in range(self._NbStar):
-            guess[idxS] = 8000            
+            guess[idxS] = meanTemp
         for idx in range(self._NbFlux):
             print self.aIdxParAtm[idx,:]            
             guess[self.aIdxParAtm[idx,:]] = g0
@@ -403,7 +439,7 @@ class ObsSurveySimu02(ObsSurveySimu01):
         return global true vector parameter
         """
         if self._TrueParam == None:
-            par = np.zeros(self._NbParam)
+            par = np.zeros(self._NbParam, dtype=np.float64)
             print "_NbParam",self._NbParam
             for idxS in range(self._NbStar):                
                 par[idxS] = self._oStarCat._aParam[idxS, 1]
@@ -436,7 +472,9 @@ class ObsSurveySimu02(ObsSurveySimu01):
         self._NbStar = self._oStarCat._NbStar
         self._NbWL = self._oStarCat._NbWL
         self._NbPstar  = self._oStarCat._NbPstar
-        self._NbPeriodObs = self._NbNight*self._NbObsNight
+        self._NbPeriodObs = self._NbNight*self._NbPeriodObsByNight
         self._NbFlux  = self._NbPeriodObs*self._NbStar
+        for idx in range(self._NbStar):
+            self._NameStar.append('$t\degree$')   
     
     

@@ -5,8 +5,7 @@ Created on 14 nov. 2012
 '''
 import unittest
 from kurucz import *
-import scipy.optimize as spo
-import numpy as np
+from mpl_toolkits.mplot3d import Axes3D 
 
 FileKuruczPic = '/home/colley/projet/lsst/stellar_spectra/k93.pic'
 
@@ -14,10 +13,19 @@ def test_plotFlux():
     oKur = Kurucz(FileKuruczPic)
     oKur.setWLInterval(1000, 12000)
     oKur.plotFluxIdx(1540)
-    oKur.plotMultiFluxesCont(1540,5)
-    
+    oKur.plotMultiFluxesCont(1540,5)    
     oKur.plotFluxIdx(1544)
     
+def test_plotNotDefined():
+    oKur = Kurucz(FileKuruczPic, True)
+    fig = pl.figure()
+    ax = Axes3D(fig)
+    ax.set_xlabel('metalicity')
+    ax.set_ylabel('temperature')
+    ax.set_zlabel('gravity')
+    print oKur._ParamNotDef.shape
+    ax.scatter(oKur._ParamNotDef[:,0], oKur._ParamNotDef[:,1], oKur._ParamNotDef[:,2], 'b')
+   
     
 def test_setWLInterval():
     oKur = Kurucz(FileKuruczPic)
@@ -95,7 +103,23 @@ def test_fitTempGra():
 
 
 def test_fitWithBounds():
-    #np.random.seed(104)
+    """
+    Seed: 485374
+    
+    produced
+    
+03373.003316
+input par [ -1.35454174e+00   1.00209643e+04   1.62860243e+00]
+103373.003307
+input par [ -1.35454176e+00   1.00209643e+04   1.62860243e+00]
+103373.003902
+input par [  6.77699007e+00   1.01726894e+04  -6.57282362e+00]
+fluxTheo is nan, used NGP 
+56349971.6923    
+    """
+    seed = (int)(np.random.uniform(1,1000000))
+    print "Seed:",seed
+    np.random.seed(seed)
     oKur = Kurucz(FileKuruczPic)
     oKur.setWLInterval(2500, 10000)    
     oKur.setCoefUnit(1e-7)
@@ -103,13 +127,14 @@ def test_fitWithBounds():
     Met = np.random.uniform(oKur._BoundsMet[0], oKur._BoundsMet[1])
     Temp = np.random.uniform(4000, 20000)
     Gra = np.random.uniform(oKur._BoundsGra[0], oKur._BoundsGra[1])
-    parTrue = np.array([Met, Temp, Gra])
-    print parTrue
+    parTrue = np.array([Met, Temp, Gra])    
     fluxTrue =oKur.getFluxInterLin(parTrue)
     flux = (1+np.random.normal(0, 0.0001,len(fluxTrue)))*fluxTrue
     print fluxTrue[:10]    
     g0 = np.array([-3, 10000, 3])
     sol = oKur.fitWithBounds2(flux, g0)
+    print "True:     ", parTrue
+    print "estimated:", sol
     print "erreur relativeen %:",(sol - parTrue)*100/parTrue
 #    g0 = np.array([-1.0,  5100., 1.7])
 #    sol = oKur.fitNoBounds(flux, g0)
@@ -182,7 +207,7 @@ class Test(unittest.TestCase):
         pl.legend(["NGP"+str(parNGP1),"NGP"+str(parNGP2),"Lin" + str(par)])
         pl.grid()
        
-    def notest_nearestFluxes(self):
+    def test_nearestFluxes(self):
         oKur = Kurucz(FileKuruczPic)
         oKur.setWLInterval(2500, 10000)
         aIdx = []
@@ -197,19 +222,20 @@ class Test(unittest.TestCase):
         aIdx.append(oKur.getIdxNGP(np.array([-1, 7000, 2.7])))
         aIdx.append(oKur.getIdxNGP(np.array([-1, 8000, 2.7])))
         aIdx.append(oKur.getIdxNGP(np.array([-1, 9000, 2.7])))
-        oKur.plotFluxesArrayIdx(aIdx)
+        #oKur.plotFluxesArrayIdx(aIdx)
         aIdx = []
-        aIdx.append(oKur.getIdxNGP(np.array([-1, 6100, 2])))
-        aIdx.append(oKur.getIdxNGP(np.array([-1, 6100, 3])))
-        aIdx.append(oKur.getIdxNGP(np.array([-1, 6100, 4])))
-        aIdx.append(oKur.getIdxNGP(np.array([-1, 6100, 5])))
-        oKur.plotFluxesArrayIdx(aIdx)        
+        aIdx.append(oKur.getIdxNGP(np.array([-1, 9000, 1])))
+        aIdx.append(oKur.getIdxNGP(np.array([-1, 9000, 2])))
+        aIdx.append(oKur.getIdxNGP(np.array([-1, 9000, 3])))
+        aIdx.append(oKur.getIdxNGP(np.array([-1, 9000, 4])))
+        aIdx.append(oKur.getIdxNGP(np.array([-1, 9000, 5])))
+        #oKur.plotFluxesArrayIdx(aIdx)        
         aIdx = []
         aIdx.append(oKur.getIdxNGP(np.array([-3.99999983e+00 ,  7.46518475e+03  , 3.74397055e+00])))
         #aIdx.append(oKur.getIdxNGP(np.array([-1.77619036e+01 ,  6.26773253e+03 ,  2.52832703e+00])))
         aIdx.append(oKur.getIdxNGP(np.array([-4.10844657e+00 ,  7.45306937e+03 ,  3.75453873e+00])))
         aIdx.append(oKur.getIdxNGP(np.array([-2, 6100, 2.7])))
-        oKur.plotFluxesArrayIdx(aIdx)  
+        #oKur.plotFluxesArrayIdx(aIdx)  
         
     def notest_fitLeastsqLinAll01(self):
         oKur = Kurucz(FileKuruczPic)
@@ -247,7 +273,7 @@ class Test(unittest.TestCase):
         pl.legend(["True","Fit"])
         pl.grid()
         
-    def test_fitLeastsqLinAll3Step(self):
+    def notest_fitLeastsqLinAll3Step(self):
         oKur = Kurucz(FileKuruczPic)
         oKur.setWLInterval(2000, 10000)
         TruePar = np.array([-3.2, 9150, 2.1])      
@@ -331,7 +357,7 @@ class Test(unittest.TestCase):
     
     def notest_fmin(self):
         oKur = Kurucz(FileKuruczPic)
-        oKur.setWLInterval(2500, 10000)        
+        oKur.setWLInterval(2500, 10000)
         flux =oKur.getFluxNGP(np.array([-2, 6100, 2.7]))        
         def Model(par, kur, flux):
             parI =  par.copy()
@@ -379,7 +405,8 @@ class Test(unittest.TestCase):
 #test_fitTempGra()
 #unittest.main()
 test_fitWithBounds()
-
+#test_plotFlux()
+#test_plotNotDefined()
 try:
     pl.show()
 except AttributeError:

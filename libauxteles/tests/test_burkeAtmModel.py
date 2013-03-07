@@ -5,7 +5,7 @@ import scipy.optimize as spo
 fileModtran = '/home/colley/temp/lsst/modtran/TemplateT04.01_1.txt'
 CptCall = 0
 
-def plotErrRel(pTrue, pEst, pTitle=""):    
+def plotErrRelAtm(pTrue, pEst, pTitle=""):    
     pl.figure()
     pl.title(pTitle)
     Err = 100*(pTrue- pEst)/pTrue
@@ -214,7 +214,7 @@ def test_leastsq03():
     p0 += np.random.normal(0, 0.5, len(oAtm._Par))*p0
     oAtm.setParamNoEffect()
     p0 = oAtm._Par
-    plotErrRel(parTrue, p0, "err ral guess")
+    plotErrRelAtm(parTrue, p0, "err ral guess")
     res = spo.leastsq(errorModel, p0, args=(oAtm, sed, matVarObs), full_output=True)
     print 'erreur relative', np.fabs((parTrue-res[0])/parTrue)
     if res[4] >= 0 and res[4]<=4:
@@ -230,7 +230,7 @@ def test_leastsq03():
         pl.plot(parTrue)
         pl.legend(['guess','estimated','True'])
         pl.grid()
-        oAtm.plotErrRel(parTrue, res[0], "err rel. estimated")
+        oAtm.plotErrRelAtm(parTrue, res[0], "err rel. estimated")
         print "compare parameter"
         print p0
         print parTrue
