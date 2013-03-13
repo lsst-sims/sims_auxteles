@@ -113,7 +113,7 @@ def simuOnlyTemp():
 #        oSim.oSol.plotTransTrueEst(100)
 #        oSim.oSol.plotTransTrueEst(140)
 
-def simuOnlyTempGra():   
+def simuAtmTempGra():   
     # create simulation observation
     np.random.seed(16)
     nbNight = 1
@@ -138,12 +138,41 @@ def simuOnlyTempGra():
 #        oSim.oSol.plotTransTrueEst(100)
 #        oSim.oSol.plotTransTrueEst(140)
 
+def simuAtmTempGraLM():   
+    # create simulation observation
+    # problem with seed 162, night 1, 24, but ok with tau and alpha bounds !
+    np.random.seed(16)
+    nbNight = 1
+    nbPerioByNight = 24
+    oSim = SimuAtmStarSolve(nbNight, nbPerioByNight)  
+    snr = 400
+    oSim.oObs.addNoisebySNR (snr)   
+    guessTrue = oSim.oObs.getTrueParam() 
+    #guess = guessTrue*(1+np.random.normal(0, 0.05, len(guessTrue)))
+    guess =  oSim.oObs.getGuessDefault()
+#    for idx in range(oSim.oSol._oObs._NbStar):
+#        guess[2*idx] =  guessTrue[idx]*1.2
+    print guess
+    oSim.oSol.plotErrRel(guess, "guess") 
+    if oSim.oSol.solveAtmStarTempGraWithBounds(guess):
+        oSim.oSol.plotCostFuncHistory()
+        oSim.oSol.plotCorrelMatFromlmfit(oSim.oSol._FitRes.params, oSim.oObs.getNameVecParam(), "Correlation matrix %d night(s) %d obs. period with 4 stars, snr=%.1f"%(nbNight, nbPerioByNight, snr) )
+        oSim.oSol.plotErrRel(oSim.oSol._parEst,"Estimated")
+        oSim.oSol.plotDistribErrRelAtmAll()
+        oSim.oSol.plotTransTrueEst(0)
+        oSim.oSol.plotTransTrueEst(1)
+        print oSim.oObs.getTrueParam()
+        print oSim.oSol._parEst
+        oSim.oSol.plotTrueEstimatePar()
+#        oSim.oSol.plotTransTrueEst(100)
+#        oSim.oSol.plotTransTrueEst(140)
+
 
 def simuOnlyAtm():   
     # create simulation observation
-    np.random.seed(109)
-    nbNight = 2
-    nbPerioByNight = 24
+    np.random.seed(103)
+    nbNight = 1
+    nbPerioByNight = 15
     oSim = SimuAtmStarSolve2(nbNight, nbPerioByNight)
     #oSim.oObs.addNoisebySNR (400, [0,1,2,3])
     snr = 400
@@ -164,11 +193,11 @@ def simuOnlyAtm():
         #oSim.oSol.plotFluxRawTheo(2, oSim.oSol._parEst, 'with param estimated')
     #    oSim.plotDistribErrRelAtm(1)
     #    oSim.plotDistribErrRelAtm(0)
-        #oSim.oSol.plotDistribErrRelAtmAll()
+        oSim.oSol.plotDistribErrRelAtmAll()
         #oSim.oSol.plotTransTrueEst(1)
         #oSim.oSol.plotTransTrueEst(2)
         #oSim.oSol.plotTransTrueEst(3)
-        oSim.oSol.plotCorrelMatrix(oSim.oSol._FitRes[1], oSim.oObs._NameAtm, "Correlation matrix %d night(s) %d obs. period with 4 stars, snr=%.1f"%(nbNight, nbPerioByNight, snr) )
+        oSim.oSol.plotCorrelMatFromCovMat(oSim.oSol._FitRes[1], oSim.oObs._NameAtm, "Correlation matrix %d night(s) %d obs. period with 4 stars, snr=%.1f"%(nbNight, nbPerioByNight, snr) )
         #oSim.oAtm.computeAtmTrans(True)
         oSim.oAtm.printAndPlotBurkeModel()
         print oSim.oObs.getTau0Param(oSim.oSol._parEst)
@@ -178,9 +207,10 @@ def simuOnlyAtm():
 #simuOnlyTemp()
 #simu01()
 if __name__ == '__main__':
-    simuOnlyTemp() 
+    #simuOnlyTemp() 
     #simuOnlyAtm()
-    #simuOnlyTempGra()
+    #simuAtmTempGra()
+    simuAtmTempGraLM()
     
     try:
         pl.show()

@@ -11,6 +11,8 @@ import pyfits as pf
 import pylab as pl
 import scipy.interpolate as sci
 import scipy.optimize as spo
+import lmfit as lm
+
 
 
 def read_kurucz_all(directory = '/home/colley/projet/lsst/stellar_spectra/k93models/'):
@@ -406,6 +408,39 @@ class Kurucz(object):
         #res2 = spo.minimize(errorModel,res.x , args=(self, pFlux), method='SLSQP', bounds=myBounds)
         #print "sol2:", res2.message, res2.x
         return res.x
+    
+    def fitWithBoundsLM(self, pFlux, guess=None):
+        """
+        guess : Met, Temp, Gra
+        """
+        assert (len(pFlux)== len(self.getWL()))
+        if guess == None:
+            guess = np.array([-2.5, 8000., 2.5])
+        def errorModel(params, kur, ydata):           
+            v=[]
+            [v.append(params[a].value) for a in params]
+            par = np.array(v)
+            print "input par", par
+            fluxTheo = kur.getFluxInterLin(par) 
+            if np.isnan(fluxTheo[0]):
+                print   "fluxTheo is nan, used NGP "
+                fluxTheo = kur.getFluxNGP(par)                          
+            res = ((ydata - fluxTheo))**2
+            res = res.ravel()
+            #print res
+            return res
+        par= lm.Parameters()
+        par.add('met', value=guess[0], min=-4, max= 0.0)
+        par.add('temp', value=guess[1])
+        par.add('gra', value=guess[2], min=0.5, max= 5.0)       
+        #myBounds = (self._BoundsMet, self._BoundsTemp, self._BoundsGra)
+        res = lm.minimize(errorModel, par, args=(self, pFlux))
+        lm.report_errors(par)
+        #res2 = spo.minimize(errorModel,res.x , args=(self, pFlux), method='SLSQP', bounds=myBounds)
+        #print "sol2:", res2.message, res2.x
+        sol = []
+        [sol.append(par[a].value) for a in par]
+        return np.array(sol)
     
     def fitNoBounds(self, pFlux, guess=None):
         """

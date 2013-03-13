@@ -103,7 +103,7 @@ def test_fitTempGra():
 
 
 def test_fitWithBounds():
-    """
+    """229878
     Seed: 485374
     
     produced
@@ -118,6 +118,7 @@ fluxTheo is nan, used NGP
 56349971.6923    
     """
     seed = (int)(np.random.uniform(1,1000000))
+    #seed = 229878
     print "Seed:",seed
     np.random.seed(seed)
     oKur = Kurucz(FileKuruczPic)
@@ -125,14 +126,15 @@ fluxTheo is nan, used NGP
     oKur.setCoefUnit(1e-7)
     #flux = np.copy(fluxTrue)
     Met = np.random.uniform(oKur._BoundsMet[0], oKur._BoundsMet[1])
-    Temp = np.random.uniform(4000, 20000)
+    Temp = np.random.uniform(4000, 10000)
     Gra = np.random.uniform(oKur._BoundsGra[0], oKur._BoundsGra[1])
     parTrue = np.array([Met, Temp, Gra])    
+    print "True:     ", parTrue
     fluxTrue =oKur.getFluxInterLin(parTrue)
     flux = (1+np.random.normal(0, 0.0001,len(fluxTrue)))*fluxTrue
     print fluxTrue[:10]    
     g0 = np.array([-3, 10000, 3])
-    sol = oKur.fitWithBounds2(flux, g0)
+    sol = oKur.fitWithBoundsLM(flux, g0)
     print "True:     ", parTrue
     print "estimated:", sol
     print "erreur relativeen %:",(sol - parTrue)*100/parTrue

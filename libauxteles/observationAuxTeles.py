@@ -93,7 +93,7 @@ class ObsSurveySimu01(ObsSurvey):
         self._createTrueParAndConst()
         #######:  _SimuParNight       
         # tau 0
-        self._SimuParNight[:,0] = np.random.uniform(0.01, 0.08, self._NbNight)
+        self._SimuParNight[:,0] = np.random.uniform(0.008, 0.06, self._NbNight)
         #self._SimuParNight[:,0] = np.random.uniform(np.sqrt(0.01), np.sqrt(0.05), self._NbNight)
         # tau 1
         self._SimuParNight[:,1] = np.random.uniform(-0.005, 0.005, self._NbNight)
@@ -149,7 +149,7 @@ class ObsSurveySimu01(ObsSurvey):
         self._NbFlux  = self._NbPeriodObs*self._NbStar
         for idx in range(self._NbStar):
             self._NameStar.append('$t\degree$')   
-            self._NameStar.append('$gravity$')
+            self._NameStar.append('$gra$')
                 
     def setAtmModel(self, pOatm):
         assert isinstance(pOatm, atm.BurkeAtmModel)                       
@@ -189,14 +189,15 @@ class ObsSurveySimu01(ObsSurvey):
         guess = np.zeros(self._NbParam, dtype=np.float64)        
         self._Oatm.setParamNoEffect()
         g0 = self._Oatm._Par
-        #print "g0:",g0
+        print "g0:",g0
         meanTemp = self._oStarCat.getMeanTemp()
         for idxS in range(self._NbStar):
             guess[idxS*2] = meanTemp
             guess[idxS*2+1] = 2.5
-        for idx in range(self.getFirstIdxAtm(), self._NbFlux):
+        for idx in range(self._NbFlux):
             print self.aIdxParAtm[idx,:]            
             guess[self.aIdxParAtm[idx,:]] = g0
+        print guess
         return guess
     
     def getFirstIdxAtm(self):
@@ -204,6 +205,30 @@ class ObsSurveySimu01(ObsSurvey):
         return index of first parameter relative to atmopshere in parameter vector 
         """
         return  2*self._NbStar
+    
+    def getIdxGravity(self):
+        return [2*i+1 for i in range(self._NbStar)]
+    
+    def getIdxTgray(self):
+        aIdx = []
+        for idx, name in enumerate(self.getNameVecParam()):
+            if name == self._NameTgray:
+                aIdx.append(idx)
+        return aIdx
+    
+    def getIdxAlpha(self):
+        aIdx = []
+        for idx, name in enumerate(self.getNameVecParam()):
+            if name == r'$\alpha$':
+                aIdx.append(idx)
+        return aIdx
+    
+    def getIdxTau0(self):
+        aIdx = []
+        for idx, name in enumerate(self.getNameVecParam()):
+            if name == r'$\tau_0$':
+                aIdx.append(idx)
+        return aIdx
     
     def getAtmPart(self, pParam):
         """

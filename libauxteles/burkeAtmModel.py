@@ -63,7 +63,7 @@ class BurkeAtmModel(object):
         self._aWL = self._Tpl._wl
           
     def _transGrayAero(self):
-        tau  = np.fabs(self._Par[1]) + self._EW*self._Par[2] + self._NS*self._Par[3]
+        tau  = self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3]
         #tau  = self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3]
         #print 'rap:', self._aWL[0]/self._WL0, self._aWL[-1]/self._WL0
         tau *= np.power(self._aWL/self._WL0, self._Par[4])        
@@ -125,7 +125,7 @@ class BurkeAtmModel(object):
         to have template MODTRAN with any modification
         """
         self._Par = np.zeros(self._NbPar, dtype=np.float32)
-        self.setParamAerosolGray(1.0, 0.05, 0.0, 0.0, -1)
+        self.setParamAerosolGray(0.9, 0.05, 0.0, 0.0, -1)
         self.setParamMol(1.0)
         self.setParamOzone(1.0)
         self.setParamH20(np.array([1, 0, 0]))
@@ -260,7 +260,7 @@ class BurkeAtmModel(object):
         #print res
         return res
     
-    def plotCorrelMatrix(self, mat, pTitle=''):
+    def plotCorrelMatFromCovMat(self, mat, pTitle=''):
         #pl.figure()        
         #pl.pcolor(mat)
         #pl.matshow(mat, cmap=pl.cm.gray)        
@@ -311,25 +311,6 @@ class BurkeAtmModelTauPos(BurkeAtmModel):
         return "BurkeAtmModelTauPos"
         
     def _transGrayAero(self):
-        tau  = self._Par[1]**2 + self._EW*self._Par[2] + self._NS*self._Par[3]
+        tau  = np.fabs(self._Par[1]) + self._EW*self._Par[2] + self._NS*self._Par[3]
         tau *= np.power(self._aWL/self._WL0, self._Par[4])        
         return self._razNeg(self._Par[0]*np.exp(-self._AirMass*tau))
-# setter
-    
-    def printBurkeModelParam(self):
-        print "Parameters"
-        print "  Tgray :   ", self._Par[0]
-        print "  sqrt(Tau0) :   ", self._Par[1]
-        print "  Tau1 :   ", self._Par[2]
-        print "  Tau2 :   ", self._Par[3]
-        print "  alpha :   ", self._Par[4]
-        print "  Cmol :   ", self._Par[5]
-        print "  C_O3 :   ", self._Par[6]
-        print "  C_H2O :   ", self._Par[7:]
-
-    def setParamNoEffect(self):
-        """
-        to have template MODTRAN with any modification
-        """
-        BurkeAtmModel.setParamNoEffect(self)
-        self.setParamAerosolGray(1.0, 0.22, 0.0, 0.0, -1)

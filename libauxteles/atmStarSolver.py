@@ -9,8 +9,21 @@ import numpy as np
 import kurucz as kur
 import burkeAtmModel as atm
 import pylab as pl
+import lmfit as lm
 
 
+def getCorrelMatrixFromlmfit(pPars):
+    sizeMat = len(pPars)
+    corMat = np.ones((sizeMat, sizeMat), dtype=np.float32)
+    for line, par in enumerate(pPars):
+        print par
+        for col in range(line):
+            try:
+                corMat[line, col] = corMat[ col, line] = pPars[par].correl['p%d'%col]
+            except:
+                print "getCorrelMatrixFromlmfit error with ", line
+    return corMat
+    
 
 class StarFluxArray(object):
     """
@@ -34,8 +47,8 @@ class StarFluxArray(object):
             assert isinstance(oKur, kur.Kurucz)
             flux = oKur.getFluxInterLin(parKur)
             self._aParKur[idx] = parKur
-            print flux.shape
-            print self._aFlux.shape
+            #print flux.shape
+            #print self._aFlux.shape
             self._aFlux[idx,:] = flux
             #print flux
         else:
@@ -169,11 +182,14 @@ class AtmStarSolver(object):
 #
 
     
-    def plotCorrelMatrix(self, mat, namePar, pTitle=''):
-        #pl.figure()        
-        #pl.pcolor(mat)
-        #pl.matshow(mat, cmap=pl.cm.gray)        
-        im = pl.matshow(self._covar2Correl(mat),vmin=-1, vmax=1)  
+    def plotCorrelMatFromCovMat(self, mat, namePar, pTitle=''):
+        self.plotCorrelMat(self._covar2Correl(mat), namePar, pTitle)
+
+    def plotCorrelMatFromlmfit(self, params, namePar, pTitle=''):
+        self.plotCorrelMat(getCorrelMatrixFromlmfit(params) , namePar, pTitle)
+        
+    def plotCorrelMat(self, mat, namePar, pTitle=''):  
+        im = pl.matshow(mat,vmin=-1, vmax=1)  
         pl.title(pTitle)  
         aIdx = np.arange(len(namePar))
         pl.xticks(aIdx,  namePar)
@@ -181,18 +197,32 @@ class AtmStarSolver(object):
             label.set_rotation(90)
         pl.yticks(aIdx, namePar)
         pl.colorbar()
-
-    def plotErrRel(self, estSol, pTitle =""):
+        
+    def plotErrRel(self,estSol,pTitle=""):
         guessTrue = self._oObs.getTrueParam()
         errRel = 100*(estSol - guessTrue)/guessTrue
         pl.figure()
+       
         aIdx = np.arange(len(errRel))
         pl.xticks(aIdx, self._oObs.getNameVecParam(), rotation=90)        
         pl.plot(errRel,"*")      
         pl.grid()
         pl.title('Relative error on parameters '+pTitle)
         pl.ylabel("%")
-        
+    
+    def plotTrueEstimatePar(self, pLog=False):
+        pl.figure()
+        pl.title('Parameters true and estimated')
+        if pLog:
+            pl.semilogy(self._oObs.getTrueParam(),"*")          
+            pl.semilogy(self._parEst,".")
+        else:
+            pl.plot(self._oObs.getTrueParam(),"*")          
+            pl.plot(self._parEst,".")                 
+        pl.legend(["True ","Estimate"])
+        pl.xticks(np.arange(len(self._parEst)), self._oObs.getNameVecParam(), rotation=90)      
+        pl.grid()
+              
     def plotErrRelAtm(self, estSol, pTitle =""):
         guessTrue = self._oObs.getTrueParam()
         errRel = 100*(estSol - guessTrue)/guessTrue
@@ -219,7 +249,7 @@ class AtmStarSolver(object):
         pl.figure()
         pl.title("Transmission associated flux %d %s"% (idxFlux, pTitle))
         TransTrue = 100*self._oObs.computeTransTheoIdx(idxFlux, self._oObs.getTrueParam())
-        TransEst =100* self._oObs.computeTransTheoIdx(idxFlux, self._parEst)                
+        TransEst = 100* self._oObs.computeTransTheoIdx(idxFlux, self._parEst)                
         pl.plot(self._oAtm.getWL(), TransTrue )       
         pl.plot(self._oAtm.getWL(), TransEst )
         pl.xlabel("Angstrom")
@@ -293,6 +323,65 @@ class AtmStarSolver(object):
             print "FIT NOK : ",  res[3]
             return False
     
+    def solveAtmStarTempGraWithBounds(self, guess = None):
+        """
+        fit atmosphere parameters, temperature and gravity for star
+        """
+        if guess == None:
+            guess = self._oObs.getGuessDefault()
+        self._cptIte =0 
+        def getResidu(params):
+            print "================== START %d =============="%self._cptIte
+            #print "getResidu ", param
+            # add temp  
+            #print "param: ", param            
+#            v=[]
+#            [v.append(params[a].value) for a in params]
+            #print   params
+            par = np.array([params[a].value for a in params], dtype=np.float64)
+            #print par            
+            residu = self.getResidusTempGra(par)
+            chi2 = (residu**2).sum()
+            Tgray = par[aIdxTgray]
+            print "Tgray: min %f max %f"%(Tgray.min(), Tgray.max())
+            print "chi2: ", chi2
+            self._CostFunc.append(chi2)
+            self._cptIte += 1
+            #if self._cptIte == 20: raise
+            return residu
+        
+        aIdxTgray = self._oObs.getIdxTgray()
+        print "Tgray init", guess[aIdxTgray]    
+        aIdxGra = self._oObs.getIdxGravity()
+        print "Gravity init", guess[aIdxGra]
+        aIdxalpha = self._oObs.getIdxAlpha()
+        print "alpha init", guess[aIdxalpha]
+        aIdxTau0 = self._oObs.getIdxTau0()
+        print "Tau0 init", guess[aIdxTau0]
+        # Create objets Parameters
+        parGuess = lm.Parameters()
+        aIdxGra = self._oObs.getIdxGravity()
+        print aIdxGra      
+        for idx, val in enumerate(guess):
+            if idx in aIdxGra:
+                parGuess.add("p%d"%idx, val, min= 0.5, max=4.5)
+            elif idx in aIdxTgray:
+                parGuess.add("p%d"%idx, val, min= 0.4, max=1.00001)
+            elif idx in aIdxalpha:
+                parGuess.add("p%d"%idx, val, min= -2.1, max=0)
+            elif idx in aIdxTau0:
+                parGuess.add("p%d"%idx, val, min= 0.005, max=0.1)
+            else:
+                parGuess.add("p%d"%idx, val)
+        print parGuess 
+        res = self._FitRes = lm.minimize(getResidu, parGuess, ftol=1e-5, xtol= 1e-5)
+        if res.success:
+            print "FIT OK :",  res.message
+            self._parEst = np.array([res.params[a].value for a in res.params], dtype=np.float64)
+            return True
+        else:
+            print "FIT NOK : ",  res.message, res.lmdif_message
+            return False
                 
     def _solveStarParam(self, guess):
         """
@@ -490,7 +579,8 @@ class AtmStarSolver(object):
         for idx in range(self._oObs._NbFlux):            
             # compute model transmission 
             constObs = self._oObs.aConst[idx]            
-            par = param[self._oObs.aIdxParAtm[idx]]            
+            par = param[self._oObs.aIdxParAtm[idx]]
+            #print par          
             trans = self._memoAtmTrans.getTrans(idx, constObs, par)
             # compute model flux
             tempGra = param[self._oObs.aIdxParStar[idx]]            

@@ -92,7 +92,7 @@ class StarTargetSimuAll(object):
     
     def addMet(self, idx, pTempGra):
         par = np.copy(self._aParam[idx]).ravel()       
-        print pTempGra, par[1:]
+        #print pTempGra, par[1:]
         par[1:] = pTempGra
         return par
   

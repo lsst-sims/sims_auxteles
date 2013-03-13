@@ -237,7 +237,7 @@ def test_leastsq03():
         print res[0]
         if res[1] != None:             
             oAtm.plotCovarMatrix(res[1], "Covariance matrix estimated with 3 trans. obser")
-            oAtm.plotCorrelMatrix(res[1], "Correlation matrix estimated with 3 trans. obser")
+            oAtm.plotCorrelMatFromCovMat(res[1], "Correlation matrix estimated with 3 trans. obser")
             #print res[1]
         else: 
             print "no covariance estimated"
