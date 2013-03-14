@@ -19,7 +19,7 @@ class SimuAtmStarSolve():
     def __init__(self, night, obsByNight):
         self.oKur = kur.Kurucz(FileKuruczPic)
         self.oKur.setCoefUnit(1e-8)
-        self.oKur.resampleBetween(4000, 10000, 1000)
+        self.oKur.resampleBetween(5000, 10000, 500)
         self.oStarCat = star.StarTargetSimuAll(self.oKur, 2)
         self.oAtm = BurkeAtmModel(fileModtran)
         self.oAtm.resample( self.oKur.getWL())
@@ -141,9 +141,9 @@ def simuAtmTempGra():
 def simuAtmTempGraLM():   
     # create simulation observation
     # problem with seed 162, night 1, 24, but ok with tau and alpha bounds !
-    np.random.seed(16)
+    np.random.seed(19)
     nbNight = 1
-    nbPerioByNight = 24
+    nbPerioByNight = 30
     oSim = SimuAtmStarSolve(nbNight, nbPerioByNight)  
     snr = 400
     oSim.oObs.addNoisebySNR (snr)   
