@@ -19,7 +19,7 @@ class SimuAtmStarSolve():
     def __init__(self, night, obsByNight):
         self.oKur = kur.Kurucz(FileKuruczPic)
         self.oKur.setCoefUnit(1e-8)
-        self.oKur.resampleBetween(5000, 10000, 500)
+        self.oKur.resampleBetween(4000, 10000, 500)
         self.oStarCat = star.StarTargetSimuAll(self.oKur, 2)
         self.oAtm = BurkeAtmModel(fileModtran)
         self.oAtm.resample( self.oKur.getWL())
@@ -141,11 +141,11 @@ def simuAtmTempGra():
 def simuAtmTempGraLM():   
     # create simulation observation
     # problem with seed 162, night 1, 24, but ok with tau and alpha bounds !
-    np.random.seed(19)
+    np.random.seed(2629)
     nbNight = 1
-    nbPerioByNight = 30
+    nbPerioByNight = 24
     oSim = SimuAtmStarSolve(nbNight, nbPerioByNight)  
-    snr = 400
+    snr = 200
     oSim.oObs.addNoisebySNR (snr)   
     guessTrue = oSim.oObs.getTrueParam() 
     #guess = guessTrue*(1+np.random.normal(0, 0.05, len(guessTrue)))
@@ -166,16 +166,20 @@ def simuAtmTempGraLM():
         oSim.oSol.plotTrueEstimatePar()
 #        oSim.oSol.plotTransTrueEst(100)
 #        oSim.oSol.plotTransTrueEst(140)
+        oSim.oSol.plotFluxRawTheo(0, oSim.oSol._parEst)
+        oSim.oSol.plotFluxRawTheo(1, oSim.oSol._parEst)
+        oSim.oSol.plotFluxRawTheo(2, oSim.oSol._parEst)
+        oSim.oSol.plotFluxRawTheo(3, oSim.oSol._parEst)
 
 
 def simuOnlyAtm():   
     # create simulation observation
-    np.random.seed(103)
+    np.random.seed(104)
     nbNight = 1
     nbPerioByNight = 15
     oSim = SimuAtmStarSolve2(nbNight, nbPerioByNight)
     #oSim.oObs.addNoisebySNR (400, [0,1,2,3])
-    snr = 400
+    snr = 400000000
     oSim.oObs.addNoisebySNR (snr)   
     #guess = guessTrue*(1+np.random.normal(0,0.05,len(guessTrue)))
     guess = oSim.oObs.getGuessDefault()
