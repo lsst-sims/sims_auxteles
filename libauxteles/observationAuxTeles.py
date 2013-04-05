@@ -401,14 +401,15 @@ class ObsSurveySimu01(ObsSurvey):
         idx   : index flux
         param : global parameter vector
         """
-        parStar = np.array([-3, 0.0, 0.0])               
+               
         # compute model transmission                
         self._Oatm.setConstObs(self.aConst[idx])
         par = param[self.aIdxParAtm[idx]]
         self._Oatm.setParam(par)
         trans = self._Oatm.computeAtmTrans()
         # compute model flux
-        parStar[1:] = param[self.aIdxParStar[idx]]
+        tempGra = param[self.aIdxParStar[idx]]
+        parStar = self._oStarCat.addMet(self._SimuParObsIdx[idx, 1], tempGra)
         flux = self._oStarCat._oKur.getFluxInterLin(parStar)            
         # model 
         atmStarMod = trans*flux            
