@@ -46,13 +46,13 @@ def getModuleDirectory():
     return getDirectory(path)
 
 
-class SimAcquSpectro(object):
+class AuxTeles(object):
     """
     simulation spectrum star acquisition throught atmosphere with telescope spectroscope and CDD
     """
   
     def __init__(self):
-        self.ccdqe = ccd()
+        self.ccdqe = ccd.ccd()
         self.gri = grm.grism()
         self.mirrortr = mir.mirror()
         self.calibsys = cal.CalibSys()
@@ -65,12 +65,16 @@ class SimAcquSpectro(object):
         self.doPlot = False
         self.seeing = 0.1
         self.slitwidth = 1
-        self.mirAera = 1.2**2*3.14159
+        self.mirAera = (1.2**2)*3.14159
         self.inputres = 410
         
-    def setAtm(self, atmstar, seeing=None):
+    def setAtmFile(self, atmstar, seeing=None):
         if seeing != None: self.seeing = seeing
         self.atms.read(atmstar)
+        
+    def setAtmTrans(self, wl, trans, seeing=None):
+        if seeing != None: self.seeing = seeing
+        self.atms.setWithTrans(wl, trans)
     
     def setSpectro(self, slitwidth ):
         """
@@ -86,17 +90,15 @@ class SimAcquSpectro(object):
                 
     def setStarFile(self, starFile):
         self.star.readdEdl(starFile)
-              
-    def setStar(self, wl, spectrum):
+
+    def setStarSpectrum(self, wl, spectrum):
         """
-        set same attribut than self.star.readdEdl(filename)
+        wl       : [?] wave lenght
+        spectrum : [?]
         """        
-        self.star.wl = wl
-        self.star.nu = star.clight/wl        
-        self.star.dEdl = spectrum
-        self.star.dEdn = wl*spectrum/self.star.nu
+        self.star.setSpectrum(wl, spectrum)
     
-    def getCalibFlux(self):
+    def getCalibFlux(self, TpsExpo=240):
         # apply the aperture correction with respect to
         # the slit width and the seeing
         print "apertureCorrection"
@@ -114,7 +116,7 @@ class SimAcquSpectro(object):
         if self.doPlot : self.star.plotWL("dEdl after convolvePhoton", dEdl=self.star.dEdlConv)            
         # conversion to photons
         print "computePhoton"
-        self.star.computePhoton()
+        self.star.computePhoton(self.mirAera, TpsExpo)
         if self.doPlot : self.star.plotNbPhotons("#photons after computePhoton", self.star.phot)    
         # rebin on the ccd grid
         print "computePhotonCCD"
@@ -164,7 +166,7 @@ class SimAcquSpectro(object):
         print "MakeSensFunc"
         #star.MakeSensFunc(atmc.gettrans(), ccdqe, gri, mirrortr)
         #if True : star.plotWL("sensdEdl MakeSensFunc", star.wlccd[50:-50], star.sensdEdl[50:-50])
-        self.star.MakeSensFuncInstruOnly(self.ccdqe, self.gri, self.mirrortr)        
+        self.star.MakeSensFuncInstruOnly(self.ccdqe, self.gri, self.mirrortr, effarea=self.mirAera, exptime=TpsExpo)        
         # flux-calibrate the spectrum 
         print "calibrateSensSpec"
         self.star.calibrateSensSpec()
@@ -175,13 +177,14 @@ class SimAcquSpectro(object):
         print "AddCalibSys"
         self.star.AddCalibSys(self.calibsys)
         if self.doPlot : self.star.plotWL("syscaldEdl AddCalibSys Final", self.star.wlccd, self.star.syscaldEdl)        
+        self.star.plotWL("syscaldEdl AddCalibSys Final", self.star.wlccd, self.star.syscaldEdl)        
         return self.star.wlccd, self.star.syscaldEdl
         
         
 
 def simuSpectroAuxTeles(inputres, slitwidth, seeing, starname, atmstar):
     # create objects and read the data
-    ccdqe = ccd()
+    ccdqe = ccd.ccd()
     gri = grm.grism()
     mirrortr = mir.mirror()
     calibsys = cal.CalibSys()

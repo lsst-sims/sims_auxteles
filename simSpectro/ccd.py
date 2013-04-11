@@ -11,8 +11,10 @@
 # include some useful libraries
 # and class definitions
 from constants import *
-from scipy import *
+#from scipy import *
+import numpy as np
 import pylab as pl
+
 class ccd:
 
     def __init__(self):
@@ -22,8 +24,8 @@ class ccd:
 
     def read(self, filename):
         # read the file
-        file = open(filename, 'r')
-        for line in file.readlines():
+        myfile = open(filename, 'r')
+        for line in myfile.readlines():
             line = line.split()
             if line[0] == '#':
                 continue
@@ -33,9 +35,9 @@ class ccd:
             # basic check use of ccd transmission 
             #if wl > 900: re = 0
             self.re.append(re)
-        file.close()
-        self.wl = array(self.wl)
-        self.re = array(self.re)
+        myfile.close()
+        self.wl = np.array(self.wl)
+        self.re = np.array(self.re)
         #self.plotResponse()
         
     def plotResponse(self):
@@ -53,7 +55,7 @@ class ccd:
 
     def getnu(self):
         # return the frequency array
-        return flipud(clight/self.wl)
+        return np.flipud(clight/self.wl)
     
     def getre(self):
         # return the response array in increasing wavelength
@@ -61,4 +63,4 @@ class ccd:
     
     def getrenu(self):
         # return the response array in increasing frequency
-        return flipud(self.re)
+        return np.flipud(self.re)

@@ -10,6 +10,12 @@ class ATMCombSpec:
         self.tr = []
         self.ab = []
 
+    def setWithTrans(self, wl, tr):
+        self.wl = wl
+        self.tr = tr
+        self.ab = 1.0 - tr
+        self.nu = self.wl*(clight/wl)
+        
     def read(self, filename):
         file = open(filename, 'r')
         for line in file.readlines():

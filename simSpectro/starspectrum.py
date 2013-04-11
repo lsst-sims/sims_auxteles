@@ -97,7 +97,13 @@ class starspectrum:
         # and characteristic variables for this observation
         self.factorslit = 1.
         self.factorextract = 1.
-
+        
+    def setSpectrum(self, wl, spectrum):
+        self.wl = wl
+        self.nu = clight/wl        
+        self.dEdl = spectrum
+        self.dEdn = wl*spectrum/self.nu
+          
     def readdEdl(self, filename):
         # to read a spectrum in J/m2/s/nm
         facLamba=1
@@ -179,11 +185,9 @@ class starspectrum:
         self.dEdnAper = self.dEdn*self.factorslit*self.factorextract
         self.dEdlAper = self.dEdl*self.factorslit*self.factorextract
 
-
     def addPhotonNoise(self):
         # add the calculated photon noise
         self.photccd += np.random.normal(0., self.photccdnoise)
-
 
     def computePhoton(self, effarea=1.0, exptime=240.):
         # compute photons from the input spectrum (energy density)
@@ -214,10 +218,9 @@ class starspectrum:
             pl.legend(["diff centred","diff"],loc=0)
             pl.grid()
 
-
     def computePhotonNoise(self):
         # calculate the Poisson photon noise
-        self.photccdnoise = sqrt(self.photccd)
+        self.photccdnoise = np.sqrt(self.photccd)
         self.photccdnoise = map(notzero, self.photccdnoise)
 
     def computePhotonATM(self, atm):

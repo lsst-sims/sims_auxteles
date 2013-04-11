@@ -111,6 +111,7 @@ def interpolBSpline(pXin, pYin, pXout, pFlagPlot = False):
         pl.legend(["Raw","Interpol"])
     return Yout
 
+
 def interpolLinear(pXin, pYin, pXout, pFlagPlot = False):
     """
     pXin : increasing ordered array 
