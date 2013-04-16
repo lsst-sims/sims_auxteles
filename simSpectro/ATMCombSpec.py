@@ -5,6 +5,9 @@ import pylab as pl
 class ATMCombSpec:
 
     def __init__(self):
+        self._initList()  
+        
+    def _initList(self):
         self.wl = []
         self.nu = []
         self.tr = []
@@ -17,8 +20,9 @@ class ATMCombSpec:
         self.nu = self.wl*(clight/wl)
         
     def read(self, filename):
-        file = open(filename, 'r')
-        for line in file.readlines():
+        self._initList()
+        myfile = open(filename, 'r')
+        for line in myfile.readlines():
             line = line.split()
             freq = float(line[0])*3.e10
             trans = float(line[1])
@@ -26,7 +30,7 @@ class ATMCombSpec:
             self.wl.append(clight/freq)
             self.tr.append(trans)
             self.ab.append(1.-trans)
-        file.close()
+        myfile.close()
         self.nu = array(self.nu)
         self.wl = array(self.wl)
         self.tr = array(self.tr)

@@ -224,7 +224,7 @@ def test_leastsq03():
         oAtm.setParam(res[0])
         print parTrue
         oAtm.printBurkeModelParam()
-        pl.figure()
+        pl.figure()        
         pl.plot(p0)
         pl.plot(res[0])
         pl.plot(parTrue)

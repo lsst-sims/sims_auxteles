@@ -12,11 +12,12 @@
 # and class definitions
 
 #import CalibSys 
-from math import *
+#from math import *
 #from scipy import *
 from constants import *
 import numpy as np
 import scipy as sp
+import scipy.interpolate as spi
 import scipy.special
 import pylab as pl
 
@@ -35,7 +36,7 @@ def notzero(x):
 
 # gaussian distribution
 def gauss(x, sigma, mu=0.):
-    return exp(-(x-mu)*(x-mu)/(2.*sigma*sigma))/(sigma*sqrt(2*pi))
+    return np.exp(-(x-mu)*(x-mu)/(2.*sigma*sigma))/(sigma*np.sqrt(2*np.pi))
 
 def freq2wavelength(a, unit=1e-9):
     """
@@ -178,7 +179,7 @@ class starspectrum:
     def apertureCorrection(self, seeing, slitwidth, factext=0.68):
         # apply an aperture correction with respect to the seeing and slitwidth
         # also apply a correction corresponding to the aperture used to extract the 1D spectrum from the 2D spectrum: 1\sigma by default
-        sigma_seeing = seeing/(2.*(2.*log(2))**.5)
+        sigma_seeing = seeing/(2.*(2.*np.log(2))**.5)
         halfwidth_slit = slitwidth/2.
         self.factorslit = .5*( scipy.special.erf(halfwidth_slit/(sigma_seeing*2.**.5)) - scipy.special.erf(-halfwidth_slit/(sigma_seeing*2.**.5)) )
         self.factorextract = factext        
@@ -195,6 +196,7 @@ class starspectrum:
         # todo: take the calypso characteristics
         # exposure of 4 min
         adn =[]
+        self.phot = []
         for i in range(len(self.nu)):
             if i == 0:
                 dn = (self.nu[i+1]-self.nu[i])
@@ -228,6 +230,8 @@ class starspectrum:
         jmc: 
         atm = [self.nu, self.wl, self.tr]
         """
+        self.photatm = []
+        self.photatmnoise = []        
         # loop on star bins
         # jmc : loop on index nu ccd pixel
         for i in range(len(self.nuccd)):
@@ -342,7 +346,7 @@ class starspectrum:
 
     def computePhotonMirror(self, mirrorresp):
         # Mirror reflectivity
-        ginterp = sp.interpolate.interp1d(mirrorresp.getnu(), mirrorresp.getrenu(), bounds_error=False, fill_value = 0.)
+        ginterp = spi.interp1d(mirrorresp.getnu(), mirrorresp.getrenu(), bounds_error=False, fill_value = 0.)
         mirrortr = ginterp(self.nuccd)
         self.mirrortr = mirrortr
         self.photmirror = self.photatm * mirrortr
@@ -363,7 +367,9 @@ class starspectrum:
         # sin i - sin i' = lambda/a (put i = 0)
         # calculate the position of self.wl on the ccd and interpolate on the linear grid of the 512 pixels
         print  self.wl       
-        y = [ tan(grism.outputAngle(e)) for e in self.wl ]
+        self.photccd = []
+        self.photccdnoise = []
+        y = [ np.tan(grism.outputAngle(e)) for e in self.wl ]
         if S_LevelPlot > 3:
             pl.figure()
             pl.plot(self.wl, y)
@@ -373,7 +379,7 @@ class starspectrum:
             pl.xlabel(' wave length nm')
         dd = (y[-1]-y[0])/nbpixel
         yccd = [ y[0]+dd*i for i in range(nbpixel) ]
-        finterp = sp.interpolate.interp1d(np.flipud(np.array(y)), np.flipud(self.wl), bounds_error=False, fill_value = 0.)
+        finterp = spi.interp1d(np.flipud(np.array(y)), np.flipud(self.wl), bounds_error=False, fill_value = 0.)
         self.wlccd = np.flipud(finterp(np.flipud(np.array(yccd))))
         self.nuccd = clight/self.wlccd
         print "wlccd size ",np.size(self.wlccd)
@@ -468,7 +474,7 @@ class starspectrum:
         # converte in photo-electrons
         # Gain = 1 (assumption)
         # Response of the CCD
-        finterp = sp.interpolate.interp1d(ccdresp.getnu(), ccdresp.getrenu(), bounds_error=False, fill_value = 0.)
+        finterp = spi.interp1d(ccdresp.getnu(), ccdresp.getrenu(), bounds_error=False, fill_value = 0.)
         ccdr = finterp(self.nuccd)
         self.elecccd = self.photgrism * ccdr
         self.elecccdnoise = self.photgrismnoise * ccdr
@@ -489,7 +495,7 @@ class starspectrum:
             if self.elecccd[i] > 0.:
                 n = np.random.normal(0., noise)
                 self.elecccd[i] += n
-                self.elecccdnoise[i] = sqrt(self.elecccdnoise[i]*self.elecccdnoise[i] + n*n)
+                self.elecccdnoise[i] = np.sqrt(self.elecccdnoise[i]*self.elecccdnoise[i] + n*n)
 
     def rebinatm(self, atm):
         # rebin the calibration atm on the CCD bins
@@ -588,12 +594,12 @@ class starspectrum:
         self.sensdEdnJMC = np.zeros(len(self.nuccd), dtype=np.float64)
         self.sensdEdlJMC = np.zeros(len(self.nuccd), dtype=np.float64)
         # CCD
-        tck = sp.interpolate.splrep(ccdresp.getnu(), ccdresp.getrenu())
-        TransCCDPixel = sp.interpolate.splev(self.nuccd, tck)
+        tck = spi.splrep(ccdresp.getnu(), ccdresp.getrenu())
+        TransCCDPixel = spi.splev(self.nuccd, tck)
   
         # MIROR
-        tck = sp.interpolate.splrep(mirrorresp.getnu(), mirrorresp.getrenu())
-        TransMIRPixel = sp.interpolate.splev(self.nuccd, tck)
+        tck = spi.splrep(mirrorresp.getnu(), mirrorresp.getrenu())
+        TransMIRPixel = spi.splev(self.nuccd, tck)
         #print "MakeSensFuncJMC: ", gain, effarea, self.factorslit, self.factorextract
         factorDivers = gain*effarea*self.factorslit*self.factorextract
         # loop on pixel CCD
@@ -633,14 +639,14 @@ class starspectrum:
         self.sensdEdnJMC = np.zeros(len(self.nuccd), dtype=np.float64)
         self.sensdEdlJMC = np.zeros(len(self.nuccd), dtype=np.float64)
         # CCD
-        tck = sp.interpolate.splrep(ccdresp.getnu(), ccdresp.getrenu())
-        TransCCDPixel = sp.interpolate.splev(self.nuccd, tck)
+        tck = spi.splrep(ccdresp.getnu(), ccdresp.getrenu())
+        TransCCDPixel = spi.splev(self.nuccd, tck)
         # ATM
         # smooth atmosphere transmission
         minDeltaWL = np.min(np.diff(atm[1][::-1]))
         xcst = np.arange(min(atm[1]), max(atm[1]), minDeltaWL)
-        tck = sp.interpolate.splrep(atm[1][::-1], atm[2][::-1])
-        AtmPer = sp.interpolate.splev(xcst, tck, der=0)
+        tck = spi.splrep(atm[1][::-1], atm[2][::-1])
+        AtmPer = spi.splev(xcst, tck, der=0)
         kernel = []        
         minDeltaCCD = np.max(np.fabs(np.diff(self.wlccd)))
         sigma = minDeltaCCD/4
@@ -651,8 +657,8 @@ class starspectrum:
         #convycst = scipy.signal.fftconvolve(ycst, kernel, 'same')
         AtmConv= sp.convolve(AtmPer, kernel, 'same')/kernel.sum()            
        
-        tck = sp.interpolate.splrep(xcst,AtmConv )
-        TransATMPixel = sp.interpolate.splev(self.wlccd, tck)
+        tck = spi.splrep(xcst,AtmConv )
+        TransATMPixel = spi.splev(self.wlccd, tck)
         #tck = interpolate.splrep(atm[0],atm[2] )
         #TransATMPixel = interpolate.splev(self.nuccd, tck)
         if S_LevelPlot > 2: 
@@ -667,8 +673,8 @@ class starspectrum:
             pl.plot(self.wlccd, TransATMPixel) 
             pl.legend(["atm raw","atm conv.","atm@CCD"])           
         # MIROR
-        tck = sp.interpolate.splrep(mirrorresp.getnu(), mirrorresp.getrenu())
-        TransMIRPixel = sp.interpolate.splev(self.nuccd, tck)
+        tck = spi.splrep(mirrorresp.getnu(), mirrorresp.getrenu())
+        TransMIRPixel = spi.splev(self.nuccd, tck)
         #print "MakeSensFuncJMC: ", gain, effarea, self.factorslit, self.factorextract
         factorDivers = gain*effarea*self.factorslit*self.factorextract
         # loop on pixel CCD
@@ -713,9 +719,9 @@ class starspectrum:
         # en nm
         WLnm = np.array([ 3080.0, 3160.0, 3240.0, 3320.0, 3400.0, 3480.0, 3560.0, 3640.0, 3680.0, 3720.0, 3760.0, 3780.0, 3820.0, 3860.0, 4020.0, 4200.0, 4400.0, 4560.0, 4760.0, 5000.0, 5120.0, 5240.0, 5400.0, 5560.0, 5760.0, 6020.0, 6420.0, 6780.0, 7100.0, 7460.0, 7780.0, 8100.0, 8380.0, 8780.0, 8900.0, 9900.0, 9940.0,10260.0,10820.0, 11140.0, 12000.0])[::-1]/10.
         nutmp = clight/WLnm
-        finterp = sp.interpolate.interp1d(ccdresp.getnu(), ccdresp.getrenu(), bounds_error=False, fill_value = 0.)
-        ginterp = sp.interpolate.interp1d(mirrorresp.getnu(), mirrorresp.getrenu(), bounds_error=False, fill_value = 0.)
-        hinterp = sp.interpolate.interp1d(self.nuccd, self.atmrebin, bounds_error=False, fill_value = 0.)
+        finterp = spi.interp1d(ccdresp.getnu(), ccdresp.getrenu(), bounds_error=False, fill_value = 0.)
+        ginterp = spi.interp1d(mirrorresp.getnu(), mirrorresp.getrenu(), bounds_error=False, fill_value = 0.)
+        hinterp = spi.interp1d(self.nuccd, self.atmrebin, bounds_error=False, fill_value = 0.)
         ccdr = finterp(nutmp)
         mirrortr = ginterp(nutmp)
         atmrebintr = hinterp(nutmp)
@@ -733,8 +739,8 @@ class starspectrum:
                 nudiff0.append(nutmp[i])
                 sensdiff0.append(sensdEdntmp[i])
         # cubic splines interpolation
-        tck = sp.interpolate.splrep(nudiff0, log10(sensdiff0), s=0)
-        self.sensdEdn = 10.**(sp.interpolate.splev(self.nuccd, tck, der=0))
+        tck = spi.splrep(nudiff0, np.log10(sensdiff0), s=0)
+        self.sensdEdn = 10.**(spi.splev(self.nuccd, tck, der=0))
         if True:
             pl.figure()
             pl.title("compare fnc calib")
@@ -766,6 +772,8 @@ class starspectrum:
 
     def calibrateSensSpec(self):
         # flux-calibrate the spectrum using the sens function
+        self.caldEdn = []
+        self.caldEdnnoise = []
         for i in range(len(self.nuccd)):
             self.caldEdn.append(self.elecccd[i]*self.sensdEdn[i])
             self.caldEdnnoise.append(self.elecccdnoise[i]*self.sensdEdn[i])
@@ -779,8 +787,8 @@ class starspectrum:
         # Calibrate the spectrum with the perfectly known
         # response of the instrument
         # to use for checking...
-        finterp = sp.interpolate.interp1d(ccdresp.getnu(), ccdresp.getrenu(), bounds_error=False, fill_value = 0.)
-        ginterp = sp.interpolate.interp1d(mirrorresp.getnu(), mirrorresp.getrenu(), bounds_error=False, fill_value = 0.)
+        finterp = spi.interp1d(ccdresp.getnu(), ccdresp.getrenu(), bounds_error=False, fill_value = 0.)
+        ginterp = spi.interp1d(mirrorresp.getnu(), mirrorresp.getrenu(), bounds_error=False, fill_value = 0.)
         ccdr = finterp(self.nuccd)
         mirrortr = ginterp(self.nuccd)
         for i in range(len(self.nuccd)):
@@ -858,8 +866,8 @@ class starspectrum:
     def convolvePhotondEdl(self, sigma):
         minDeltaWL = np.min(np.diff(self.wl[::-1]))
         xcst = np.arange(min(self.wl), max(self.wl), minDeltaWL)
-        tck = sp.interpolate.splrep(self.wl[::-1], self.dEdlAper[::-1])
-        ycst = sp.interpolate.splev(xcst, tck, der=0)
+        tck = spi.splrep(self.wl[::-1], self.dEdlAper[::-1])
+        ycst = spi.splev(xcst, tck, der=0)
         # put the gaussian kernel into an array
         kernel = []
         for e in np.arange(-10.*sigma, 10.*sigma+minDeltaWL, minDeltaWL):
@@ -869,8 +877,8 @@ class starspectrum:
         #convycst = scipy.signal.fftconvolve(ycst, kernel, 'same')
         convycst = sp.convolve(ycst, kernel, 'same')
         # and put it again on the initial grid
-        tck = sp.interpolate.splrep(xcst, convycst)
-        convy = sp.interpolate.splev(self.wl, tck, der=0)
+        tck = spi.splrep(xcst, convycst)
+        convy = spi.splev(self.wl, tck, der=0)
         self.dEdlConv = convy/kernel.sum()
         self.dEdnConv = (self.wl**2)*self.dEdlConv/clight
         if S_LevelPlot > 0:
@@ -911,8 +919,8 @@ class starspectrum:
                 minstep = tmpstep
         # interpolate the spectrum on a grid with constant step
         xcst = np.arange(min(self.wl), max(self.wl), minstep)
-        tck = sp.interpolate.splrep(self.wl[::-1], self.phot[::-1])
-        ycst = sp.interpolate.splev(xcst, tck, der=0)
+        tck = spi.splrep(self.wl[::-1], self.phot[::-1])
+        ycst = spi.splev(xcst, tck, der=0)
         if S_LevelPlot >1:
             pl.figure()
             pl.plot(self.wl, self.phot)  
@@ -932,7 +940,7 @@ class starspectrum:
         #convycst = scipy.signal.fftconvolve(ycst, kernel, 'same')
         convycst = sp.convolve(ycst, kernel, 'same')
         # and put it again on the initial grid
-        tck =  sp.interpolate.splrep(xcst, convycst)
+        tck =  spi.splrep(xcst, convycst)
         #convy = interpolate.splev(self.wl[::-1], tck, der=0)
         #self.photconv = convy[::-1]/kernel.sum()
         self.photconv = self.phot
@@ -985,9 +993,9 @@ class starspectrum:
     def EstimTransmissionATM(self,atm, ccdresp, grismresp, mirrorresp, gain=1., effarea=1.0, exptime=240.):
         EstTransATM = []
         # points outside the main absorption lines of the ATM, from Thomas Matheson IDL procedures, slighly modified for convergence of the interpolation
-        finterp = sp.interpolate.interp1d(ccdresp.getnu(), ccdresp.getrenu(), bounds_error=False, fill_value = 0.)
-        ginterp = sp.interpolate.interp1d(mirrorresp.getnu(), mirrorresp.getrenu(), bounds_error=False, fill_value = 0.)
-        sinterp = sp.interpolate.interp1d(self.nu, self.dEdnConv, bounds_error=False, fill_value = 0.)
+        finterp = spi.interp1d(ccdresp.getnu(), ccdresp.getrenu(), bounds_error=False, fill_value = 0.)
+        ginterp = spi.interp1d(mirrorresp.getnu(), mirrorresp.getrenu(), bounds_error=False, fill_value = 0.)
+        sinterp = spi.interp1d(self.nu, self.dEdnConv, bounds_error=False, fill_value = 0.)
         ccdr = finterp(self.nuccd)
         mirrortr = ginterp(self.nuccd)
         StarEC = sinterp(self.nuccd)

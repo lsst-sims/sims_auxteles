@@ -9,6 +9,7 @@ import starTargetSimu as star
 import pylab as pl
 import kurucz as kur
 import numpy as np
+import AuxSpecGen as aux
 
 
 class ObsSurvey(object):
@@ -25,7 +26,7 @@ class ObsSurvey(object):
         # aIdxParStar : indirection table for star Kurucz parameters
         # return for idx flux , idx in global vector parameter Kurucz associated to input idx flux
         # the order is coherent with convention used by Kurucz class ie:
-        #   metallicity, temperature, gravity        
+        #   metalicity, temperature, gravity        
         self.aIdxParStar= None
         self.NbFlux   = 0
         self._NbNight = 0
@@ -430,7 +431,7 @@ class ObsSurveySimu01(ObsSurvey):
             pl.grid()
 
 
-class ObsSurveySimu02(ObsSurveySimu01):
+class ObsSurveySimuTemp(ObsSurveySimu01):
     """
     simu with random position, atm param, 
     star : only one parameter temperature
@@ -503,4 +504,84 @@ class ObsSurveySimu02(ObsSurveySimu01):
         for idx in range(self._NbStar):
             self._NameStar.append('$t\degree$')   
     
-    
+
+class ObsSurveySimuV2_1(ObsSurveySimu01):
+    """
+    Simu with :
+     * star flux : catalog flux done by Kurucz model
+     * star mvt  : random position 
+     * atm       : Burke with constraints random parameters 
+     * spectro   : used simulator designed by G. Bazin
+     
+    Principal method:
+     * readObsNight():  simulated all data observation    
+    """
+    def __init__(self, pNbNight=1, pNbObsNight=1):
+        ObsSurveySimu01.__init__(self, pNbNight, pNbObsNight)        
+
+
+    def readObsNight(self, pRep):
+        """
+        fill self.aFlux (array flux)  , here by simulation atmosphere and star
+        """
+        # assert isinstance(self._Oatm, atm.BurkeAtmModel)      
+        idxFlux = 0
+        # index vector parameters : star param, atm param
+        idxPar = self._NbStar*self._NbPstar
+        self.aFlux = np.zeros((self._NbFlux, self._NbWL), dtype=np.float64) 
+        #  aConst =  _SimuConstObs    
+        self.aConst = np.zeros((self._NbFlux, self._NbConst), dtype=np.float32)
+        self.aIdxParAtm = np.zeros((self._NbFlux, self._NbPatm), dtype=np.int16)
+        self.aIdxParStar = np.zeros((self._NbFlux, self._NbPstar), dtype=np.int16)       
+        # random parameters
+        self._randomTrueParAndConst()
+        idxParNight = idxPar 
+        idxParCH20  = idxParNight + 8 
+        idxParTgray = idxParNight + 9  
+        self._NameAtm = []
+        # create AuxTeles
+        listAuxteles = []
+        for idx in range(self._NbStar):
+            simSpec = aux.AuxTeles()
+            spectrum = self._oStarCat.getFluxIdx(idx)
+            wl = self._oStarCat.getWL()
+            simSpec.setStarSpectrum(wl, spectrum)
+            listAuxteles.append(simSpec)        
+        for idxN in range(self._NbNight): 
+            [self._NameAtm.append(x) for x in self._NameNightAtm]
+            for idxO in range(self._NbPeriodObsByNight):
+                self._NameAtm.append(self._NameWater)            
+                for idxS in range(self._NbStar):
+                    self._NameAtm.append(self._NameTgray) 
+                    print idxN,idxO,idxS
+                    # Compute transmission atm 
+                    self._Oatm.setConstObs(self.getConst(idxFlux))
+                    self._Oatm.setParam(self.getTrueParamAtmIdx(idxFlux))
+                    wl = self._Oatm.getWL()
+                    trans = self._Oatm.computeAtmTrans()
+                    # calibrated star spectrum estimation
+                    simSpec = listAuxteles[self._SimuParObsIdx[idxFlux,1]]
+                    simSpec.setAtmTrans(wl, trans)
+                    self.aFlux[idxFlux,:] = simSpec.getCalibFlux(240)
+                    # defined const                         
+                    self.aConst[idxFlux,:] = self.getConst(idxFlux)
+                    # fill table atm parameters
+                    self.aIdxParAtm[idxFlux, 0]    = idxParTgray                
+                    self.aIdxParAtm[idxFlux, 1:7]  = np.arange(idxParNight, idxParNight+6)                    
+                    self.aIdxParAtm[idxFlux, 7]    = idxParCH20
+                    self.aIdxParAtm[idxFlux, 8:10] = np.arange(idxParNight+6, idxParNight+8) 
+                    # fill table star parameters                   
+                    for idxPs in range(self._NbPstar):
+                        self.aIdxParStar[idxFlux, idxPs] = idxS*self._NbPstar + idxPs
+                        #self.aIdxParStar[idxFlux, 1] = idxS*2 +1                    
+                    idxFlux +=1
+                    # add 2 for Tgray, C_H20
+                    idxParTgray += 1
+                idxParCH20 = idxParTgray
+                idxParTgray = idxParCH20 + 1
+            # add 8 for tau 0,1,2, alpha, Cmol, CO3, dW_C_H20, dN_C_H20   
+            idxParNight = idxParCH20
+            idxParCH20 =   idxParNight + 8 
+            idxParTgray =  idxParNight + 9                
+        # with last observation    
+        self._NbParam = self._NbStar*self._NbPstar + self._NbNight*(self.getNbParamAtmByNight())

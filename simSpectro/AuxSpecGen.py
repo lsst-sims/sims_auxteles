@@ -177,7 +177,7 @@ class AuxTeles(object):
         print "AddCalibSys"
         self.star.AddCalibSys(self.calibsys)
         if self.doPlot : self.star.plotWL("syscaldEdl AddCalibSys Final", self.star.wlccd, self.star.syscaldEdl)        
-        self.star.plotWL("syscaldEdl AddCalibSys Final", self.star.wlccd, self.star.syscaldEdl)        
+        #self.star.plotWL("syscaldEdl AddCalibSys Final", self.star.wlccd, self.star.syscaldEdl)        
         return self.star.wlccd, self.star.syscaldEdl
         
         

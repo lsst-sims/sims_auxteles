@@ -98,3 +98,6 @@ class StarTargetSimuAll(object):
   
     def getFluxIdx(self, pIdx):
         return  self._aFlux[pIdx]
+    
+    def getWL(self):
+        return self._oKur.getWL()
