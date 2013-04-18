@@ -86,6 +86,7 @@ class Kurucz(object):
         line 0 : metallicity log_Z : -5.0 to 1.0
         line 1 : temperature Kelvin: 3000 to 50000
         line 2 : gravity log_g : 0 to 5
+        line 4 : first value
     '''
 
     def __init__(self, filePickle, test=False):
@@ -117,10 +118,16 @@ class Kurucz(object):
         self._Flux[3:,1:] *= coef        
         
     def resampleBetween(self, pWLmin, pWLmax, pNb):
+        """
+        resample and delete date ouside pWLmin, pWLmax interval 
+        """
         newWL = np.linspace(pWLmin, pWLmax, pNb, True)
         self.resample(newWL)
         
-    def resample(self, pWL):
+    def resample(self, pWL):        
+        """
+        resample and delete date ouside pWLmin, pWLmax interval 
+        """       
         # interpole only around new WL domain 
         self.setWLInterval(pWL[0]*0.98, pWL[-1]*1.02)
         WLin = self.getWL()
@@ -162,14 +169,31 @@ class Kurucz(object):
                 aColNOK.append(idx)
         if aColNOK != []:
             print "delete %d columns not defined "%len(aColNOK)
+            # 1 to suppress column
             self._Flux = np.delete(self._Flux, aColNOK, 1)
             if NotDefined :                
                 self._ParamNotDef = np.array(self._ParamNotDef).reshape(len(aColNOK),3)
+     
                 
     def setWLuseAll(self):
         self._IdxMin = 3
         self._IdxMax = len(self._Flux[0])-1
-    
+        
+    def restrictToWLinterval(self, wlMin , wlMax):
+        """
+        remove data ouside interval defined by wlMin , wlMax
+        """
+        self.setWLInterval(wlMin, wlMax)
+        # delete before wlMin
+        idxLineInf = np.arange(3, self._IdxMin)        
+        idxLineSup = np.arange(self._IdxMax+1, len(self._Flux[0,:]))        
+        idxLine = np.concatenate((idxLineInf, idxLineSup))
+        # 0 to suppress line
+        self._Flux = np.delete(self._Flux, idxLine, 0)
+        self.setWLuseAll()
+        self._oInterLin = None
+        self._oNGP = None
+        
     def setWLInterval(self, wlMin , wlMax):   
         idx = np.where(self._Flux[3:,0] >= wlMin)[0]
         if len(idx) == 0:
@@ -185,6 +209,8 @@ class Kurucz(object):
         self._IdxMax = idx[-1]+3
         print wlMin , wlMax
         print "nb wl ", self._IdxMax-self._IdxMin
+        self._oInterLin = None
+        self._oNGP = None
     
     def getFluxIdx(self, idx):
         return self._Flux[self._IdxMin:self._IdxMax+1, idx]

@@ -85,6 +85,7 @@ class Test(unittest.TestCase):
         simSpec = AuxTeles()
         simSpec.setStarFile(S_StarFile)
         self.SimAcquSpectro02(simSpec, S_AtmFile)
+        simSpec.atms.plot( S_AtmFile)
         self.SimAcquSpectro02(simSpec, S_AtmFile2)
         self.SimAcquSpectro02(simSpec, S_AtmFile3)
         

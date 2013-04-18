@@ -10,7 +10,7 @@ import pylab as pl
 import kurucz as kur
 import numpy as np
 import AuxSpecGen as aux
-
+import copy as cp
 
 class ObsSurvey(object):
     def __init__(self):
@@ -161,7 +161,9 @@ class ObsSurveySimu01(ObsSurvey):
         pass
     
 # GETTER
-    
+    def getWL(self):
+        return self._Oatm._aWL
+   
     def getNameVecParam(self):
         return self._NameStar+self._NameAtm    
     
@@ -357,12 +359,12 @@ class ObsSurveySimu01(ObsSurvey):
         if doPlot:
             pl.figure()
             pl.title("Add noise to spectrum")
-            pl.plot(self._Oatm._aWL, self.aFlux[1])
-            pl.plot(self._Oatm._aWL, self.aFlux[2])
+            pl.plot(self.getWL(), self.aFlux[1])
+            pl.plot(self.getWL(), self.aFlux[2])
         self.aFlux += noise.reshape(self._NbFlux,self._NbWL)
         if doPlot:           
-            pl.plot(self._Oatm._aWL,self.aFlux[1])
-            pl.plot(self._Oatm._aWL,self.aFlux[2])
+            pl.plot(self.getWL(),self.aFlux[1])
+            pl.plot(self.getWL(),self.aFlux[2])
             pl.xlabel("Angstrom")
             pl.legend(["no noise","with noise","no noise","with noise" ])
             pl.grid()
@@ -381,8 +383,8 @@ class ObsSurveySimu01(ObsSurvey):
             pl.figure()
             pl.title("Add noise to flux SNR %f"%snr)
             for idx in doPlot:
-                pl.plot(self._Oatm._aWL, self.aFlux[idx],'.')
-                pl.plot(self._Oatm._aWL, aFlux[idx])
+                pl.plot(self.getWL(), self.aFlux[idx],'.')
+                pl.plot(self.getWL(), aFlux[idx])
             pl.xlabel("Angstrom")            
             pl.grid()
     
@@ -419,14 +421,15 @@ class ObsSurveySimu01(ObsSurvey):
 # PLOT FUNCTION
     def plotFlux(self,idx):
         pl.figure()
-        pl.plot(self._Oatm._aWL, self.aFlux[idx,:])
+        pl.plot(self.getWL(), self.aFlux[idx,:])
         pl.title("Flux simu star/atm %d"%idx)
         pl.grid()
+            
             
     def plotFluxAll(self):
         for idx in range(self._NbFlux):
             pl.figure()
-            pl.plot(self._Oatm._aWL, self.aFlux[idx,:])
+            pl.plot(self.getWL(), self.aFlux[idx,:])
             pl.title("Flux simu star/atm %d"%idx)
             pl.grid()
 
@@ -519,7 +522,20 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
     def __init__(self, pNbNight=1, pNbObsNight=1):
         ObsSurveySimu01.__init__(self, pNbNight, pNbObsNight)        
 
+    def getWL(self):
+        return self._WL
 
+    def setStarTarget(self, pOstar):  
+        ObsSurveySimu01.setStarTarget(self, pOstar)
+    
+    def setAuxTeles(self, pAuxteles):
+        """
+        call after setStarTarget() to redefine self._NbWL !!
+        """
+        assert isinstance(pAuxteles, aux.AuxTeles)  
+        self._AuxTeles = pAuxteles
+        self._NbWL = pAuxteles.nbpixel 
+        
     def readObsNight(self, pRep):
         """
         fill self.aFlux (array flux)  , here by simulation atmosphere and star
@@ -540,13 +556,18 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
         idxParTgray = idxParNight + 9  
         self._NameAtm = []
         # create AuxTeles
+        # en nm
+        wl = self._oStarCat.getWL()/10.
         listAuxteles = []
         for idx in range(self._NbStar):
-            simSpec = aux.AuxTeles()
-            spectrum = self._oStarCat.getFluxIdx(idx)
-            wl = self._oStarCat.getWL()
-            simSpec.setStarSpectrum(wl, spectrum)
-            listAuxteles.append(simSpec)        
+            # deepcopy to save all option choiced
+            simSpec = cp.deepcopy(self._AuxTeles)
+            spectrum = self._oStarCat.getFluxIdx(idx)           
+            simSpec.setStarSpectrum(wl, spectrum)        
+            listAuxteles.append(simSpec)
+            simSpec.star.plotWL("star %d"%idx)   
+#        for idx in range(self._NbStar):
+#            listAuxteles[idx].star.plotWL("star %d"%idx)                   
         for idxN in range(self._NbNight): 
             [self._NameAtm.append(x) for x in self._NameNightAtm]
             for idxO in range(self._NbPeriodObsByNight):
@@ -561,8 +582,12 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
                     trans = self._Oatm.computeAtmTrans()
                     # calibrated star spectrum estimation
                     simSpec = listAuxteles[self._SimuParObsIdx[idxFlux,1]]
-                    simSpec.setAtmTrans(wl, trans)
-                    self.aFlux[idxFlux,:] = simSpec.getCalibFlux(240)
+                    # en nm
+                    simSpec.setAtmTrans(wl/10, trans)
+                    simSpec.atms.plot("")
+                    wl, flux  = simSpec.getCalibFlux(240)
+                    self.aFlux[idxFlux,:] = flux
+                    self._WL = wl                                         
                     # defined const                         
                     self.aConst[idxFlux,:] = self.getConst(idxFlux)
                     # fill table atm parameters
@@ -583,5 +608,6 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
             idxParNight = idxParCH20
             idxParCH20 =   idxParNight + 8 
             idxParTgray =  idxParNight + 9                
-        # with last observation    
+        # with last observation
+        self._WL = wl    
         self._NbParam = self._NbStar*self._NbPstar + self._NbNight*(self.getNbParamAtmByNight())

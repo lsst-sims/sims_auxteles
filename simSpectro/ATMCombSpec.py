@@ -1,6 +1,7 @@
 from scipy import *
 from constants import *
 import pylab as pl
+import numpy as np 
 
 class ATMCombSpec:
 
@@ -14,10 +15,10 @@ class ATMCombSpec:
         self.ab = []
 
     def setWithTrans(self, wl, tr):
-        self.wl = wl
-        self.tr = tr
-        self.ab = 1.0 - tr
-        self.nu = self.wl*(clight/wl)
+        self.wl = np.flipud(wl)
+        self.tr = np.flipud(tr)
+        self.ab = 1.0 - self.tr
+        self.nu = clight/self.wl
         
     def read(self, filename):
         self._initList()
@@ -50,3 +51,4 @@ class ATMCombSpec:
         pl.grid()
         pl.title("Atmosphere file %s"%fName)
         pl.plot(self.wl, self.tr)
+        print len(self.wl)

@@ -67,6 +67,7 @@ class AuxTeles(object):
         self.slitwidth = 1
         self.mirAera = (1.2**2)*3.14159
         self.inputres = 410
+        self.nbpixel  = 512
         
     def setAtmFile(self, atmstar, seeing=None):
         if seeing != None: self.seeing = seeing
@@ -111,7 +112,7 @@ class AuxTeles(object):
         if(sigmaconv<0):
             print 'error: convolution is impossible, the resolution of the input spectrum is less than the resolution of the output spectrum'
             exit(2)
-        print "convolvePhoton"
+        print "convolvePhotondEdl"
         self.star.convolvePhotondEdl(sigmaconv)
         if self.doPlot : self.star.plotWL("dEdl after convolvePhoton", dEdl=self.star.dEdlConv)            
         # conversion to photons
@@ -120,7 +121,7 @@ class AuxTeles(object):
         if self.doPlot : self.star.plotNbPhotons("#photons after computePhoton", self.star.phot)    
         # rebin on the ccd grid
         print "computePhotonCCD"
-        self.star.computePhotonCCD(self.gri)
+        self.star.computePhotonCCD(self.gri, self.nbpixel)
         if self.doPlot : self.star.plotNbPhotons("#photon after computePhotonCCD", self.star.photccd)                
         # compute and add photon noise
         print "computePhotonNoise"   

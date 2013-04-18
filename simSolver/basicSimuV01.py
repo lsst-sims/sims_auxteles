@@ -22,7 +22,7 @@ class SimuAtmStarSolve():
         self.oKur.resampleBetween(4000, 10000, 500)
         self.oStarCat = star.StarTargetSimuAll(self.oKur, 2)
         self.oAtm = BurkeAtmModel(fileModtran)
-        self.oAtm.resample( self.oKur.getWL())
+        self.oAtm.resample( self.oKur.getWL() )
         self.oObs = obsAT.ObsSurveySimu01(night,obsByNight)
         self.oObs.setAtmModel(self.oAtm)
         self.oObs.setStarTarget(self.oStarCat)

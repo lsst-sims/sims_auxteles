@@ -49,6 +49,7 @@ def test_AltVariation():
     pl.ylabel("%")
     pl.grid()    
     pl.title("Burke model atm. trans. var. with altitude ")
+
     
 def test_PresVariation():    
     oAtm= BurkeAtmModel(fileModtran)   

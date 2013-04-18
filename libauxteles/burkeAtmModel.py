@@ -170,7 +170,7 @@ class BurkeAtmModel(object):
             #pl.legend(["gray"])
             pl.title("composant modtran")
             pl.grid()
-            self._CurtTrans = ret
+            self._CurtTrans = ret*ret1*ret2*ret3*ret4
         else:
             ret = self._transGrayAero()
             ret *= self._transMols()
@@ -178,7 +178,7 @@ class BurkeAtmModel(object):
             ret *= self._transO3()
             ret *= self._transH2O()
             self._CurtTrans = ret        
-        return ret
+        return self._CurtTrans
     
     def computeAtmTransAtConstObs(self, alt, az, pressure):
         self.setConstObsComp(alt, az, pressure)  

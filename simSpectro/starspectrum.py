@@ -104,7 +104,13 @@ class starspectrum:
         self.nu = clight/wl        
         self.dEdl = spectrum
         self.dEdn = wl*spectrum/self.nu
-          
+        # like self.readverif()
+        self.nu = np.flipud(self.nu)
+        self.wl = np.flipud(self.wl)
+        self.dEdn = np.flipud(self.dEdn)
+        self.dEdl = np.flipud(self.dEdl)
+        
+         
     def readdEdl(self, filename):
         # to read a spectrum in J/m2/s/nm
         facLamba=1
@@ -231,7 +237,10 @@ class starspectrum:
         atm = [self.nu, self.wl, self.tr]
         """
         self.photatm = []
-        self.photatmnoise = []        
+        self.photatmnoise = []
+        print "nu atm ",  atm[1][:10]
+        print "nu ccd ",  self.nuccd[:10]
+             
         # loop on star bins
         # jmc : loop on index nu ccd pixel
         for i in range(len(self.nuccd)):
@@ -366,7 +375,7 @@ class starspectrum:
         # Dispersion of the grism in lambda
         # sin i - sin i' = lambda/a (put i = 0)
         # calculate the position of self.wl on the ccd and interpolate on the linear grid of the 512 pixels
-        print  self.wl       
+        #print  self.wl       
         self.photccd = []
         self.photccdnoise = []
         y = [ np.tan(grism.outputAngle(e)) for e in self.wl ]

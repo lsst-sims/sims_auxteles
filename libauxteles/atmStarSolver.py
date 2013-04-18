@@ -109,7 +109,7 @@ class AtmStarSolver(object):
         """
         self._setObservation(oObs)
         self._setStarModel(oKur)
-        self._setAtmModel(oAtm)
+        self._setAtmModel(oAtm)            
         
     def _setObservation(self, oObs):
         self._oObs = oObs

@@ -48,6 +48,14 @@ def test_resample():
     pl.legend(["raw",'resample'])
     pl.grid()
     
+def test_restrictToWLinterval():
+    oKur = Kurucz(FileKuruczPic)    
+    par = np.array([0.0, 3660., 0.5])
+    pl.plot(oKur.getWL(), oKur.getFluxInterLin(par))
+    oKur.restrictToWLinterval(4000, 5000)
+    print len(oKur.getWL()),len( oKur.getFluxInterLin(par))
+    pl.plot(oKur.getWL(), oKur.getFluxInterLin(par))
+    pl.grid()
     
 def test_getFluxInterLin():
     oKur = Kurucz(FileKuruczPic)
@@ -406,7 +414,8 @@ class Test(unittest.TestCase):
 #test_resample()
 #test_fitTempGra()
 #unittest.main()
-test_fitWithBounds()
+#test_fitWithBounds()
+test_restrictToWLinterval()
 #test_plotFlux()
 #test_plotNotDefined()
 try:
