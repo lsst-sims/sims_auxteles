@@ -46,6 +46,7 @@ def getModuleDirectory():
     return getDirectory(path)
 
 
+
 class AuxTeles(object):
     """
     simulation spectrum star acquisition throught atmosphere with telescope spectroscope and CDD
@@ -63,19 +64,45 @@ class AuxTeles(object):
         self.ccdqe.read(datadir    + 'E2V_CCD42-90_QEmodel.txt')
         self.calibsys.read(datadir + 'corr.txt')
         self.doPlot = False
-        self.seeing = 0.1
-        self.slitwidth = 1
-        self.mirAera = (1.2**2)*3.14159
-        self.inputres = 410
-        self.nbpixel  = 512
+        self.seeing = 0.1  # [rad]
+        self.slitwidth = 1 # [rad]
+        self.mirAera = (1.2**2)*3.14159 #[m^2]
+        self.inputres = 1300.0 # [unitless]
+        self.outputres = 600.0 # [unitless]
+        self.nbpixel = 512
+        self.WLref = 650.0 # [nm]
+        
+        
+    def setResolution(self, inputRes, outputRes):
+        self.inputres = inputRes
+        self.outputres = outputRes   
+        
+        
+    def ajustNBPixel(self, wl=None):
+        if wl==None:
+            wl = self.star.wl
+        amplWL  = np.fabs(wl[0] - wl[-1])
+        deltaWL = self.WLref / self.outputres
+        self.nbpixel = int(np.trunc( amplWL / deltaWL ) + 1)
+        
+        
+    def setResolutionAndAjustNBPixel(self, inputRes, outputRes):
+        """
+        ajust number pixel with star spectrum wavelength definition
+        """
+        self.setResolution(inputRes, outputRes)
+        self.ajustNBPixel(self.star.wl)
+        
         
     def setAtmFile(self, atmstar, seeing=None):
         if seeing != None: self.seeing = seeing
         self.atms.read(atmstar)
         
+        
     def setAtmTrans(self, wl, trans, seeing=None):
         if seeing != None: self.seeing = seeing
         self.atms.setWithTrans(wl, trans)
+    
     
     def setSpectro(self, slitwidth ):
         """
@@ -83,14 +110,17 @@ class AuxTeles(object):
         """
         self.slitwidth = slitwidth
                 
+                
     def setTelescope(self, mirorAera):
         """
         m^2
         """
         self.mirAera = mirorAera
                 
+                
     def setStarFile(self, starFile):
         self.star.readdEdl(starFile)
+
 
     def setStarSpectrum(self, wl, spectrum):
         """
@@ -99,15 +129,17 @@ class AuxTeles(object):
         """        
         self.star.setSpectrum(wl, spectrum)
     
-    def getCalibFlux(self, TpsExpo=240):
+    
+    def getCalibFlux(self, TpsExpo=240, addNoise=True):
         # apply the aperture correction with respect to
         # the slit width and the seeing
+        if self.doPlot : self.star.plotWL("raw spectrum")
         print "apertureCorrection"
         self.star.apertureCorrection(self.seeing, self.slitwidth)
         if self.doPlot : self.star.plotWL("spectrum after apertureCorrection")        
         # convolution of the spectrum to the resolution of the spectrograph
-        sigmaspectrograph = 650./400.
-        sigmaspec = 650./self.inputres
+        sigmaspectrograph = self.WLref/self.outputres
+        sigmaspec         = self.WLref/self.inputres
         sigmaconv = (sigmaspectrograph**2 - sigmaspec**2)**.5
         if(sigmaconv<0):
             print 'error: convolution is impossible, the resolution of the input spectrum is less than the resolution of the output spectrum'
@@ -120,16 +152,17 @@ class AuxTeles(object):
         self.star.computePhoton(self.mirAera, TpsExpo)
         if self.doPlot : self.star.plotNbPhotons("#photons after computePhoton", self.star.phot)    
         # rebin on the ccd grid
-        print "computePhotonCCD"
-        self.star.computePhotonCCD(self.gri, self.nbpixel)
+        print "computePhotonCCD ", self.nbpixel
+        self.star.computePhotonCCD(self.gri, nbpixel=self.nbpixel)
         if self.doPlot : self.star.plotNbPhotons("#photon after computePhotonCCD", self.star.photccd)                
         # compute and add photon noise
         print "computePhotonNoise"   
         self.star.computePhotonNoise()
-        if self.doPlot : self.star.plotNbPhotons("photon noise computePhotonNoise", self.star.photccdnoise)                
-        print "addPhotonNoise"
-        self.star.addPhotonNoise()
-        if self.doPlot : self.star.plotNbPhotons("#photon after addPhotonNoise", self.star.photccd)        
+        if self.doPlot : self.star.plotNbPhotons("photon noise computePhotonNoise", self.star.photccdnoise)                        
+        if addNoise :
+            print "addPhotonNoise"
+            self.star.addPhotonNoise()
+            if self.doPlot : self.star.plotNbPhotons("#photon after addPhotonNoise", self.star.photccd)        
         # for checking
         #star.write('photccd', starname+'photccd.dat')    
         # through the atmosphere
@@ -156,10 +189,11 @@ class AuxTeles(object):
         print "computeElectronCCD"
         self.star.computeElectronCCD(self.ccdqe)
         if self.doPlot : self.star.plotNbPhotons("elecccd computeElectronCCD", self.star.elecccd)    
-        # add a typical read noise
-        print "addNoiseElectronCCD"
-        self.star.addNoiseElectronCCD()
-        if self.doPlot : self.star.plotToWLnm( self.star.nuccd, self.star.elecccd, "Final estimation photon-electon by pixel")                
+        # add a typical read noise       
+        if addNoise:
+            print "addNoiseElectronCCD"
+            self.star.addNoiseElectronCCD()
+            if self.doPlot : self.star.plotToWLnm( self.star.nuccd, self.star.elecccd, "Final estimation photon-electon by pixel")                
         # for checking
         #star.write('elecccdlambda', starname+'elecccdlambda.dat')
         #star.write('elecccd', starname+'elecccdnu.dat')    
@@ -175,10 +209,15 @@ class AuxTeles(object):
         #star.write('caldEdn', starname+'caldEdn.dat')
         #star.write('caldEdl', starname+'caldEdl.dat')    
         # add systematic effect due to the flux calibration
-        print "AddCalibSys"
-        self.star.AddCalibSys(self.calibsys)
-        if self.doPlot : self.star.plotWL("syscaldEdl AddCalibSys Final", self.star.wlccd, self.star.syscaldEdl)        
-        #self.star.plotWL("syscaldEdl AddCalibSys Final", self.star.wlccd, self.star.syscaldEdl)        
+        if addNoise:
+            print "AddCalibSys"
+            self.star.AddCalibSys(self.calibsys)
+            if self.doPlot : self.star.plotWL("syscaldEdl AddCalibSys Final", self.star.wlccd, self.star.syscaldEdl)
+        else:
+            self.star.syscaldEdl = self.star.caldEdl
+            self.star.syscaldEdn = self.star.caldEdn                   
+        #self.star.plotWL("syscaldEdl AddCalibSys Final", self.star.wlccd, self.star.syscaldEdl)    
+        if self.doPlot : self.star.plotWL("raw spectrum")    
         return self.star.wlccd, self.star.syscaldEdl
         
         

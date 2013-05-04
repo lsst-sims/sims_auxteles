@@ -16,6 +16,7 @@ class StarTargetSimuAll(object):
         assert isinstance(oKur, kur.Kurucz)
         self._NbPstar = pNbpar 
         self._oKur = oKur             
+#        self._aParam = np.array([ [0.0 , 7700, 1.74]], dtype=np.float64) 
         self._aParam = np.array([ [0.0 , 7700, 1.74],
                                   [0.0 , 6440, 4.34],
                                   [0.0 , 5150, 2.54],

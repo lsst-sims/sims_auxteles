@@ -11,6 +11,9 @@ import kurucz as kur
 import numpy as np
 import AuxSpecGen as aux
 import copy as cp
+import tools as tl
+
+
 
 class ObsSurvey(object):
     def __init__(self):
@@ -195,7 +198,7 @@ class ObsSurveySimu01(ObsSurvey):
         print "g0:",g0
         meanTemp = self._oStarCat.getMeanTemp()
         for idxS in range(self._NbStar):
-            guess[idxS*2] = meanTemp
+            guess[idxS*2] = (1 + 0.1*(-1)**idxS)*self._oStarCat._aParam[idxS,1]          
             guess[idxS*2+1] = 2.5
         for idx in range(self._NbFlux):
             print self.aIdxParAtm[idx,:]            
@@ -517,29 +520,53 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
      * spectro   : used simulator designed by G. Bazin
      
     Principal method:
-     * readObsNight():  simulated all data observation    
+     * readObsNight() : simulated all data observation    
     """
+    
+    
     def __init__(self, pNbNight=1, pNbObsNight=1):
         ObsSurveySimu01.__init__(self, pNbNight, pNbObsNight)        
-
+        self._AuxTeles = aux.AuxTeles()
+        # 
+        self._NbWL = -1       
+        self._wlMin = 4500  # [angs]
+        self._wlMax = 9500 # [angs]
+        self.outpuRes = -1
+        
+    def setWLInterval(self):
+        """
+        [angstrom] wave length min max used to fit 
+        """
+        self._wlMin = wlMin
+        self._wlMax = wlMax
+        
+        
     def getWL(self):
         return self._WL
+
 
     def setStarTarget(self, pOstar):  
         ObsSurveySimu01.setStarTarget(self, pOstar)
     
+    
     def setAuxTeles(self, pAuxteles):
         """
-        call after setStarTarget() to redefine self._NbWL !!
-        """
-        assert isinstance(pAuxteles, aux.AuxTeles)  
+        """        
         self._AuxTeles = pAuxteles
-        self._NbWL = pAuxteles.nbpixel 
+        assert isinstance(self._AuxTeles, aux.AuxTeles)
+                
         
     def readObsNight(self, pRep):
         """
         fill self.aFlux (array flux)  , here by simulation atmosphere and star
         """
+        # initialise AuxTeles
+        # en nm
+        wl = self._oStarCat.getWL()/10.
+        # defined nb pixel to satisfy output resolution
+        self._AuxTeles.ajustNBPixel(wl)
+        self._NbWL = self._AuxTeles.nbpixel
+        print "nbpixel def", self._AuxTeles.nbpixel
         # assert isinstance(self._Oatm, atm.BurkeAtmModel)      
         idxFlux = 0
         # index vector parameters : star param, atm param
@@ -555,17 +582,15 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
         idxParCH20  = idxParNight + 8 
         idxParTgray = idxParNight + 9  
         self._NameAtm = []
-        # create AuxTeles
-        # en nm
-        wl = self._oStarCat.getWL()/10.
         listAuxteles = []
         for idx in range(self._NbStar):
             # deepcopy to save all option choiced
             simSpec = cp.deepcopy(self._AuxTeles)
+            print "nbpixel ", simSpec.nbpixel
             spectrum = self._oStarCat.getFluxIdx(idx)           
-            simSpec.setStarSpectrum(wl, spectrum)        
+            simSpec.setStarSpectrum(wl, spectrum) 
             listAuxteles.append(simSpec)
-            simSpec.star.plotWL("star %d"%idx)   
+            #simSpec.star.plotWL("star %d"%idx)   
 #        for idx in range(self._NbStar):
 #            listAuxteles[idx].star.plotWL("star %d"%idx)                   
         for idxN in range(self._NbNight): 
@@ -578,16 +603,17 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
                     # Compute transmission atm 
                     self._Oatm.setConstObs(self.getConst(idxFlux))
                     self._Oatm.setParam(self.getTrueParamAtmIdx(idxFlux))
-                    wl = self._Oatm.getWL()
+                    wlAtm = self._Oatm.getWL()
                     trans = self._Oatm.computeAtmTrans()
                     # calibrated star spectrum estimation
                     simSpec = listAuxteles[self._SimuParObsIdx[idxFlux,1]]
+                    print "nbpixel loop", simSpec.nbpixel
                     # en nm
-                    simSpec.setAtmTrans(wl/10, trans)
-                    simSpec.atms.plot("")
+                    simSpec.setAtmTrans(wlAtm/10, trans)
+                    #simSpec.atms.plot("")
                     wl, flux  = simSpec.getCalibFlux(240)
-                    self.aFlux[idxFlux,:] = flux
-                    self._WL = wl                                         
+                    self.aFlux[idxFlux,:] = np.flipud(flux)
+                    #self._WL = wl*10                                       
                     # defined const                         
                     self.aConst[idxFlux,:] = self.getConst(idxFlux)
                     # fill table atm parameters
@@ -609,5 +635,12 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
             idxParCH20 =   idxParNight + 8 
             idxParTgray =  idxParNight + 9                
         # with last observation
-        self._WL = wl    
+        self._WL = np.flipud(wl) *10   
         self._NbParam = self._NbStar*self._NbPstar + self._NbNight*(self.getNbParamAtmByNight())
+        # reduce flux to interval wlMin wlMax choiced
+        iMin, iMax = tl.indexInIntervalCheck(self._WL, self._wlMin, self._wlMax)
+        self._WL = self._WL[iMin: iMax]
+        self._NbWL = len( self._WL )
+        self.aFlux = self.aFlux[:,iMin: iMax]
+        assert (self._NbWL == self.aFlux.shape[1])
+        

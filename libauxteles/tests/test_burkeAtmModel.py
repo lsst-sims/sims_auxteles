@@ -20,10 +20,12 @@ def test_init():
     oAtm.setParam(par)
     oAtm.printBurkeModelParam()
         
+        
 def test_setDefaultModel():   
     oAtm= BurkeAtmModel(fileModtran)   
     oAtm.setParamExample1()
     oAtm.printBurkeModelParam()
+    
     
 def test_ComputeAtmTransmission():       
     oAtm= BurkeAtmModel(fileModtran)   
@@ -33,6 +35,7 @@ def test_ComputeAtmTransmission():
 #    oAtm.computeAtmTransAtConstObs(np.pi/4, np.pi/2, 850)
 #    oAtm.plotCurrentTrans()
     oAtm.printBurkeModel()
+    
     
 def test_AltVariation():
     oAtm= BurkeAtmModel(fileModtran)   
@@ -66,6 +69,7 @@ def test_PresVariation():
     pl.ylabel("%")
     pl.grid()    
     pl.title("Burke model atm. trans. varariation with pressure ")
+ 
  
 def test_CH20Variation():   
     aVar = np.linspace(0.6, 1.4,4)
@@ -160,6 +164,7 @@ def test_leastsq02():
         print res
         print "FIT NOK : ",  res[3]
        
+       
 def test_leastsq03():    
     oAtm= BurkeAtmModel(fileModtran)
     matVarObs = np.array([[np.pi/2, 0,  750], 
@@ -246,20 +251,75 @@ def test_leastsq03():
         #print res
         print "FIT NOK : ",  res[3]   
 
-        
+
+def test_downgradeTemplate():
+    oAtm= BurkeAtmModel(fileModtran)
+    oAtm.setParamExample1()
+    trFull = oAtm.computeAtmTransAtConstObs(np.pi/3, np.pi/2, 800)
+    res = 200
+    oAtm.downgradeTemplate(res)
+    trDown = oAtm.computeAtmTransAtConstObs(np.pi/3, np.pi/2, 800)
+    pl.figure()
+    pl.title("downgradeTemplate resolution to %d"%res)
+    pl.plot(oAtm.getWL(), trFull)
+    pl.plot(oAtm.getWL(), trDown)
+    pl.grid()
+    
+    
+def test_downgradeTrans():
+    oAtm= BurkeAtmModel(fileModtran)
+    oAtm.setParamExample1()
+    trFull = oAtm.computeAtmTransAtConstObs(np.pi/3, np.pi/2, 800)
+    x = oAtm.getWL().copy()
+    res = 400
+    newx = np.linspace(3000, 9500, 800)
+    trDownTrans = oAtm.downgradeTransAndResample(res, newx)
+    oAtm.downgradeTemplateAndResample(res,newx)
+    trDownTemplate = oAtm.computeAtmTransAtConstObs(np.pi/3, np.pi/2, 800)
+    pl.figure()
+    pl.title("downgradeTemplate and resample resolution to %d"%res)
+    pl.plot(x, trFull)
+    pl.plot(newx, trDownTrans)
+    pl.plot(newx, trDownTemplate)
+    pl.legend(["raw","down trans","down template"])
+    pl.grid()
+    
+    
+def test_downgradeTemplateAndResample():
+    newx = np.linspace(3000, 9000, 800)
+    oAtm= BurkeAtmModel(fileModtran)
+    oAtm.setParamExample1()
+    trFull = oAtm.computeAtmTransAtConstObs(np.pi/3, np.pi/2, 800)
+    x = oAtm.getWL().copy()
+    res = 600
+    oAtm.downgradeTemplateAndResample(res,newx)
+    trDown = oAtm.computeAtmTransAtConstObs(np.pi/3, np.pi/2, 800)
+    pl.figure()
+    pl.title("downgradeTemplate and resample resolution to %d"%res)
+    pl.plot(x, trFull)
+    pl.plot(oAtm.getWL(), trDown)
+    pl.grid()
+       
         
 class Test(unittest.TestCase):
     def testName(self):
         pass
+    
     
     def test_covar2Correl(self):
         oAtm= BurkeAtmModel(fileModtran)
         mat = np.array([[2,4],[4,9]])
         oAtm._covar2Correl(mat)
         
+        
 #test_init()
 #test_setDefaultModel()
-test_ComputeAtmTransmission()
+#test_ComputeAtmTransmission()
+test_downgradeTemplate()
+test_downgradeTemplateAndResample()
+test_downgradeTrans()
+
+#test_comparedowngrade()
 #test_AltVariation()
 #test_PresVariation()
 #test_CH20Variation()
@@ -267,6 +327,7 @@ test_ComputeAtmTransmission()
 #np.random.seed(150)
 #test_leastsq03()
 #test_leastsq03_v2()
+
 
 try:
     pl.show()

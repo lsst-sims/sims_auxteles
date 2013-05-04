@@ -20,6 +20,30 @@ def test_simuSpectroAuxTeles():
     simuSpectroAuxTeles(410, 1, 0.1, S_StarFile, S_AtmFile)
     pl.show()
 
+def snr_estimation():
+    simSpec = AuxTeles()
+    simSpec.setAtmFile(S_AtmFile3)
+    simSpec.setStarFile(S_StarFile)
+    simSpec.ajustNBPixel()
+    ret = simSpec.getCalibFlux()
+    spectre =  ret[1].copy()
+    print spectre.max()
+    retnn = simSpec.getCalibFlux(addNoise=False)
+    spectreNoNoise =  ret[1].copy()
+    print spectreNoNoise.max()
+    diff = spectreNoNoise - spectre
+    print "mean std min max:"
+    print diff.mean(), diff.std(), diff.min(), diff.max()
+    if True:
+        pl.figure()
+        pl.plot(ret[0], spectre)
+        pl.plot(retnn[0], spectreNoNoise)
+        pl.grid()
+
+        
+    
+    
+snr_estimation()   
 
 #test_simuSpectroAuxTeles()
 FlagPlot= True
@@ -100,9 +124,10 @@ class Test(unittest.TestCase):
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+    #unittest.main()
+    pass
 
-#try:
-#    pl.show()
-#except AttributeError:
-#    pass
+try:
+    pl.show()
+except AttributeError:
+    pass

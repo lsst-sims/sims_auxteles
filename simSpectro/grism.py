@@ -45,10 +45,20 @@ class grism:
         return t
 
     def gratingAngle(self, l):
+        """
+        l [nm] wavelength
+        
+        Compute angle diffraction with grating relation for order 0
+        """
         # return the angle at the ouput of the grating
         #print l, l*1.e-9, l*1.e-9/self.a, self.a
         return math.asin(l*1.e-9/self.a)
 
     def outputAngle(self, l):
+        """
+        l [nm] wavelength
+        
+        Compute deviation angle of grism
+        """
         # return the total angle at the ouput of the grism
         return math.asin(self.getN(l) * math.sin(self.gratingAngle(l) + self.prismAngle)) - self.prismAngle

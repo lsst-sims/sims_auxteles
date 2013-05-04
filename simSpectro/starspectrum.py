@@ -194,7 +194,11 @@ class starspectrum:
 
     def addPhotonNoise(self):
         # add the calculated photon noise
-        self.photccd += np.random.normal(0., self.photccdnoise)
+        noise = np.random.normal(0., self.photccdnoise)
+        print self.photccd[0:20]
+        self.photccd += noise
+        print noise[0:20]
+        
 
     def computePhoton(self, effarea=1.0, exptime=240.):
         # compute photons from the input spectrum (energy density)
@@ -238,11 +242,12 @@ class starspectrum:
         """
         self.photatm = []
         self.photatmnoise = []
-        print "nu atm ",  atm[1][:10]
-        print "nu ccd ",  self.nuccd[:10]
+        #print "nu atm ",  atm[1][:10]
+        #print "nu ccd ",  self.nuccd[:10]
              
         # loop on star bins
         # jmc : loop on index nu ccd pixel
+        lastj = 0 
         for i in range(len(self.nuccd)):
             # computing distances between the center and the edges of each bin
             # jmc : defined size interval around nuccd[i] left right
@@ -256,8 +261,7 @@ class starspectrum:
             else:
                 dnccdd = (self.nuccd[i+1]-self.nuccd[i])/2.
                 dnccdg = (self.nuccd[i]-self.nuccd[i-1])/2.
-
-            j = 0
+            j = lastj
             foundj = False
             # Search for the first bin j of atm spectrum
             # overlapping the bin i of the star
@@ -279,6 +283,7 @@ class starspectrum:
                 bordGaucheCCD = self.nuccd[i]-dnccdg
                 if atm[0,j]-dnatmg <= bordGaucheCCD and atm[0,j]+dnatmd > bordGaucheCCD:
                     foundj = True
+                    lastj = np.max(j -1,0)
                     break
                 j+=1
             if foundj:
@@ -386,6 +391,120 @@ class starspectrum:
             pl.title('output grism')
             pl.grid()
             pl.xlabel(' wave length nm')
+        # use all pixels
+        dd = (y[-1]-y[0])/nbpixel
+        # regular dispersion decomposition
+        yccd = [ y[0]+dd*i for i in range(nbpixel) ]
+        finterp = spi.interp1d(np.flipud(np.array(y)), np.flipud(self.wl), bounds_error=False, fill_value = 0.)
+        # wl antcedent of regular dispersion decomposition
+        self.wlccd = np.flipud(finterp(np.flipud(np.array(yccd))))
+        self.nuccd = clight/self.wlccd
+        print "wlccd size ",np.size(self.wlccd)
+        #print "wlccd : ", self.wlccd[0],  self.wlccd[-1]
+        lastj = 0  
+        for i in range(len(self.nuccd)):
+            # size bin inf and sup
+            if i == 0:
+                dnccdd = (self.nuccd[i+1]-self.nuccd[i])/2.
+                dnccdg = dnccdd
+            elif i == len(self.nuccd)-1:                
+                dnccdg = (self.nuccd[i]-self.nuccd[i-1])/2.
+                dnccdd = dnccdg
+            else:
+                dnccdd = (self.nuccd[i+1]-self.nuccd[i])/2.
+                dnccdg = (self.nuccd[i]-self.nuccd[i-1])/2.
+
+            # Search for the first bin j of the spectrum
+            # overlapping the bin i of the ccd
+            j = lastj
+            foundj = False
+            while j < len(self.nu):
+                if j == 0:
+                    dnd = (self.nu[j+1]-self.nu[j])/2.
+                    dng = dnd
+                elif j == len(self.nu)-1:
+                    dng = (self.nu[j]-self.nu[j-1])/2.
+                    dnd = dng
+                else:
+                    dnd = (self.nu[j+1]-self.nu[j])/2.
+                    dng = (self.nu[j]-self.nu[j-1])/2.
+                    
+                if self.nu[j]-dng <= self.nuccd[i]-dnccdg and self.nu[j]+dnd > self.nuccd[i]-dnccdg:
+                    foundj = True
+                    lastj = np.max(j -1,0)
+                    break
+                elif self.nu[j] > self.nuccd[i]:
+                    break
+                j+=1
+            foundk = False
+            if foundj:
+                # Search for the last bin k of the spectrum
+                # overlapping the bin i of the ccd
+                k = j
+                while k < len(self.nu):
+                    if k == 0:
+                        dnd = (self.nu[k+1]-self.nu[k])/2.
+                        dng = dnd
+                    elif k == len(self.nu)-1:
+                        dng = (self.nu[k]-self.nu[k-1])/2.
+                        dnd = dng
+                    else:
+                        dnd = (self.nu[k+1]-self.nu[k])/2.
+                        dng = (self.nu[k]-self.nu[k-1])/2.
+                    
+                    if self.nu[k]-dng > self.nuccd[i]+dnccdd:
+                        foundk = True
+                        break
+                    k+=1
+            # if ok
+            if foundj and foundk:
+                nbbin = k-j
+                bintmp = 0
+                for m in range(nbbin):
+                    n = j+m
+                    if n == 0:
+                        dnd = (self.nu[n+1]-self.nu[n])/2.
+                        dng = dnd
+                    elif n == len(self.nu)-1:
+                        dng = (self.nu[n]-self.nu[n-1])/2.
+                        dnd = dng
+                    else:
+                        dnd = (self.nu[n+1]-self.nu[n])/2.
+                        dng = (self.nu[n]-self.nu[n-1])/2.
+                        
+                    if self.nu[n]-dng >= self.nuccd[i]-dnccdg:
+                        nu1 = self.nu[n]-dng
+                    else:
+                        nu1 = self.nuccd[i]-dnccdg
+                    if self.nu[n]+dnd <= self.nuccd[i]+dnccdd:
+                        nu2 = self.nu[n]+dnd
+                    else:
+                        nu2 = self.nuccd[i]+dnccdd
+                    prop = (nu2-nu1)/(dnd+dng)
+                    if S_LevelDbg > 2 : print "pixel:", i,prop
+                    bintmp += prop*self.photconv[n]
+                self.photccd.append(bintmp)
+            else:
+                self.photccd.append(0)
+                self.photccdnoise.append(0)
+        self.photccd = np.array(self.photccd)
+        #print "photccd size ", size(self.photccd)
+                 
+    def computePhotonCCDok(self, grism, lpix1=300.e-9, lpix2=1100.e-9, nbpixel=512):
+        # Dispersion of the grism in lambda
+        # sin i - sin i' = lambda/a (put i = 0)
+        # calculate the position of self.wl on the ccd and interpolate on the linear grid of the 512 pixels
+        #print  self.wl       
+        self.photccd = []
+        self.photccdnoise = []
+        y = [ np.tan(grism.outputAngle(e)) for e in self.wl ]
+        if S_LevelPlot > 3:
+            pl.figure()
+            pl.plot(self.wl, y)
+            pl.plot(self.wl, y,"*")
+            pl.title('output grism')
+            pl.grid()
+            pl.xlabel(' wave length nm')
         dd = (y[-1]-y[0])/nbpixel
         yccd = [ y[0]+dd*i for i in range(nbpixel) ]
         finterp = spi.interp1d(np.flipud(np.array(y)), np.flipud(self.wl), bounds_error=False, fill_value = 0.)
@@ -478,7 +597,7 @@ class starspectrum:
                 self.photccdnoise.append(0)
         self.photccd = np.array(self.photccd)
         #print "photccd size ", size(self.photccd)
-                 
+
     def computeElectronCCD(self, ccdresp, gain=1.):
         # converte in photo-electrons
         # Gain = 1 (assumption)
@@ -984,6 +1103,8 @@ class starspectrum:
                 sn.append(0.)
         sn = np.array(sn)
         dev = calibsys.GetRandomRealization(self.wlccd[::-1], self.caldEdl[::-1], sn[::-1])
+        print "caldEdl", self.caldEdl[0:50]
+        print "dev", dev[0:50]
         self.syscaldEdl = self.caldEdl + dev[::-1]
         self.syscaldEdn = self.caldEdn + dev
         if S_LevelPlot > 2:

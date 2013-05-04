@@ -32,10 +32,14 @@ class TemplateMODTRAN(object):
         self._Amola = self._Amola[perm]
         self._AH2O = self._AH2O [perm]
         self._wl = self._wl[perm]
-                  
+        self._ref = 650 
+        self._res = 2600 # resolution read in file
+                         
+                      
     def resampleBetween(self, pWLmin, pWLmax, pNb):
         newWL = np.linspace(pWLmin, pWLmax, pNb, True)
         self.resample(newWL)
+    
     
     def _setZeroNeg(self, a):
         idx = np.where(a <0) [0]
@@ -43,6 +47,22 @@ class TemplateMODTRAN(object):
             a[idx] = 0.0
         return a
     
+    def downgradeTemplate(self, resOut):
+        self._A03 = self._setZeroNeg(tl.downgradeResol(self._wl, self._A03, self._res, resOut, self._ref))
+        self._AH2O = self._setZeroNeg(tl.downgradeResol(self._wl, self._AH2O, self._res, resOut, self._ref))
+        self._Amola = self._setZeroNeg(tl.downgradeResol(self._wl, self._Amola, self._res, resOut, self._ref))
+        self._Amols = self._setZeroNeg(tl.downgradeResol(self._wl, self._Amols, self._res, resOut, self._ref))        
+        self._res = resOut
+        
+        
+    def downgradeTemplateAndResample(self, resOut, pWL):
+        self._A03 = self._setZeroNeg(tl.downgradeResol(self._wl, self._A03, self._res, resOut, self._ref, pWL))
+        self._AH2O = self._setZeroNeg(tl.downgradeResol(self._wl, self._AH2O, self._res, resOut, self._ref, pWL))
+        self._Amola = self._setZeroNeg(tl.downgradeResol(self._wl, self._Amola, self._res, resOut, self._ref, pWL))
+        self._Amols = self._setZeroNeg(tl.downgradeResol(self._wl, self._Amols, self._res, resOut, self._ref, pWL))        
+        self._wl = pWL
+        
+        
     def resample(self, pWL):
         self._A03 = tl.interpolLinear(self._wl, self._A03, pWL)        
         self._AH2O = tl.interpolLinear(self._wl, self._AH2O, pWL)        
@@ -50,9 +70,13 @@ class TemplateMODTRAN(object):
         self._Amols= tl.interpolLinear(self._wl, self._Amols, pWL)        
         self._wl = pWL
                 
+                
     def convertWaveLength(self, unit):
-        self._wl *= (self._Unit/unit)
+        fact = (self._Unit/unit)
+        self._wl *= fact
+        self._ref *= fact
         self._Unit = unit
+                
                 
     def getTr03(self):
         return 1.0 - self._A03

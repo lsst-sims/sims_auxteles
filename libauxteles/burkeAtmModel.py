@@ -7,7 +7,7 @@ Created on 14 nov. 2012
 import numpy as np
 import templatMODTRAN as tmod
 import pylab as pl
-
+import tools as tl
     
 class BurkeAtmModel(object):
     """
@@ -48,7 +48,7 @@ class BurkeAtmModel(object):
         self._NbPar = 10 
         self._Par  = None        
         self._aWL = self._Tpl._wl
-        self._WL0 = 6750.0
+        self._WL0 = 6750.0    # angstrom 
         self._NameParam = ['$T_{gray}$',r'$\tau_0$',r'$\tau_1$', r'$\tau_2$', r'$\alpha$', '$C_{mol}$', '$C_{O3}$','$C_{H2O}$']
         self._NameParam.append('$dC_{H2O}/dEW$')
         self._NameParam.append('$dC_{H2O}/dNS$')
@@ -58,9 +58,37 @@ class BurkeAtmModel(object):
     def getWL(self):
         return self._aWL 
     
+    def getResolution(self):
+        return self._Tpl._res
+    
+    def getDeltaWL(self):
+        return self._Tpl._ref / self._Tpl._res
+    
+    def getNBins(self):
+        """
+        return nb bin associated to resolution
+        """
+        rangeWL = self._aWL[-1] - self._aWL[0]
+        return 2*int(rangeWL/self.getDeltaWL() + 1)
+    
+    def downgradeTemplate(self, res):
+        self._Tpl.downgradeTemplate(res)
+        
+        
+    def downgradeTemplateAndResample(self, res, pWL):
+        self._Tpl.downgradeTemplateAndResample(res, pWL)
+        self._aWL = self._Tpl._wl
+        
+        
+    def downgradeTransAndResample(self, res, pWL):
+        down  = tl.downgradeResol(self._aWL, self._CurtTrans, self.getResolution(), res, self._Tpl._ref, pWL)
+        return down 
+    
+    
     def resample(self, pWL):
         self._Tpl.resample(pWL)
         self._aWL = self._Tpl._wl
+          
           
     def _transGrayAero(self):
         tau  = self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3]

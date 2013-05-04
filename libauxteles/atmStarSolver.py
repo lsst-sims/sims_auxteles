@@ -10,6 +10,8 @@ import kurucz as kur
 import burkeAtmModel as atm
 import pylab as pl
 import lmfit as lm
+import tools as tl 
+
 
 
 def getCorrelMatrixFromlmfit(pPars):
@@ -41,7 +43,7 @@ class StarFluxArray(object):
                 
     def getFlux(self, idx, parKur):
         if not np.array_equal(parKur, self._aParKur[idx]) :
-            print "New temp %d"%idx,parKur
+            #print "New temp %d"%idx,parKur
             # comput new flux
             oKur = self._oKur
             assert isinstance(oKur, kur.Kurucz)
@@ -67,12 +69,17 @@ class AtmTransArray(object):
         self._nbTrans = nbTrans      
         self._aParBurke = np.zeros((nbTrans, 10), dtype=np.float64)
         sizeWl = len(oBurkeMod._aWL)
-        print "sizeWl:", sizeWl
+        print sizeWl
         self._aTrans = np.zeros((nbTrans, sizeWl), dtype=np.float64)
+    
+    
+    def _compteTrans(self):
+        return self._oBurke.computeAtmTrans()
         
+    
     def getTrans(self, idx, constObs, par):
         if not np.array_equal(par, self._aParBurke[idx]):
-            #diff =par- self._aParBurke[idx]
+            diff =par- self._aParBurke[idx]
             #print "Atm change :", np.where(diff != 0.0)[0],' flux idx', idx
             # comput new flux
             oBurkeMod = self._oBurke
@@ -80,7 +87,7 @@ class AtmTransArray(object):
             #print oBurkeMod
             oBurkeMod.setConstObs(constObs)
             oBurkeMod.setParam(par)
-            trans = oBurkeMod.computeAtmTrans()
+            trans = self._compteTrans()
             self._aParBurke[idx] = par
             self._aTrans[idx,:]  = trans
         else:
@@ -88,6 +95,23 @@ class AtmTransArray(object):
             pass
         return self._aTrans[idx]
         
+        
+class AtmTransArraySimuSpectro(AtmTransArray):
+    """
+    memory cache atmosphere transmission with simple simulation spectro (downgrade resolution)
+    """    
+    def __init__(self, nbTrans, oBurkeMod, res,  pWL):
+        AtmTransArray.__init__(self, nbTrans, oBurkeMod)
+        sizeWl = len(pWL)
+        self._wl = pWL
+        self._res  = res 
+        self._aTrans = np.zeros((nbTrans, sizeWl), dtype=np.float64)
+    
+    def _compteTrans(self):
+        self._oBurke.computeAtmTrans()
+        trans = self._oBurke.downgradeTransAndResample(self._res, self._wl)
+        return trans
+
 
 class AtmStarSolver(object):
     """
@@ -95,7 +119,7 @@ class AtmStarSolver(object):
     """
     def __init__(self):
         # pseudo init pour completion EDI eclipse 
-        self._oObs = obsAT.ObsSurveySimu02()
+        self._oObs = obsAT.ObsSurveySimu01()
         #self._oObs = obsAT.ObsSurvey()
         self._oStar = kur.Kurucz("")
         self._oAtm = atm.BurkeAtmModel("")
@@ -238,11 +262,13 @@ class AtmStarSolver(object):
     def plotFluxRawTheo(self, idx, param, pTitle=""):
         pl.figure()
         pl.title("Flux index %d %s"% (idx, pTitle))
-        pl.plot(self._oStar.getWL(),  self._oObs.aFlux[idx])
+        pl.plot(self._oObs.getWL(),  self._oObs.aFlux[idx])
+        pl.plot(self._oObs.getWL(),  self._oObs.aFlux[idx],"*")
         fluxTheo = self._oObs.computeFluxTheoIdx(idx, param)
-        pl.plot(self._oStar.getWL(),  fluxTheo)
+        #print len (self._oStar.getWL()), len(fluxTheo)
+        pl.plot(self._oObs._Oatm.getWL(),  fluxTheo)
         pl.xlabel("Angstrom")
-        pl.legend(["raw flux ","theo. flux"])
+        pl.legend(["raw flux ","raw flux ","theo. flux"])
         pl.grid()
         
     def plotTransTrueEst(self, idxFlux, pTitle=""):
@@ -250,8 +276,8 @@ class AtmStarSolver(object):
         pl.title("Transmission associated flux %d %s"% (idxFlux, pTitle))
         TransTrue = 100*self._oObs.computeTransTheoIdx(idxFlux, self._oObs.getTrueParam())
         TransEst = 100* self._oObs.computeTransTheoIdx(idxFlux, self._parEst)                
-        pl.plot(self._oAtm.getWL(), TransTrue )       
-        pl.plot(self._oAtm.getWL(), TransEst )
+        pl.plot(self._oObs._Oatm.getWL(), TransTrue )       
+        pl.plot(self._oObs._Oatm.getWL(), TransEst )
         pl.xlabel("Angstrom")
         pl.ylabel("%")
         pl.legend(["True","Estimated"],loc=2)
@@ -281,7 +307,7 @@ class AtmStarSolver(object):
         for idxFlux in range(self._oObs._NbFlux):  
             TransTrue = self._oObs.computeTransTheoIdx(idxFlux, TruePar)
             TransEst  = self._oObs.computeTransTheoIdx(idxFlux, self._parEst)
-            errRel = 100*(TransEst - TransTrue)/TransTrue
+            errRel = 100.0*(TransEst - TransTrue)/TransTrue
             if  idxFlux == 0:       
                 errRelTot = errRel
             else: 
@@ -325,7 +351,7 @@ class AtmStarSolver(object):
     
     def solveAtmStarTempGraWithBounds(self, guess = None):
         """
-        fit atmosphere parameters, temperature and gravity for star
+        fit atmosphere parameters, temperature and gravity for stars
         """
         if guess == None:
             guess = self._oObs.getGuessDefault()
@@ -565,6 +591,7 @@ class AtmStarSolver(object):
             residu[idx,:] -= atmStarMod        
         return residu.ravel()
     
+    
     def getResidusTempGra(self, param):
         """
         with temperature star and gravity
@@ -586,7 +613,46 @@ class AtmStarSolver(object):
             tempGra = param[self._oObs.aIdxParStar[idx]]            
             parStar = self._oObs._oStarCat.addMet(self._oObs._SimuParObsIdx[idx, 1], tempGra)            
             flux = self._memoStarFlux.getFlux(self._oObs._SimuParObsIdx[idx, 1], parStar)           
-            residu[idx,:] -= trans*flux      
+            residu[idx,:] -= trans*flux
+            if False:
+                pl.figure()
+                pl.plot(self._oAtm.getWL(), trans*flux) 
+                pl.plot(self._oAtm.getWL(), self._oObs.aFlux[idx] )
+                pl.legend(["theo","meas"])
+                pl.grid() 
+                  
+        return residu.ravel()
+
+
+    def getResidusWithSpecroSimu(self, param):
+        """
+        with temperature star and gravity
+        """
+        if self._memoStarFlux == None:
+            self._memoStarFlux =  StarFluxArray(self._oObs._NbStar, self._oStar) 
+        if self._memoAtmTrans == None:
+            self._memoAtmTrans =  AtmTransArraySimuSpectro(self._oObs._NbFlux, self._oAtm, self._oObs.outpuRes, self._oObs.getWL()) 
+        residu = np.copy(self._oObs.aFlux)  
+        #print "================================"  
+        #print param
+        for idx in range(self._oObs._NbFlux):            
+            # compute model transmission 
+            constObs = self._oObs.aConst[idx]            
+            par = param[self._oObs.aIdxParAtm[idx]]
+            #print par          
+            trans = self._memoAtmTrans.getTrans(idx, constObs, par)            
+            # compute model flux
+            tempGra = param[self._oObs.aIdxParStar[idx]]            
+            parStar = self._oObs._oStarCat.addMet(self._oObs._SimuParObsIdx[idx, 1], tempGra)            
+            flux = self._memoStarFlux.getFlux(self._oObs._SimuParObsIdx[idx, 1], parStar)           
+            residu[idx,:] -= trans*flux
+            if True:
+                pl.figure()
+                pl.plot(self._oAtm.getWL(), trans*flux) 
+                pl.plot(self._oAtm.getWL(), self._oObs.aFlux[idx] )
+                pl.legend(["theo","meas"])
+                pl.grid() 
+                  
         return residu.ravel()
 
     def getResidus(self, param):

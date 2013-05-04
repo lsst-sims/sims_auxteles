@@ -55,6 +55,7 @@ def test_restrictToWLinterval():
     oKur.restrictToWLinterval(4000, 5000)
     print len(oKur.getWL()),len( oKur.getFluxInterLin(par))
     pl.plot(oKur.getWL(), oKur.getFluxInterLin(par))
+    pl.plot(oKur.getWL(), oKur.getFluxInterLin(par),"*")
     pl.grid()
     
 def test_getFluxInterLin():

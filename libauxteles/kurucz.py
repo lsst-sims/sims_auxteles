@@ -129,17 +129,31 @@ class Kurucz(object):
         resample and delete date ouside pWLmin, pWLmax interval 
         """       
         # interpole only around new WL domain 
-        self.setWLInterval(pWL[0]*0.98, pWL[-1]*1.02)
-        WLin = self.getWL()
         sizepWL = len(pWL)
-        for idx in np.arange(1, len(self._Flux[0,:])): 
-            # Bspline fit - interpole                
-            tck = sci.splrep(WLin, self.getFluxIdx(idx))
-            self._Flux[3:sizepWL+3,idx] = sci.splev(pWL, tck)
-        self._Flux[3:sizepWL+3, 0] = pWL 
-        # remove obsolete (WL, Flux)     
-        idxRemove = np.arange(sizepWL+3, len(self._Flux[0,:]))
-        self._Flux = np.delete(self._Flux, idxRemove, 0)
+        WLin = self.getWL()  
+        if sizepWL > len(self._Flux[3:, 0]):
+            print "resample: oversampling"
+            # expand size : oversampling
+            newFlux = np.zeros((sizepWL+3, len(self._Flux[0, :])), dtype=np.float32)
+            newFlux[:3,:] = self._Flux[:3, :]
+            newFlux[3:sizepWL+3, 0] = pWL 
+            for idx in np.arange(1, len(self._Flux[0,:])): 
+                # Bspline fit - interpole                
+                tck = sci.splrep(WLin, self.getFluxIdx(idx))
+                newFlux[3:sizepWL+3,idx] = sci.splev(pWL, tck)
+            self._Flux = newFlux
+        else:
+            # reduce size
+            self.setWLInterval(pWL[0]*0.98, pWL[-1]*1.02)
+            WLin = self.getWL() 
+            for idx in np.arange(1, len(self._Flux[0,:])): 
+                # Bspline fit - interpole                
+                tck = sci.splrep(WLin, self.getFluxIdx(idx))
+                self._Flux[3:sizepWL+3,idx] = sci.splev(pWL, tck)
+            self._Flux[3:sizepWL+3, 0] = pWL 
+            # remove obsolete (WL, Flux)     
+            idxRemove = np.arange(sizepWL+3, len(self._Flux[0,:]))
+            self._Flux = np.delete(self._Flux, idxRemove, 0)
         # use all wl domain and raz interpole object
         self.setWLuseAll()
         self._oInterLin = None
@@ -284,7 +298,7 @@ class Kurucz(object):
             param = self._Flux[0:3,1:].transpose()
             flux = self._Flux[self._IdxMin: self._IdxMax+1,1:].transpose()      
             self._oInterLin = sci.LinearNDInterpolator(param, flux)
-            print "fin LinearNDInterpolator"
+            #print "fin LinearNDInterpolator"
         res = self._oInterLin(np.array([pPar]))
         return res.ravel()
 

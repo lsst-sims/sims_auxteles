@@ -13,6 +13,8 @@ import kurucz as kur
 import pylab as pl
 from burkeAtmModel import BurkeAtmModel, BurkeAtmModelTauPos
 import numpy as np
+import tools as tl 
+
 
 
 class SimuAtmStarSolve():
@@ -30,8 +32,34 @@ class SimuAtmStarSolve():
         self.oSol = sol.AtmStarSolver()
         self.oSol.init(self.oObs, self.oKur, self.oAtm)
        
-      
        
+       
+class SimuAtmStarSolveWithResol():
+    """
+    used data with given resolution
+    """
+    def __init__(self, night, obsByNight, resol):
+        self.oAtm = BurkeAtmModel(fileModtran)
+        self.oAtm.downgradeTemplate(resol)
+        newWL = np.linspace(self.oAtm._aWL[0], self.oAtm._aWL[-1], self.oAtm.getNBins())
+        iMin, iMax = tl.indexInIntervalCheck(newWL, 4000, 9500)
+        newWL = newWL[iMin:iMax]
+        print self.oAtm.getNBins()
+        print len(newWL)
+        self.oAtm.resample( newWL )
+        self.oKur = kur.Kurucz(FileKuruczPic)
+        self.oKur.setCoefUnit(1e-8)
+        self.oKur.resample(newWL)
+        self.oStarCat = star.StarTargetSimuAll(self.oKur, 2)
+        self.oObs = obsAT.ObsSurveySimu01(night, obsByNight)
+        self.oObs.setAtmModel(self.oAtm)
+        self.oObs.setStarTarget(self.oStarCat)
+        self.oObs.readObsNight("")
+        self.oSol = sol.AtmStarSolver()
+        self.oSol.init(self.oObs, self.oKur, self.oAtm)
+        
+        
+        
 class SimuAtmStarSolve2(SimuAtmStarSolve):
     """
     used ObsSurveySimu02 and StarTargetSimuAll class
@@ -145,7 +173,7 @@ def simuAtmTempGraLM():
     nbNight = 1
     nbPerioByNight = 24
     oSim = SimuAtmStarSolve(nbNight, nbPerioByNight)  
-    snr = 200
+    snr = 400
     oSim.oObs.addNoisebySNR (snr)   
     guessTrue = oSim.oObs.getTrueParam() 
     #guess = guessTrue*(1+np.random.normal(0, 0.05, len(guessTrue)))
@@ -166,10 +194,85 @@ def simuAtmTempGraLM():
         oSim.oSol.plotTrueEstimatePar()
 #        oSim.oSol.plotTransTrueEst(100)
 #        oSim.oSol.plotTransTrueEst(140)
-        oSim.oSol.plotFluxRawTheo(0, oSim.oSol._parEst)
-        oSim.oSol.plotFluxRawTheo(1, oSim.oSol._parEst)
-        oSim.oSol.plotFluxRawTheo(2, oSim.oSol._parEst)
-        oSim.oSol.plotFluxRawTheo(3, oSim.oSol._parEst)
+#        oSim.oSol.plotFluxRawTheo(0, oSim.oSol._parEst)
+#        oSim.oSol.plotFluxRawTheo(1, oSim.oSol._parEst)
+#        oSim.oSol.plotFluxRawTheo(2, oSim.oSol._parEst)
+#        oSim.oSol.plotFluxRawTheo(3, oSim.oSol._parEst)
+
+def simuWithDifferentResolution():    
+    nbNight = 1
+    nbPerioByNight = 20
+    snr = 600
+    lRes = [50, 100, 200, 300, 400,500,  800]
+    #lRes = [50, 100]
+    lEC = []
+    nbLoop = 5
+    for Li in range(nbLoop):
+        for resol in lRes:
+            np.random.seed(260+Li)
+            oSim = SimuAtmStarSolveWithResol(nbNight, nbPerioByNight, resol)
+            oSim.oObs.addNoisebySNR (snr)
+            guess =  oSim.oObs.getGuessDefault()
+            oSim.oSol.solveAtmStarTempGraWithBounds(guess)
+            errRelTot = oSim.oSol.transmisErrRelAtmAll()
+            lEC.append(errRelTot.std())
+    aEC = np.array(lEC).reshape(nbLoop, len(lRes))
+    pl.figure()
+    pl.title("Standard deviation of true relative error atmospheric transmission")
+    print aEC.mean(axis=0), aEC.std(axis=0)
+    pl.errorbar(lRes, aEC.mean(axis=0), yerr=aEC.std(axis=0), fmt='ro')
+    pl.xlim((20, 900))
+    pl.grid()
+    pl.ylabel("standard deviation in %")
+    pl.xlabel("spectro resolution")
+
+def test_errobar():
+    lRes = [50, 100]
+    a = np.random.normal(0,1, 6)
+    aEC = a.reshape((3,2))
+    pl.figure()
+    pl.title("Standard deviation true relative error atmospheric transmission")
+    print aEC.mean(axis=0), aEC.std(axis=0)
+    pl.errorbar(lRes, aEC.mean(axis=0), yerr=aEC.std(axis=0), fmt='ro')
+    pl.xlim((20, 900))
+    pl.grid()
+    pl.ylabel("standard deviation en %")
+    pl.xlabel("Resolution")
+    
+def simuWithResolution():   
+    # create simulation observation
+    # problem with seed 162, night 1, 24, but ok with tau and alpha bounds !
+    np.random.seed(260)
+    nbNight = 1
+    nbPerioByNight = 20
+    resol = 25
+    oSim = SimuAtmStarSolveWithResol(nbNight, nbPerioByNight, resol)  
+    snr = 400
+    oSim.oObs.addNoisebySNR (snr)   
+    guessTrue = oSim.oObs.getTrueParam() 
+    #guess = guessTrue*(1+np.random.normal(0, 0.05, lsimuWithResolutionen(guessTrue)))
+    guess =  oSim.oObs.getGuessDefault()
+#    for idx in range(oSim.oSol._oObs._NbStar):
+#        guess[2*idx] =  guessTrue[idx]*1.2
+    print guess
+    oSim.oSol.plotErrRel(guess, "guess") 
+    if oSim.oSol.solveAtmStarTempGraWithBounds(guess):
+        titre = "resolution=%d"%resol
+        oSim.oSol.plotCostFuncHistory()
+        oSim.oSol.plotCorrelMatFromlmfit(oSim.oSol._FitRes.params, oSim.oObs.getNameVecParam(), "Correlation matrix %d night(s) %d obs. period with 4 stars, snr=%.1f"%(nbNight, nbPerioByNight, snr) )
+        oSim.oSol.plotErrRel(oSim.oSol._parEst,"Estimated")
+        oSim.oSol.plotDistribErrRelAtmAll(titre)
+        oSim.oSol.plotTransTrueEst(0,titre)
+        oSim.oSol.plotTransTrueEst(1,titre)
+        print oSim.oObs.getTrueParam()
+        print oSim.oSol._parEst
+        oSim.oSol.plotTrueEstimatePar()
+#        oSim.oSol.plotTransTrueEst(100)
+#        oSim.oSol.plotTransTrueEst(140)
+#        oSim.oSol.plotFluxRawTheo(0, oSim.oSol._parEst)        
+        oSim.oSol.plotFluxRawTheo(0, oSim.oSol._parEst,titre)
+        oSim.oSol.plotFluxRawTheo(1, oSim.oSol._parEst,titre)
+        print oSim.oSol.transmisErrRelAtmAll().std()
 
 
 def simuOnlyAtm():   
@@ -199,10 +302,10 @@ def simuOnlyAtm():
     #    oSim.plotDistribErrRelAtm(0)
         oSim.oSol.plotDistribErrRelAtmAll()
         #oSim.oSol.plotTransTrueEst(1)
-        #oSim.oSol.plotTransTrueEst(2)
+        #oSim.oSol.plotTransTrueEst(2)simuWithDifferentResolution
         #oSim.oSol.plotTransTrueEst(3)
         oSim.oSol.plotCorrelMatFromCovMat(oSim.oSol._FitRes[1], oSim.oObs._NameAtm, "Correlation matrix %d night(s) %d obs. period with 4 stars, snr=%.1f"%(nbNight, nbPerioByNight, snr) )
-        #oSim.oAtm.computeAtmTrans(True)
+        #oSim.oAtm .computeAtmTrans(True)
         oSim.oAtm.printAndPlotBurkeModel()
         print oSim.oObs.getTau0Param(oSim.oSol._parEst)
         print oSim.oObs.getTau0Param(oSim.oObs.getTrueParam())
@@ -210,12 +313,16 @@ def simuOnlyAtm():
         print oSim.oObs.getAlphaParam(oSim.oObs.getTrueParam())
 #simuOnlyTemp()
 #simu01()
+
+
 if __name__ == '__main__':
     #simuOnlyTemp() 
     #simuOnlyAtm()
     #simuAtmTempGra()
-    simuAtmTempGraLM()
-    
+    #simuAtmTempGraLM()
+    #simuWithResolution()
+    simuWithDifferentResolution()
+    #test_errobar()
     try:
         pl.show()
         pass
