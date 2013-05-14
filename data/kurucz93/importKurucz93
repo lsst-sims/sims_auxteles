@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import getopt
+
+    MyArgs = sys.argv
+    NbArgs = len(MyArgs)
+    #print MyArgs
+    
+    # aucun argument
+    if NbArgs == 1:
+        usage()
+        sys.exit(2)
