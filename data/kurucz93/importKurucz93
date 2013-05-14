@@ -1,14 +1,48 @@
 #!/usr/bin/env python
 
+#
+# JM Colley , University Denis Diderot, laboratory APC
+# String 2013
+#
+
 import os
 import sys
 import getopt
 
-    MyArgs = sys.argv
-    NbArgs = len(MyArgs)
-    #print MyArgs
+
+sys.path.append('../../libauxteles')
+
+import kurucz as kz
+
+
+def usage():
+    print 'NAME'    
+    print '  importKurucz93 - import Kurucz93 catalog in python format pickle '
+    print ''    
+    print 'SYNTAX '
+    print '  importKurucz93 <kurucz root directory catalog>'
+    print ' '
+    print 'DESCRIPTION '
+    print '  create file pickle k93.pic contents all Kurucz catalog'
+    print ''
     
-    # aucun argument
-    if NbArgs == 1:
-        usage()
-        sys.exit(2)
+MyArgs = sys.argv
+NbArgs = len(MyArgs)
+#print MyArgs
+
+# aucun argument
+if NbArgs == 1:
+    usage()
+    sys.exit(2)
+
+ret = kz.fits2pickle(MyArgs[1]+'/', 'k93.pic')
+
+if ret:
+    print 'Done.'
+else:
+    print "Can't read %s", MyArgs[1]
+    print 'import FAILED.'
+print ""
+
+    
+    
