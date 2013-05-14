@@ -3,8 +3,8 @@ Created on 6 dec. 2012
 
 @author: colley
 '''
-FileKuruczPic = '/home/colley/projet/lsst/stellar_spectra/k93.pic'
-fileModtran = '/home/colley/temp/lsst/modtran/TemplateT04.01_1.txt'
+FileKuruczPic = '../data/kurucz93/k93.pic'
+fileModtran = '../data/modtran/TemplateT04.01_1.txt'
 
 import atmStarSolver as sol
 import starTargetSimu as star
@@ -319,9 +319,9 @@ if __name__ == '__main__':
     #simuOnlyTemp() 
     #simuOnlyAtm()
     #simuAtmTempGra()
-    #simuAtmTempGraLM()
+    simuAtmTempGraLM()
     #simuWithResolution()
-    simuWithDifferentResolution()
+    #simuWithDifferentResolution()
     #test_errobar()
     try:
         pl.show()

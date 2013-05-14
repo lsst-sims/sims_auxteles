@@ -219,5 +219,29 @@ def downgradeResol(xIn, yIn, resIn, resOut, ref= 650, xOut=None):
         yOut = sci.splev(xIn, tck, der=0)/kernel.sum()
     return yOut
     
-   
+
+def parallaxeToKm(parallaxe):
+    """
+    parallaxe [mas]
+    """
+    return 3.085e16/parallaxe
+
+
+def stellarRadius(temp, magApp, parallaxe):   
+    """
+    temp [K]
+    magApp
+    parallaxe [mas]
+    
+    return en km
+    """ 
+    rap = ((5800.0/temp)**2)*(2.51**(4.83-(magApp-5*np.log10(1000.0/parallaxe)+5))**0.5)
+    return 696342* rap
+
+
+def coefKuruczEarth(temp, magApp, parallaxe):
+    stelRad = stellarRadius(temp, magApp, parallaxe)
+    distEarth = parallaxeToKm(parallaxe)
+    print stelRad, distEarth
+    return (stelRad/distEarth)**2
     

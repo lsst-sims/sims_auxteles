@@ -64,11 +64,15 @@ def read_kurucz_all(directory = '/home/colley/projet/lsst/stellar_spectra/k93mod
     return data
 
 
+
 def fits2pickle(fIn, fOut):
     kur = read_kurucz_all(fIn)
-    f=open(fOut, "wb")
-    pk.dump(kur, f, pk.HIGHEST_PROTOCOL)
-    f.close()
+    if kur != None:
+        f=open(fOut, "wb")
+        pk.dump(kur, f, pk.HIGHEST_PROTOCOL)
+        f.close()
+        return True
+    return False
 
 
 def fits2pickle_JMC():
@@ -94,7 +98,8 @@ class Kurucz(object):
             f=open(filePickle, "rb")
         except:
             print "can't open file ", filePickle
-            return 
+            print "\n===========\nTo solve problem run tool import 'importKurucz93' in auxteles/data/kurucz93 directory\n==========="
+            raise
         if test:
             print "add _ParamNotDef attribut"
             self._ParamNotDef = []    

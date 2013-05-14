@@ -7,7 +7,7 @@ import unittest
 from templatMODTRAN import *
 
 
-FileMOD = '/home/colley/temp/lsst/modtran/TemplateT04.01_1.txt'
+FileMOD = '../../data/modtran/TemplateT04.01_1.txt'
 
 
 def test_plotTemplate():

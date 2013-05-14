@@ -7,7 +7,7 @@ import unittest
 from kurucz import *
 from mpl_toolkits.mplot3d import Axes3D 
 
-FileKuruczPic = '/home/colley/projet/lsst/stellar_spectra/k93.pic'
+FileKuruczPic = '../../data/kurucz93/k93.pic'
 
 def test_plotFlux():
     oKur = Kurucz(FileKuruczPic)

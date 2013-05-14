@@ -6,18 +6,18 @@ Created on 4 dec. 2012
 import unittest
 from observationAuxTeles import *
 import kurucz as kur
-from burkeAtmModel import BurkeAtmModelv2
+from burkeAtmModel import BurkeAtmModel
 import starTargetSimu as star
 import pylab as pl
 
-FileKuruczPic = '/home/colley/projet/lsst/stellar_spectra/k93.pic'
-fileModtran = '/home/colley/temp/lsst/modtran/TemplateT04.01_1.txt'
+FileKuruczPic = '../../data/kurucz93/k93.pic'
+fileModtran = '../../data/modtran/TemplateT04.01_1.txt'
 
 def test_readObsNight():
     oKur = kur.Kurucz(FileKuruczPic)
     oKur.resampleBetween(5000, 10000, 1024)
-    oStar = star.StarTargetSimu(oKur)
-    oAtm = BurkeAtmModelv2(fileModtran)
+    oStar = star.StarTargetSimuAll(oKur)
+    oAtm = BurkeAtmModel(fileModtran)
     oAtm.resample( oKur.getWL())
     oObs = ObsSurveySimu01(2,2)
     oObs.setAtmModel(oAtm)

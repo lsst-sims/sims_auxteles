@@ -8,7 +8,11 @@ Created on 6 nov. 2012
 import unittest
 from tools import *
 
+
+def test_vega(): 
+    print coefKuruczEarth(9600, 0.03, 129)
     
+test_vega()    
 
 class Test(unittest.TestCase):
 

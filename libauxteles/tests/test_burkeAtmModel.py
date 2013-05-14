@@ -2,7 +2,7 @@ import unittest
 from burkeAtmModel import *
 import scipy.optimize as spo
 
-fileModtran = '/home/colley/temp/lsst/modtran/TemplateT04.01_1.txt'
+fileModtran = '../../data/modtran/TemplateT04.01_1.txt'
 CptCall = 0
 
 def plotErrRelAtm(pTrue, pEst, pTitle=""):    
