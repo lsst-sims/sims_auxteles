@@ -38,6 +38,7 @@ def getDirectory(path):
     idx = ipath.find('/')
     return ipath[idx+1:][::-1]
 
+
 def getModuleDirectory():
     """
     get directory of the present module
@@ -374,7 +375,7 @@ def finalPlot(pstar, atms, pCCD, pMir, pGrism):
     assert isinstance(pGrism, grm.grism )    
     pl.figure()
     pl.xlabel("wavelength nm")
-    #pl.ylabel(r'$J.m^{-2}.s^{-1}.nm^{-1}$')
+    pl.ylabel(r'$J.m^{-2}.s^{-1}.nm^{-1}$')
     pl.grid()    
     pl.title("Star flux above atmosphere and observed")
     pl.plot(pstar.wl, pstar.dEdl)
