@@ -3,18 +3,23 @@ Created on 6 dec. 2012
 
 @author: colley
 '''
+import sys
+sys.path.append('../libauxteles')
+sys.path.append('../simSpectro')
+
+
 FileKuruczPic = '../data/kurucz93/k93.pic'
 fileModtran = '../data/modtran/TemplateT04.01_1.txt'
+
 
 import atmStarSolver as sol
 import starTargetSimu as star
 import observationAuxTeles as obsAT
 import kurucz as kur
 import pylab as pl
-from burkeAtmModel import BurkeAtmModel, BurkeAtmModelTauPos
+from burkeAtmModel import BurkeAtmModel
 import numpy as np
 import tools as tl 
-
 
 
 class SimuAtmStarSolve():
@@ -202,8 +207,8 @@ def simuAtmTempGraLM():
 def simuWithDifferentResolution():    
     nbNight = 1
     nbPerioByNight = 20
-    snr = 600
-    lRes = [50, 100, 200, 300, 400,500,  800]
+    snr = 300
+    lRes = [50, 100, 200, 300, 400,500,600, 700, 800]
     #lRes = [50, 100]
     lEC = []
     nbLoop = 5
@@ -319,9 +324,9 @@ if __name__ == '__main__':
     #simuOnlyTemp() 
     #simuOnlyAtm()
     #simuAtmTempGra()
-    simuAtmTempGraLM()
+    #simuAtmTempGraLM()
     #simuWithResolution()
-    #simuWithDifferentResolution()
+    simuWithDifferentResolution()
     #test_errobar()
     try:
         pl.show()

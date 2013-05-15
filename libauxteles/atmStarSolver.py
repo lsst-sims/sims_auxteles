@@ -121,7 +121,7 @@ class AtmStarSolver(object):
         # pseudo init pour completion EDI eclipse 
         self._oObs = obsAT.ObsSurveySimu01()
         #self._oObs = obsAT.ObsSurvey()
-        self._oStar = kur.Kurucz("")
+        #self._oStar = kur.Kurucz("")
         self._oAtm = atm.BurkeAtmModel("")
         self._CostFunc = []
         self._parEst = 0 # parameter estimation

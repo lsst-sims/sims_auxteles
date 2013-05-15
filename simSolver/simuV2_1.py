@@ -3,6 +3,9 @@ Created on 16 avr. 2013
 
 @author: colley
 '''
+import sys
+sys.path.append('../libauxteles')
+sys.path.append('../simSpectro')
 
 FileKuruczPic = '../data/kurucz93/k93.pic'
 fileModtran = '../data/modtran/TemplateT04.01_1.txt'
