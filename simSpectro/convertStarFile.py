@@ -17,4 +17,5 @@ def convertStarFile(fileIn, fileOut, coefWL = 1.0 , coefFlux= 1.0):
     print 'Done.'
         
             
-convertStarFile('example/alpha_lyr_stis_004.txt','example/alpha_lyr_stis_004nm.txt',0.1)
+#convertStarFile('example/alpha_lyr_stis_004.txt','example/alpha_lyr_stis_004nm.txt',0.1)
+convertStarFile('example/alpha_lyr_stis_004nm.txt', 'example/alpha_lyr_stis_004nmBis.txt',1, 1e-2)

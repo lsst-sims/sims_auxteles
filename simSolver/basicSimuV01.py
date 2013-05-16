@@ -8,8 +8,8 @@ sys.path.append('../libauxteles')
 sys.path.append('../simSpectro')
 
 
-FileKuruczPic = '../data/kurucz93/k93.pic'
-fileModtran = '../data/modtran/TemplateT04.01_1.txt'
+G_FileKuruczPic = '../data/kurucz93/k93.pic'
+G_fileModtran = '../data/modtran/TemplateT04.01_1.txt'
 
 
 import atmStarSolver as sol
@@ -20,15 +20,15 @@ import pylab as pl
 from burkeAtmModel import BurkeAtmModel
 import numpy as np
 import tools as tl 
-
+import pickle as pk
 
 class SimuAtmStarSolve():
     def __init__(self, night, obsByNight):
-        self.oKur = kur.Kurucz(FileKuruczPic)
+        self.oKur = kur.Kurucz(G_FileKuruczPic)
         self.oKur.setCoefUnit(1e-8)
         self.oKur.resampleBetween(4000, 10000, 500)
         self.oStarCat = star.StarTargetSimuAll(self.oKur, 2)
-        self.oAtm = BurkeAtmModel(fileModtran)
+        self.oAtm = BurkeAtmModel(G_fileModtran)
         self.oAtm.resample( self.oKur.getWL() )
         self.oObs = obsAT.ObsSurveySimu01(night,obsByNight)
         self.oObs.setAtmModel(self.oAtm)
@@ -44,7 +44,7 @@ class SimuAtmStarSolveWithResol():
     used data with given resolution
     """
     def __init__(self, night, obsByNight, resol):
-        self.oAtm = BurkeAtmModel(fileModtran)
+        self.oAtm = BurkeAtmModel(G_fileModtran)
         self.oAtm.downgradeTemplate(resol)
         newWL = np.linspace(self.oAtm._aWL[0], self.oAtm._aWL[-1], self.oAtm.getNBins())
         iMin, iMax = tl.indexInIntervalCheck(newWL, 4000, 9500)
@@ -52,7 +52,7 @@ class SimuAtmStarSolveWithResol():
         print self.oAtm.getNBins()
         print len(newWL)
         self.oAtm.resample( newWL )
-        self.oKur = kur.Kurucz(FileKuruczPic)
+        self.oKur = kur.Kurucz(G_FileKuruczPic)
         self.oKur.setCoefUnit(1e-8)
         self.oKur.resample(newWL)
         self.oStarCat = star.StarTargetSimuAll(self.oKur, 2)
@@ -70,11 +70,11 @@ class SimuAtmStarSolve2(SimuAtmStarSolve):
     used ObsSurveySimu02 and StarTargetSimuAll class
     """
     def __init__(self, night, obsByNight):
-        self.oKur = kur.Kurucz(FileKuruczPic)
+        self.oKur = kur.Kurucz(G_FileKuruczPic)
         self.oKur.setCoefUnit(1e-8)
         self.oKur.resampleBetween(4000, 10000, 1000)
         self.oStarCat = star.StarTargetSimuAll(self.oKur,1)
-        self.oAtm = BurkeAtmModel(fileModtran)
+        self.oAtm = BurkeAtmModel(G_fileModtran)
         self.oAtm.resample( self.oKur.getWL())
         self.oObs = obsAT.ObsSurveySimu02(night,obsByNight)
         self.oObs.setAtmModel(self.oAtm)
@@ -106,10 +106,10 @@ def simu01():
     
 def simu02():   
     # create simulation observation
-    oKur = kur.Kurucz(FileKuruczPic)
+    oKur = kur.Kurucz(G_FileKuruczPic)
     oKur.resampleBetween(4000, 10000, 1000)
     oStar = star.StarTargetSimu(oKur)
-    oAtm = BurkeAtmModel(fileModtran)
+    oAtm = BurkeAtmModel(G_fileModtran)
     oAtm.resample( oKur.getWL())
     oObs = obsAT.ObsSurveySimu01(2,4)
     oObs.setAtmModel(oAtm)
@@ -211,7 +211,7 @@ def simuWithDifferentResolution():
     lRes = [50, 100, 200, 300, 400,500,600, 700, 800]
     #lRes = [50, 100]
     lEC = []
-    nbLoop = 5
+    nbLoop = 6
     for Li in range(nbLoop):
         for resol in lRes:
             np.random.seed(260+Li)
@@ -222,14 +222,20 @@ def simuWithDifferentResolution():
             errRelTot = oSim.oSol.transmisErrRelAtmAll()
             lEC.append(errRelTot.std())
     aEC = np.array(lEC).reshape(nbLoop, len(lRes))
+    fOut = "stdERvResSNR%d.pic"%snr
+    f=open(fOut, "wb")
+    pk.dump(aEC, f, pk.HIGHEST_PROTOCOL)
+    f.close()
     pl.figure()
-    pl.title("Standard deviation of true relative error atmospheric transmission")
+    pl.title("Standard deviation of true relative error atmospheric transmission, SNR %d"%snr)
     print aEC.mean(axis=0), aEC.std(axis=0)
     pl.errorbar(lRes, aEC.mean(axis=0), yerr=aEC.std(axis=0), fmt='ro')
     pl.xlim((20, 900))
+    pl.ylim((0, 0.4))
     pl.grid()
     pl.ylabel("standard deviation in %")
     pl.xlabel("spectro resolution")
+
 
 def test_errobar():
     lRes = [50, 100]

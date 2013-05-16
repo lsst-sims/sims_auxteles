@@ -197,8 +197,13 @@ def downgradeResol(xIn, yIn, resIn, resOut, ref= 650, xOut=None):
     sigma = ( (ref/resOut)**2 - (ref/resIn)**2)
     if sigma <=0 :
         # no change
-        print "[convolGauss] no change"
-        return yIn        
+        print "[convolGauss] resOut > resIn , no downgrad"
+        if xOut != None:
+            tck = sci.splrep(xIn, yIn)      
+            yOut = sci.splev(xOut, tck, der=0)
+        else:
+            yOut = yIn
+        return yOut      
     sigma = sigma**.5
     minDelta = np.min(np.diff(xIn))
     xcst = np.arange(xIn[0], xIn[-1], minDelta)

@@ -7,8 +7,8 @@ import sys
 sys.path.append('../libauxteles')
 sys.path.append('../simSpectro')
 
-FileKuruczPic = '../data/kurucz93/k93.pic'
-fileModtran = '../data/modtran/TemplateT04.01_1.txt'
+G_FileKuruczPic = '../data/kurucz93/k93.pic'
+G_fileModtran = '../data/modtran/TemplateT04.01_1.txt'
 
 import atmStarSolver as sol
 import starTargetSimu as star
@@ -35,8 +35,8 @@ class SimuVersion2_1():
         * initSolver()
     """
     def __init__(self, night, obsByNight):
-        self.oAtm = atm.BurkeAtmModel(fileModtran)
-        self.oKur = kur.Kurucz(FileKuruczPic)
+        self.oAtm = atm.BurkeAtmModel(G_fileModtran)
+        self.oKur = kur.Kurucz(G_FileKuruczPic)
         self.oKur.setCoefUnit(1e-8)
         self.oKur.resample(self.oAtm.getWL())
         self.oStarCat = star.StarTargetSimuAll(self.oKur, 2)
@@ -58,11 +58,11 @@ class SimuVersion2_1():
     
     def initSolver(self):
         self.oSol = sol.AtmStarSolver()
-        self.oKurSol = kur.Kurucz(FileKuruczPic)
+        self.oKurSol = kur.Kurucz(G_FileKuruczPic)
         self.oKurSol.setCoefUnit(1e-8)
         # resample in ccd wl      
         self.oKurSol.resample(self.oObs._WL)
-        self.oAtmSol = atm.BurkeAtmModel(fileModtran)
+        self.oAtmSol = atm.BurkeAtmModel(G_fileModtran)
         self.oAtmSol.downgradeTemplateAndResample(self.oObs.outpuRes, self.oObs._WL)      
         self.oSol.init(self.oObs, self.oKurSol, self.oAtmSol)
 

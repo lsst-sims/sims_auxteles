@@ -59,7 +59,8 @@ class TemplateMODTRAN(object):
         self._A03 = self._setZeroNeg(tl.downgradeResol(self._wl, self._A03, self._res, resOut, self._ref, pWL))
         self._AH2O = self._setZeroNeg(tl.downgradeResol(self._wl, self._AH2O, self._res, resOut, self._ref, pWL))
         self._Amola = self._setZeroNeg(tl.downgradeResol(self._wl, self._Amola, self._res, resOut, self._ref, pWL))
-        self._Amols = self._setZeroNeg(tl.downgradeResol(self._wl, self._Amols, self._res, resOut, self._ref, pWL))        
+        self._Amols = self._setZeroNeg(tl.downgradeResol(self._wl, self._Amols, self._res, resOut, self._ref, pWL))
+        self._res = resOut       
         self._wl = pWL
         
         

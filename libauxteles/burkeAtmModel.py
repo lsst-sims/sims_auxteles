@@ -194,9 +194,10 @@ class BurkeAtmModel(object):
             ret4= self._transH2O()
             pl.plot(self._aWL,ret4,'r--.')
             pl.plot(self._aWL,ret*ret1*ret2*ret3*ret4)
-            pl.legend(["gray-aero","Mols","Mola","O3","H2O","all"],loc=3)
+            pl.legend(["gray-aero","Mols","Mola","O3","H2O","all"],loc=4)
             #pl.legend(["gray"])
-            pl.title("composant modtran")
+            pl.title("composant modtran, resolution %d"%self._Tpl._res)
+            pl.xlabel("%g m"%self._Tpl._Unit)
             pl.grid()
             self._CurtTrans = ret*ret1*ret2*ret3*ret4
         else:
@@ -313,32 +314,3 @@ class BurkeAtmModel(object):
         
     def __str__(self):
         return "BurkeAtmModel"
-
-
-
-class BurkeAtmModelTauPos(BurkeAtmModel):
-    """
-    fit sqrt(Tau0) to assume Tau0 positive
-    
-        Tgray :   self._Par[0]
-        sqrt(Tau0) :   self._Par[1]
-        Tau1 :   self._Par[2]
-        Tau2 :   self._Par[3]
-        alpha :   self._Par[4]
-        Cmol :   self._Par[5]
-        C_O3 :   self._Par[6]
-        C_H2O :   self._Par[7]
-        dC_{H2O}/dEW :   self._Par[8]
-        dC_{H2O}/dNS : self._Par[9]
-    """
-    
-    def __init__(self, ModFileTempl, pressure=782):
-        BurkeAtmModel.__init__(self, ModFileTempl, pressure)
-    
-    def __str__(self):
-        return "BurkeAtmModelTauPos"
-        
-    def _transGrayAero(self):
-        tau  = np.fabs(self._Par[1]) + self._EW*self._Par[2] + self._NS*self._Par[3]
-        tau *= np.power(self._aWL/self._WL0, self._Par[4])        
-        return self._razNeg(self._Par[0]*np.exp(-self._AirMass*tau))
