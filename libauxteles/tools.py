@@ -234,19 +234,25 @@ def parallaxeToKm(parallaxe):
 
 def stellarRadius(temp, magApp, parallaxe):   
     """
-    temp [K]
-    magApp
-    parallaxe [mas]
+    IN: 
+        temp [K]
+        magApp [noUnit]
+        parallaxe [mas]    
+    OUT: 
+        radius [km]
     
-    return en km
+    source : http://cas.sdss.org/dr6/en/proj/advanced/hr/radius1.asp
     """ 
-    rap = ((5800.0/temp)**2)*(2.51**(4.83-(magApp-5*np.log10(1000.0/parallaxe)+5))**0.5)
-    return 696342* rap
+    absMag = magApp - 5*np.log10(1000.0/parallaxe) + 5
+    # 4.83 abs magnitude of sun
+    rap = ((5800.0/temp)**2)*(2.51**(4.83-absMag))**0.5
+    # 696342 km sun radius
+    return 696342 * rap
 
 
 def coefKuruczEarth(temp, magApp, parallaxe):
     stelRad = stellarRadius(temp, magApp, parallaxe)
     distEarth = parallaxeToKm(parallaxe)
-    print stelRad, distEarth
+    #print stelRad, distEarth
     return (stelRad/distEarth)**2
     

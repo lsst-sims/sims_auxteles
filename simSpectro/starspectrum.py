@@ -126,7 +126,7 @@ class starspectrum:
             dedl = float(line[1])
             dedn = lamb*lamb*dedl/clight
             self.dEdn.append(dedn)
-            self.dEdl.append(dedl)
+            self.dEdl.append(dedl)           
         mfile.close()
         self.nu = np.array(self.nu)
         self.wl = np.array(self.wl)
@@ -158,7 +158,7 @@ class starspectrum:
         pl.ylabel("Number photons")
         pl.grid()
         pl.title(pTitle)
-        pl.plot(phot)
+        pl.plot(self.wl, phot)
         
         
     def plotToWLnm(self, nu, val, pTitle="star spectrum"):
@@ -188,7 +188,8 @@ class starspectrum:
         sigma_seeing = seeing/(2.*(2.*np.log(2))**.5)
         halfwidth_slit = slitwidth/2.
         self.factorslit = .5*( scipy.special.erf(halfwidth_slit/(sigma_seeing*2.**.5)) - scipy.special.erf(-halfwidth_slit/(sigma_seeing*2.**.5)) )
-        self.factorextract = factext        
+        self.factorextract = factext 
+        print "apertureCorrection factor: ", self.factorslit, self.factorextract       
         self.dEdnAper = self.dEdn*self.factorslit*self.factorextract
         self.dEdlAper = self.dEdl*self.factorslit*self.factorextract
 
@@ -200,7 +201,7 @@ class starspectrum:
         print noise[0:20]
         
 
-    def computePhoton(self, effarea=1.0, exptime=240.):
+    def computePhoton(self, effarea, exptime=240.):
         # compute photons from the input spectrum (energy density)
         # assumed effective area of the telescope = 1.0 m (mirror, slit...)
         # todo: take the calypso characteristics
@@ -357,21 +358,29 @@ class starspectrum:
             if self.photatm[i]<0.:
                 self.photatm[i] = 0.
                 self.photatmnoise[i] = 0.
+        print "==========atm trans ", self.photatm.mean()/self.photccd.mean()
 
     def computePhotonMirror(self, mirrorresp):
         # Mirror reflectivity
         ginterp = spi.interp1d(mirrorresp.getnu(), mirrorresp.getrenu(), bounds_error=False, fill_value = 0.)
         mirrortr = ginterp(self.nuccd)
         self.mirrortr = mirrortr
+        print "==========Mirror trans", mirrortr.mean()
         self.photmirror = self.photatm * mirrortr
         self.photmirrornoise = self.photatmnoise * mirrortr
         
-    def computePhotonGrism(self, grismresp):
+    def computePhotonGrism(self, grismresp, effFirstOrder=0.133):
+        """
+        effFirstOrder : Spectrograph efficiency at 6000Å using grating G250 in 1st order is 13.3%
+        http://www.ctio.noao.edu/spectrographs/4m_R-C/r-c_calc.html
+        """
+        
         # Transmission of the grism
         gtr = []
         for i in range(len(self.nuccd)):
             gtr.append(grismresp.getT(clight/self.nuccd[i]))
-        self.grismTrans = np.array(gtr)
+        self.grismTrans = np.array(gtr)*effFirstOrder
+        print "==========Grism trans", self.grismTrans.mean()
         self.photgrism = self.photmirror * np.array(gtr)
         self.photgrismnoise = self.photmirrornoise * np.array(gtr)
 
@@ -398,12 +407,28 @@ class starspectrum:
         finterp = spi.interp1d(np.flipud(np.array(y)), np.flipud(self.wl), bounds_error=False, fill_value = 0.)
         # wl antcedent of regular dispersion decomposition
         self.wlccd = np.flipud(finterp(np.flipud(np.array(yccd))))
+        if True:
+            diff = np.diff(self.wlccd)
+            pl.figure()
+            pl.title("size pixel in wavelength")
+            pl.plot(self.wlccd[1:] , -diff)
+            pl.xlabel("nm")
+            pl.ylabel("nm")            
+            pl.grid()
+            
         self.nuccd = clight/self.wlccd
         print "wlccd size ",np.size(self.wlccd)
         #print "wlccd : ", self.wlccd[0],  self.wlccd[-1]
-        lastj = 0  
+        lastj = 0          
         for i in range(len(self.nuccd)):
             # size bin inf and sup
+            if np.fabs(self.nuccd[i]-5e+14) < 1e+12:
+                print "======================= "
+                print "nu %g Hz,  wl %g nm"%(self.nuccd[i], clight/self.nuccd[i])
+                print ""
+                doPrint = True
+            else:
+                doPrint = False
             if i == 0:
                 dnccdd = (self.nuccd[i+1]-self.nuccd[i])/2.
                 dnccdg = dnccdd
@@ -461,6 +486,7 @@ class starspectrum:
                 nbbin = k-j
                 bintmp = 0
                 for m in range(nbbin):
+                    
                     n = j+m
                     if n == 0:
                         dnd = (self.nu[n+1]-self.nu[n])/2.
@@ -480,9 +506,12 @@ class starspectrum:
                         nu2 = self.nu[n]+dnd
                     else:
                         nu2 = self.nuccd[i]+dnccdd
-                    prop = (nu2-nu1)/(dnd+dng)
+                    prop = (nu2-nu1)/(dnd+dng)                    
                     if S_LevelDbg > 2 : print "pixel:", i,prop
                     bintmp += prop*self.photconv[n]
+                    if doPrint:
+                        print "bin %d : nu %g Hz,  wl %g nm"%(n, self.nu[n], clight/self.nu[n])
+                        print "%d prop=%g nbPh=%f"%(m, prop, bintmp)
                 self.photccd.append(bintmp)
             else:
                 self.photccd.append(0)
@@ -604,6 +633,7 @@ class starspectrum:
         # Response of the CCD
         finterp = spi.interp1d(ccdresp.getnu(), ccdresp.getrenu(), bounds_error=False, fill_value = 0.)
         ccdr = finterp(self.nuccd)
+        print '==========CCD factor ', ccdr.mean()
         self.elecccd = self.photgrism * ccdr
         self.elecccdnoise = self.photgrismnoise * ccdr
         if S_LevelPlot >3:

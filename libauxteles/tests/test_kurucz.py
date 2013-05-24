@@ -71,6 +71,24 @@ def test_getFluxInterLin():
     pl.legend(['6000','6242','6300'])
     pl.grid()
     
+def test_plotVega():
+    oKur = Kurucz(FileKuruczPic)
+    oKur.setWLInterval(2000, 10000)
+    pl.figure()
+    pl.title('Raw Kurucz Vega')
+    fl = oKur.getFluxInterLin(np.array([-0.5, 9550, 3.95]))
+    pl.plot(oKur.getWL(), fl.T)
+    pl.ylabel(r"$ergs.cm^{-2}.s^{-1}.A^{-1}$")
+    pl.xlabel("Ansgtrom")
+    pl.grid()
+    pl.figure()
+    pl.title('Vega at Earth')
+    flE = fl*5.63e-17
+    pl.plot(oKur.getWL(), flE.T)
+    pl.ylabel(r"$ergs.cm^{-2}.s^{-1}.A^{-1}$")
+    pl.xlabel("Ansgtrom")
+    pl.grid()
+   
 
 def test_fitTempGra():
     oKur = Kurucz(FileKuruczPic)
@@ -416,7 +434,8 @@ class Test(unittest.TestCase):
 #test_fitTempGra()
 #unittest.main()
 #test_fitWithBounds()
-test_restrictToWLinterval()
+#test_restrictToWLinterval()
+test_plotVega()
 #test_plotFlux()
 #test_plotNotDefined()
 try:

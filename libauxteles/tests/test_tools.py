@@ -27,7 +27,30 @@ class Test(unittest.TestCase):
         ret = readTextFileColumn('/home/colley/temp/lsst/modtran/TemplateT04.01_1.txt')        
         print ret
 
+    def test_stellarRadius(self):
+        """
+        test with Sirius 
+        ref : http://cas.sdss.org/dr6/en/proj/advanced/hr/radius1.asp        
+        """
+        siriusRadius  = stellarRadius(9500, -1.44,  379.21)
+        rap = siriusRadius/696342
+        self.assertTrue(np.fabs(rap - 1.76) < 0.02)  
 
+    def test_coefKuruczEarth(self):
+        """
+        test with Sirius
+          r = 1.76*696342
+          d= 2.64*3.085e13
+          In [8]: (r/d)**2
+          Out[8]: 2.2643957244259747e-16
+        """
+        coef = coefKuruczEarth(9500, -1.44,  379.21) 
+        tv = 2.2643957244259747e-16
+        #err = np.fabs(coef-tv)   /tv     
+        test = np.allclose(np.array([coef]) ,np.array([tv]), atol=0, rtol=1e-2)
+        self.assertTrue(test)  
+        
+       
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()

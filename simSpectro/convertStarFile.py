@@ -8,6 +8,7 @@ def convertStarFile(fileIn, fileOut, coefWL = 1.0 , coefFlux= 1.0):
     for line in fileIn.readlines():
         if line[0] == "#":
             fileOut.write(line)
+            continue
         line = line.split()
         lamb = float(line[0])*coefWL
         dedl = float(line[1])*coefFlux
@@ -18,4 +19,4 @@ def convertStarFile(fileIn, fileOut, coefWL = 1.0 , coefFlux= 1.0):
         
             
 #convertStarFile('example/alpha_lyr_stis_004.txt','example/alpha_lyr_stis_004nm.txt',0.1)
-convertStarFile('example/alpha_lyr_stis_004nm.txt', 'example/alpha_lyr_stis_004nmBis.txt',1, 1e-2)
+convertStarFile('example/alpha_lyr_stis_004nm.txt', 'example/alpha_lyr_stis_004nmEarth.txt',1, 5.6e-17)

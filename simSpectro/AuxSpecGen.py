@@ -221,150 +221,7 @@ class AuxTeles(object):
         if self.doPlot : self.star.plotWL("raw spectrum")    
         return self.star.wlccd, self.star.syscaldEdl
         
-        
-
-def simuSpectroAuxTeles(inputres, slitwidth, seeing, starname, atmstar):
-    # create objects and read the data
-    ccdqe = ccd.ccd()
-    gri = grm.grism()
-    mirrortr = mir.mirror()
-    calibsys = cal.CalibSys()
-    atms = atm.ATMCombSpec()    
-    ostar = star.starspectrum()
-    doPlot = True
     
-    datadir = getDirectory(__file__) + '/data/'
-    
-    mirrortr.read(datadir + 'CFHT_Primary_Transmission.txt')
-    ccdqe.read(datadir    + 'E2V_CCD42-90_QEmodel.txt')
-    calibsys.read(datadir + 'corr.txt')
-    ccdqe.plotResponse()
-    calibsys.plotCorrel()
-    
-    # read the atmspheres
-    atms.read(atmstar)   
-    # read the ostar spectrum given in J/m2/s/nm
-    ostar.readdEdl(starname)
-    if doPlot : ostar.plotWL("raw spectrum")
-    
-    # modify the ostar file name to identify the atmosphere
-    starname += '_'+str(atmstar)+'_'
-    # for checking
-    #ostar.write('dEdn', starname+'dEdn.dat')
-
-    # apply the aperture correction with respect to
-    # the slit width and the seeing
-    print "apertureCorrection"
-    ostar.apertureCorrection(seeing, slitwidth)
-    if doPlot : ostar.plotWL("spectrum after apertureCorrection")
-    
-
-    # convolution of the spectrum to the resolution of the spectrograph
-    sigmaspectrograph = 650./400.
-    sigmaspec = 650./inputres
-    sigmaconv = (sigmaspectrograph**2 - sigmaspec**2)**.5
-    if(sigmaconv<0):
-        print 'error: convolution is impossible, the resolution of the input spectrum is less than the resolution of the output spectrum'
-        exit(2)
-    print "convolvePhoton"
-    ostar.convolvePhotondEdl(sigmaconv)
-    if doPlot : ostar.plotWL("dEdl after convolvePhoton", dEdl=ostar.dEdlConv)
-
-    
-    # conversion to photons
-    print "computePhoton"
-    ostar.computePhoton()
-    if doPlot : ostar.plotNbPhotons("#photons after computePhoton", ostar.phot)
-
-
-    # for checking
-    #ostar.write('phot', starname+'phot.dat')
-
-
-    # for checking
-    #ostar.write('photconv', starname+'photconv.dat')
-
-    # rebin on the ccd grid
-    print "computePhotonCCD"
-    ostar.computePhotonCCD(gri)
-    if doPlot : ostar.plotNbPhotons("#photon after computePhotonCCD", ostar.photccd)
-    
-    
-    # compute and add photon noise
-    print "computePhotonNoise"   
-    ostar.computePhotonNoise()
-    if doPlot : ostar.plotNbPhotons("photon noise computePhotonNoise", ostar.photccdnoise)
-    
-    
-    print "addPhotonNoise"
-    ostar.addPhotonNoise()
-    if doPlot : ostar.plotNbPhotons("#photon after addPhotonNoise", ostar.photccd)
-    
-    # for checking
-    #ostar.write('photccd', starname+'photccd.dat')
-
-    # through the atmosphere
-    print "computePhotonATM"
-    ostar.computePhotonATM(atms.gettrans())
-    if doPlot : ostar.plotNbPhotons("photatm computePhotonATM", ostar.photatm)
-    
-    # for checking
-    #ostar.write('photatm', starname+'photatm.dat')
-
-    # reflexion on the mirror
-    print "computePhotonMirror"
-    ostar.computePhotonMirror(mirrortr)
-    if doPlot : 
-        ostar.plotNbPhotons("mirrortr by computePhotonMirror", ostar.mirrortr)        
-        ostar.plotNbPhotons("photmirorr by computePhotonMirror", ostar.photmirror)
-    
-    # for checking
-    #ostar.write('photmirror', starname+'photmirror.dat')
-
-    # through the Grism
-    print "computePhotonGrism"
-    ostar.computePhotonGrism(gri)
-    if doPlot : 
-        ostar.plotNbPhotons("grismTrans computePhotonGrism", ostar.grismTrans)
-        ostar.plotNbPhotons("photgrism computePhotonGcalibrateSpecrism", ostar.photgrism)
-
-    # conversion in photo-electrons
-    print "computeElectronCCD"
-    ostar.computeElectronCCD(ccdqe)
-    if doPlot : ostar.plotNbPhotons("elecccd computeElectronCCD", ostar.elecccd)
-
-    # add a typical read noise
-    print "addNoiseElectronCCD"
-    ostar.addNoiseElectronCCD()
-    if doPlot : ostar.plotToWLnm( ostar.nuccd, ostar.elecccd, "Final estimation photon-electon by pixel")
-    
-    
-    # for checking
-    #ostar.write('elecccdlambda', starname+'elecccdlambda.dat')
-    #ostar.write('elecccd', starname+'elecccdnu.dat')
-
-    # Make the sensitivity function to simulate the flux calibration
-    print "MakeSensFunc"
-    #ostar.MakeSensFunc(atmc.gettrans(), ccdqe, gri, mirrortr)
-    #if True : ostar.plotWL("sensdEdl MakeSensFunc", ostar.wlccd[50:-50], ostar.sensdEdl[50:-50])
-    ostar.MakeSensFuncInstruOnly(ccdqe, gri, mirrortr)
-
-
-    # flux-calibrate the spectrum 
-    print "calibrateSensSpec"
-    ostar.calibrateSensSpec()
-    if doPlot : ostar.plotWL("caldEdl calibrateSensSpec", ostar.wlccd, ostar.caldEdl)
-    
-    #ostar.write('caldEdn', starname+'caldEdn.dat')
-    #ostar.write('caldEdl', starname+'caldEdl.dat')
-
-    # add systematic effect due to the flux calibration
-    print "AddCalibSys"
-    ostar.AddCalibSys(calibsys)
-    if doPlot : ostar.plotWL("syscaldEdl AddCalibSys Final", ostar.wlccd, ostar.syscaldEdl)
-    
-
-
 
 
 def finalPlot(pstar, atms, pCCD, pMir, pGrism):
@@ -381,7 +238,7 @@ def finalPlot(pstar, atms, pCCD, pMir, pGrism):
     pl.plot(pstar.wl, pstar.dEdl)
     pl.plot(pstar.wlccd, pstar.syscaldEdl)
     pl.plot(pstar.wlccd, pstar.elecccd*cst.hplanck*pstar.nuccd**3/(cst.clight*240*pstar._deltaNuCCD))
-    pl.legend(["above atm ","observed calibrated","observed raw"])
+    pl.legend(["above atm ", "observed calibrated", "observed raw"])
     # transmission
     pl.figure()
     pl.xlabel("wavelength nm")
@@ -396,7 +253,7 @@ def finalPlot(pstar, atms, pCCD, pMir, pGrism):
         re.append(pGrism.getT(cst.clight/pstar.nuccd[i]))   
     re = np.array(re)
     pl.plot(cst.clight/pstar.nuccd, re*100)
-    pl.legend(["atmosphere","CCD","telescope mirror" ,"Grism"], loc=7)
+    pl.legend(["atmosphere", "CCD", "telescope mirror" ,"Grism"], loc=7)
     # index refraction
 #    pl.figure()
 #    pl.xlabel("wavelength nm")
@@ -500,7 +357,9 @@ def main():
     atms = atm.ATMCombSpec()
     atmc = atm.ATMCombSpec()
     mystar = star.starspectrum()
-
+    diamTeles = 1
+    effarea = (np.pi/4)* diamTeles**2
+    
     mirrortr.read(datadir+'/'+ os.environ.get('ATSIM_MIRROR'))
     ccdqe.read(datadir+'/'+ os.environ.get('ATSIM_CCDQE'))
     calibsys.read(datadir+'/'+ os.environ.get('ATSIM_SYSCORR'))
@@ -538,8 +397,8 @@ def main():
     
     # conversion to photons
     print "computePhoton"
-    mystar.computePhoton()
-    if doPlot : mystar.plotNbPhotons("#photons after computePhoton", mystar.phot)
+    mystar.computePhoton(effarea)
+    if True : mystar.plotNbPhotons("#photons after computePhoton", mystar.phot/0.68)
 
 
     # for checking
@@ -601,7 +460,7 @@ def main():
     # add a typical read noise
     print "addNoiseElectronCCD"
     mystar.addNoiseElectronCCD()
-    if doPlot : mystar.plotToWLnm( mystar.nuccd, mystar.elecccd, "Final estimation photon-electon by pixel")
+    if True : mystar.plotToWLnm( mystar.nuccd, mystar.elecccd, "jmc Final estimation photon-electon by pixel")
     
     
     # for checking
@@ -612,7 +471,7 @@ def main():
     print "MakeSensFunc"
     #star.MakeSensFunc(atmc.gettrans(), ccdqe, gri, mirrortr)
     #if True : star.plotWL("sensdEdl MakeSensFunc", star.wlccd[50:-50], star.sensdEdl[50:-50])
-    mystar.MakeSensFuncJMC(atmc.gettrans(), ccdqe, gri, mirrortr)
+    mystar.MakeSensFuncJMC(atmc.gettrans(), ccdqe, gri, mirrortr, effarea= effarea)
     
     
     # modify the star file name to identify the calibration atmosphere
