@@ -36,6 +36,7 @@ def test_setWLInterval():
     print oKur._IdxMin,  oKur._Flux[oKur._IdxMin-1,0], oKur._Flux[oKur._IdxMin,0], oKur._Flux[oKur._IdxMin+1,0]
     print oKur._IdxMax,  oKur._Flux[oKur._IdxMax-1,0], oKur._Flux[oKur._IdxMax,0], oKur._Flux[oKur._IdxMax+1,0]    
      
+     
 def test_resample():
     oKur = Kurucz(FileKuruczPic)
     oKur.setWLInterval(4500, 10500)
@@ -48,6 +49,7 @@ def test_resample():
     pl.legend(["raw",'resample'])
     pl.grid()
     
+    
 def test_restrictToWLinterval():
     oKur = Kurucz(FileKuruczPic)    
     par = np.array([0.0, 3660., 0.5])
@@ -57,6 +59,7 @@ def test_restrictToWLinterval():
     pl.plot(oKur.getWL(), oKur.getFluxInterLin(par))
     pl.plot(oKur.getWL(), oKur.getFluxInterLin(par),"*")
     pl.grid()
+    
     
 def test_getFluxInterLin():
     oKur = Kurucz(FileKuruczPic)
@@ -71,6 +74,7 @@ def test_getFluxInterLin():
     pl.legend(['6000','6242','6300'])
     pl.grid()
     
+    
 def test_plotVega():
     oKur = Kurucz(FileKuruczPic)
     oKur.setWLInterval(2000, 10000)
@@ -78,8 +82,8 @@ def test_plotVega():
     pl.title('Raw Kurucz Vega')
     fl = oKur.getFluxInterLin(np.array([-0.5, 9550, 3.95]))
     pl.plot(oKur.getWL(), fl.T)
-    pl.ylabel(r"$ergs.cm^{-2}.s^{-1}.A^{-1}$")
-    pl.xlabel("Ansgtrom")
+    pl.ylabel(oKur.UnitFluxStr)
+    pl.xlabel(oKur.UnitWLStr)
     pl.grid()
     pl.figure()
     pl.title('Vega at Earth')
@@ -150,7 +154,7 @@ fluxTheo is nan, used NGP
     np.random.seed(seed)
     oKur = Kurucz(FileKuruczPic)
     oKur.setWLInterval(2500, 10000)    
-    oKur.setCoefUnit(1e-7)
+    oKur.setCoefUnitFlux(1e-7)
     #flux = np.copy(fluxTrue)
     Met = np.random.uniform(oKur._BoundsMet[0], oKur._BoundsMet[1])
     Temp = np.random.uniform(4000, 10000)

@@ -104,24 +104,42 @@ class Kurucz(object):
             print "add _ParamNotDef attribut"
             self._ParamNotDef = []    
         self._Flux = pk.load(f)
-        self._oNGP = None
-        self._oInterLin = None
         #print self._Flux
         f.close()
         self.setWLuseAll()
         # may be useful for linear interpolated feature  
         self._deleteFluxNotDefined()
-        self._CoefUnit = 1
-        #self.setCoefUnit(1e-7)
+        self._CUnitFlux = 1
+        #self.setCoefUnitFlux(1e-7)
         self._BoundsMet = (-4, 0)
         self._BoundsGra = (0.5, 4.5)
         self._BoundsTemp = (3600.0, 47500.0)
+        self.UnitFluxStr = r"$ergs.cm^{-2}.s^{-1}.A^{-1}$"
+        self.UnitWLStr = r"$angstrom$"
+        self._resetInterpolator()
         
         
-    def setCoefUnit(self, coef):
-        self._CoefUnit *= coef
-        self._Flux[3:,1:] *= coef        
+    def _resetInterpolator(self):
+        self._oNGP = None
+        self._oInterLin = None
         
+        
+    def setCoefUnitFlux(self, coef, UnitString=None):
+        self._CUnitFlux *= coef
+        self._Flux[3:,1:] *= coef
+        if  UnitString == None:       
+            self.UnitFluxStr = str(coef)+self.UnitFluxStr
+        else:
+            self.UnitFluxStr = UnitString
+        self._resetInterpolator()
+        
+        
+    def setCoefUnitWL(self, coef, UnitString):        
+        self._Flux[:,0] *=  coef      
+        self.UnitWLStr = UnitString
+        self._resetInterpolator()
+       
+       
     def resampleBetween(self, pWLmin, pWLmax, pNb):
         """
         resample and delete date ouside pWLmin, pWLmax interval 
@@ -129,9 +147,10 @@ class Kurucz(object):
         newWL = np.linspace(pWLmin, pWLmax, pNb, True)
         self.resample(newWL)
         
+        
     def resample(self, pWL):        
         """
-        resample and delete date ouside pWLmin, pWLmax interval 
+        resample and delete data ouside pWLmin, pWLmax interval 
         """       
         # interpole only around new WL domain 
         sizepWL = len(pWL)
@@ -161,8 +180,8 @@ class Kurucz(object):
             self._Flux = np.delete(self._Flux, idxRemove, 0)
         # use all wl domain and raz interpole object
         self.setWLuseAll()
-        self._oInterLin = None
-        self._oNGP = None
+        self._resetInterpolator()
+                
                 
     def _deleteFluxNotDefined(self):
         """
@@ -198,10 +217,12 @@ class Kurucz(object):
         self._IdxMin = 3
         self._IdxMax = len(self._Flux[0])-1
         
+        
     def restrictToWLinterval(self, wlMin , wlMax):
         """
         remove data ouside interval defined by wlMin , wlMax
         """
+        #print self._Flux[3:,0]
         self.setWLInterval(wlMin, wlMax)
         # delete before wlMin
         idxLineInf = np.arange(3, self._IdxMin)        
@@ -209,9 +230,10 @@ class Kurucz(object):
         idxLine = np.concatenate((idxLineInf, idxLineSup))
         # 0 to suppress line
         self._Flux = np.delete(self._Flux, idxLine, 0)
-        self.setWLuseAll()
-        self._oInterLin = None
-        self._oNGP = None
+        self.setWLuseAll()        
+        self._resetInterpolator()
+        #print self._Flux[3:,0]
+
         
     def setWLInterval(self, wlMin , wlMax):   
         idx = np.where(self._Flux[3:,0] >= wlMin)[0]
@@ -231,11 +253,14 @@ class Kurucz(object):
         self._oInterLin = None
         self._oNGP = None
     
+    
     def getFluxIdx(self, idx):
         return self._Flux[self._IdxMin:self._IdxMax+1, idx]
     
+    
     def getWL(self):
         return self._Flux[self._IdxMin:self._IdxMax+1, 0]
+    
     
     def getParam(self, idx):
         """
@@ -243,12 +268,14 @@ class Kurucz(object):
         """
         return self._Flux[0:3, idx]
      
+     
     def plotFluxIdx(self,idx):
         pl.figure()
         pl.plot(self.getWL(),self.getFluxIdx(idx))
         pl.xlabel("Angstrom")
         pl.grid()
         pl.title("Kurucz 93 star flux M %.2f T %.2f G %.2f"%(self._Flux[0,idx], self._Flux[1,idx], self._Flux[2,idx]))
+                
                 
     def plotMultiFluxesCont(self,idx0, nb):
         pl.figure()
@@ -263,6 +290,7 @@ class Kurucz(object):
         pl.grid()
         pl.title("Kurucz 93 star fluxes")
 
+
     def plotFluxesArrayIdx(self,aIdx):
         pl.figure()
         strLgd = []
@@ -274,6 +302,7 @@ class Kurucz(object):
         pl.grid()
         pl.title("Kurucz 93 star fluxes")
                 
+                
     def getFluxNGP(self, pPar):
         """
         pPar : Met, Temp, Gra
@@ -281,6 +310,7 @@ class Kurucz(object):
         """
         idx = self.getIdxNGP(pPar)
         return self.getFluxIdx(idx)
+       
        
     def getIdxNGP(self, pPar):
         """
@@ -294,6 +324,7 @@ class Kurucz(object):
         #print idx, self._Flux[0:3,idx]
         return idx
         
+        
     def getFluxInterLin(self, pPar):
         """
         pPar : Met, Temp, Gra
@@ -306,6 +337,7 @@ class Kurucz(object):
             #print "fin LinearNDInterpolator"
         res = self._oInterLin(np.array([pPar]))
         return res.ravel()
+
 
     def _fitLeastsqLinAll(self, pFlux, pIter=1, guess=None, pLogT = False):
         """
@@ -359,6 +391,7 @@ class Kurucz(object):
         if pLogT: ret[1]= 10**ret[1]
         return ret
             
+            
     def fitLeastsqLinTemp(self, pFlux, guess=None):        
         """
         guess : Met, Temp, Gra
@@ -383,6 +416,7 @@ class Kurucz(object):
         ret[1] = res[0]        
         return ret
     
+    
     def fitFminLinTemp(self, pFlux, guess=None):
         """
         guess : Met, Temp, Gra
@@ -400,6 +434,7 @@ class Kurucz(object):
         ret = np.copy(guess)
         ret[1] = res[0]        
         return ret
+    
     
     def fitWithBounds(self, pFlux, guess=None):
         """
@@ -425,6 +460,7 @@ class Kurucz(object):
         res = spo.minimize(errorModel, guess, args=(self, pFlux), method='SLSQP', bounds=myBounds)
         print res.message
         return res.x
+    
     
     def fitWithBounds2(self, pFlux, guess=None):
         """
@@ -453,6 +489,7 @@ class Kurucz(object):
         #res2 = spo.minimize(errorModel,res.x , args=(self, pFlux), method='SLSQP', bounds=myBounds)
         #print "sol2:", res2.message, res2.x
         return res.x
+    
     
     def fitWithBoundsLM(self, pFlux, guess=None):
         """
@@ -487,6 +524,7 @@ class Kurucz(object):
         [sol.append(par[a].value) for a in par]
         return np.array(sol)
     
+    
     def fitNoBounds(self, pFlux, guess=None):
         """
         guess : Met, Temp, Gra
@@ -502,6 +540,7 @@ class Kurucz(object):
         res = spo.minimize(errorModel, guess, args=(self, pFlux), method='SLSQP')
         print res.message
         return res.x
+    
     
     def fitLeastsqLinAll3Step(self, pFlux, guess=None):
         """

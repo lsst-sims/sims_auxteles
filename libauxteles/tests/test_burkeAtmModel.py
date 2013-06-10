@@ -39,7 +39,7 @@ def test_ComputeAtmTransmission():
     
 def test_AltVariation():
     oAtm= BurkeAtmModel(G_fileModtran)   
-    oAtm.setParamNoEffect()
+    oAtm.setDefaultParam()
     pl.figure()
     aAlt= np.deg2rad(np.linspace(30, 90, 4))
     aLgd = []
@@ -96,7 +96,7 @@ def test_leastsq01():
     oAtm= BurkeAtmModelv1(G_fileModtran, np.array([0]))
     oAtm.setConstObsComp(np.pi/2, 0, np.array([0.]), 750)
     oAtm.setParamExample1()
-    #oAtm.setParamNoEffect()
+    #oAtm.setDefaultParam()
     sed = oAtm._Tpl.getTrAll()
     sed += np.random.normal(0, 1e-5, len(sed))  
     print "size sed", len(sed) 
@@ -130,7 +130,7 @@ def test_leastsq02():
     oAtm= BurkeAtmModel(G_fileModtran, np.array([0]))
     oAtm.setConstObsComp(np.pi/3, np.pi/4, np.array([0.]), 750)
     oAtm.setParamExample1()
-    #oAtm.setParamNoEffect()
+    #oAtm.setDefaultParam()
     sed = oAtm.computeAtmTrans()
     sed += np.random.normal(0, 1e-5, len(sed))  
     print "size sed", len(sed) 
@@ -213,12 +213,12 @@ def test_leastsq03():
     print "True parameter"    
     oAtm.printBurkeModelParam()
     #oAtm._Par += np.random.normal(0, 0.05, len(oAtm._Par))*oAtm._Par
-    #oAtm.setParamNoEffect() 
+    #oAtm.setDefaultParam() 
     print "\nguess parameter"
     oAtm.printBurkeModelParam()
     p0 = oAtm._Par
     p0 += np.random.normal(0, 0.5, len(oAtm._Par))*p0
-    oAtm.setParamNoEffect()
+    oAtm.setDefaultParam()
     p0 = oAtm._Par
     plotErrRelAtm(parTrue, p0, "err ral guess")
     res = spo.leastsq(errorModel, p0, args=(oAtm, sed, matVarObs), full_output=True)

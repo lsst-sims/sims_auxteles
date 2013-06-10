@@ -26,6 +26,8 @@ import scipy as sp
 import constants as cst
 import numpy as np
 import pylab as pl
+from constants import hplanck
+import scipy.interpolate as spi
 
 
 def getDirectory(path):
@@ -65,13 +67,17 @@ class AuxTeles(object):
         self.ccdqe.read(datadir    + 'E2V_CCD42-90_QEmodel.txt')
         self.calibsys.read(datadir + 'corr.txt')
         self.doPlot = False
-        self.seeing = 0.1  # [rad]
-        self.slitwidth = 1 # [rad]
-        self.mirAera = (1.2**2)*3.14159 #[m^2]
-        self.inputres = 1300.0 # [unitless]
-        self.outputres = 600.0 # [unitless]
+        self.seeing = 1  # [rad]
+        self.slitwidth = 1.3 # [rad]
+        self.setDiamTelescope(1.2) #[m^2]
+        #self.inputres = 1300.0 # [unitless]
+        #self.outputres = 600.0 # [unitless]
+        self.inputres = 1 # [unitless]
+        self.outputres = 2 # [unitless]
         self.nbpixel = 512
         self.WLref = 650.0 # [nm]
+        self.instruEff = None
+        self.verbose = 0
         
         
     def setResolution(self, inputRes, outputRes):
@@ -84,7 +90,7 @@ class AuxTeles(object):
             wl = self.star.wl
         amplWL  = np.fabs(wl[0] - wl[-1])
         deltaWL = self.WLref / self.outputres
-        self.nbpixel = int(np.trunc( amplWL / deltaWL ) + 1)
+        self.nbpixel = 2*int(np.trunc( amplWL / deltaWL ) + 1)
         
         
     def setResolutionAndAjustNBPixel(self, inputRes, outputRes):
@@ -101,6 +107,9 @@ class AuxTeles(object):
         
         
     def setAtmTrans(self, wl, trans, seeing=None):
+        """
+        wl []
+        """
         if seeing != None: self.seeing = seeing
         self.atms.setWithTrans(wl, trans)
     
@@ -110,34 +119,52 @@ class AuxTeles(object):
         rad
         """
         self.slitwidth = slitwidth
-                
-                
+                          
     def setTelescope(self, mirorAera):
         """
         m^2
         """
         self.mirAera = mirorAera
+        
+        
+    def setDiamTelescope(self, Diammiror):
+        """
+        m
+        """
+        self.mirAera = ((Diammiror/2)**2)*3.14159
+                        
                 
-                
-    def setStarFile(self, starFile):
-        self.star.readdEdl(starFile)
+    def setStarFile(self, starFile, facEC=1.0):
+        self.star.readdEdl(starFile, facEC)
 
 
     def setStarSpectrum(self, wl, spectrum):
         """
-        wl       : [?] wave lenght
-        spectrum : [?]
+        wl       : [nm] wave length
+        spectrum : [J.m^{-2}.s^{-1}.nm^{-1}]
         """        
         self.star.setSpectrum(wl, spectrum)
     
     
+    def computePhotonElec(self,  TpsExpo=240):
+        """
+        with only photon noise
+        """
+        self.getCalibFlux(TpsExpo, addNoise=False)
+        self.sigmaPhotNoise = np.sqrt(self.star.elecccd)  
+        self.sigmaPhotNoise = map(star.notzero, self.sigmaPhotNoise)
+        noise = np.random.normal(0., self.sigmaPhotNoise)
+        self.star.elecccd += noise
+        
+        
     def getCalibFlux(self, TpsExpo=240, addNoise=True):
         # apply the aperture correction with respect to
         # the slit width and the seeing
+        self.TpsExpo =  TpsExpo
         if self.doPlot : self.star.plotWL("raw spectrum")
-        print "apertureCorrection"
+        if self.verbose > 0 : print "apertureCorrection"
         self.star.apertureCorrection(self.seeing, self.slitwidth)
-        if self.doPlot : self.star.plotWL("spectrum after apertureCorrection")        
+        if self.doPlot : self.star.plotWL("spectrum after apertureCorrection", dEdl=self.star.dEdlAper)        
         # convolution of the spectrum to the resolution of the spectrograph
         sigmaspectrograph = self.WLref/self.outputres
         sigmaspec         = self.WLref/self.inputres
@@ -145,35 +172,35 @@ class AuxTeles(object):
         if(sigmaconv<0):
             print 'error: convolution is impossible, the resolution of the input spectrum is less than the resolution of the output spectrum'
             exit(2)
-        print "convolvePhotondEdl"
+        if self.verbose > 0 : print "convolvePhotondEdl"
         self.star.convolvePhotondEdl(sigmaconv)
         if self.doPlot : self.star.plotWL("dEdl after convolvePhoton", dEdl=self.star.dEdlConv)            
         # conversion to photons
-        print "computePhoton"
-        self.star.computePhoton(self.mirAera, TpsExpo)
-        if self.doPlot : self.star.plotNbPhotons("#photons after computePhoton", self.star.phot)    
+        if self.verbose > 0 : print "computePhoton"
+        self.star.computePhoton(self.mirAera, TpsExpo)        
+        if self.doPlot : self.star.plotNbPhotons("#photons after computePhoton", self.star.phot, self.star.wl)    
         # rebin on the ccd grid
-        print "computePhotonCCD ", self.nbpixel
+        if self.verbose > 0 : print "computePhotonCCD ", self.nbpixel        
         self.star.computePhotonCCD(self.gri, nbpixel=self.nbpixel)
         if self.doPlot : self.star.plotNbPhotons("#photon after computePhotonCCD", self.star.photccd)                
         # compute and add photon noise
-        print "computePhotonNoise"   
+        if self.verbose > 0 : print "computePhotonNoise"   
         self.star.computePhotonNoise()
-        if self.doPlot : self.star.plotNbPhotons("photon noise computePhotonNoise", self.star.photccdnoise)                        
-        if addNoise :
+        if addNoise :                        
+            if self.doPlot : self.star.plotNbPhotons("photon noise computePhotonNoise", self.star.photccdnoise)                        
             print "addPhotonNoise"
             self.star.addPhotonNoise()
-            if self.doPlot : self.star.plotNbPhotons("#photon after addPhotonNoise", self.star.photccd)        
+            if self.doPlot : self.star.plotNbPhotons("#photon after addPhotonNoise", self.star.photccd)
         # for checking
         #star.write('photccd', starname+'photccd.dat')    
         # through the atmosphere
-        print "computePhotonATM"
+        if self.verbose > 0 : print "computePhotonATM"
         self.star.computePhotonATM(self.atms.gettrans())
         if self.doPlot : self.star.plotNbPhotons("photatm computePhotonATM", self.star.photatm)        
         # for checking
         #star.write('photatm', starname+'photatm.dat')    
         # reflexion on the mirror
-        print "computePhotonMirror"
+        if self.verbose > 0 : print "computePhotonMirror"
         self.star.computePhotonMirror(self.mirrortr)
         if self.doPlot : 
             self.star.plotNbPhotons("mirrortr by computePhotonMirror", self.star.mirrortr)        
@@ -181,15 +208,15 @@ class AuxTeles(object):
         # for checking
         #star.write('photmirrsetStarFileor', starname+'photmirror.dat')    
         # through the Grism
-        print "computePhotonGrism"
+        if self.verbose > 0 : print "computePhotonGrism"
         self.star.computePhotonGrism(self.gri)
         if self.doPlot : 
             self.star.plotNbPhotons("grismTrans computePhotonGrism", self.star.grismTrans)
             self.star.plotNbPhotons("photgrism computePhotonGcalibrateSpecrism", self.star.photgrism)    
         # conversion in photo-electrons
-        print "computeElectronCCD"
+        if self.verbose > 0 : print "computeElectronCCD"
         self.star.computeElectronCCD(self.ccdqe)
-        if self.doPlot : self.star.plotNbPhotons("elecccd computeElectronCCD", self.star.elecccd)    
+        if self.doPlot : self.star.plotNbPhotons("elecccd computeElectronCCD", self.star.elecccd)            
         # add a typical read noise       
         if addNoise:
             print "addNoiseElectronCCD"
@@ -199,12 +226,12 @@ class AuxTeles(object):
         #star.write('elecccdlambda', starname+'elecccdlambda.dat')
         #star.write('elecccd', starname+'elecccdnu.dat')    
         # Make the sensitivity function to simulate the flux calibration
-        print "MakeSensFunc"
+        if self.verbose > 0 : print "MakeSensFunc"
         #star.MakeSensFunc(atmc.gettrans(), ccdqe, gri, mirrortr)
         #if True : star.plotWL("sensdEdl MakeSensFunc", star.wlccd[50:-50], star.sensdEdl[50:-50])
         self.star.MakeSensFuncInstruOnly(self.ccdqe, self.gri, self.mirrortr, effarea=self.mirAera, exptime=TpsExpo)        
         # flux-calibrate the spectrum 
-        print "calibrateSensSpec"
+        if self.verbose > 0 : print "calibrateSensSpec"
         self.star.calibrateSensSpec()
         if self.doPlot : self.star.plotWL("caldEdl calibrateSensSpec", self.star.wlccd, self.star.caldEdl)        
         #star.write('caldEdn', starname+'caldEdn.dat')
@@ -220,8 +247,104 @@ class AuxTeles(object):
         #self.star.plotWL("syscaldEdl AddCalibSys Final", self.star.wlccd, self.star.syscaldEdl)    
         if self.doPlot : self.star.plotWL("raw spectrum")    
         return self.star.wlccd, self.star.syscaldEdl
-        
     
+    
+    def getWLccd(self):
+        """
+        [nm]
+        """
+        return self.star.wlccd
+    
+    
+    def getRawFlux_photonElectron(self):
+        return self.star.elecccd
+    
+    
+    def plotRawFlux_photonElectron(self):
+        self.star.plotNbPhotons("photonElectron", self.star.elecccd) 
+    
+    
+    def getSigmaPhotonNoise(self): 
+        return self.sigmaPhotNoise
+    
+    
+    def getSigmaPhotonNoise_Wmnm(self):
+        ret = self._elec2Wmnm(self.sigmaPhotNoise) 
+        return ret 
+    
+    
+    def getInstruEfficiency(self):
+        if self.instruEff != None:
+            return  self.instruEff
+        ccdresp = self.ccdqe
+        grismresp = self.gri
+        mirrorresp =self.mirrortr
+        eff = []        
+        #
+        # Efficiency wavelength depend
+        #
+        # CCD
+        tck = spi.splrep(ccdresp.getnu(), ccdresp.getrenu())
+        TransCCDPixel = spi.splev(self.star.nuccd, tck)  
+        # MIROR
+        tck = spi.splrep(mirrorresp.getnu(), mirrorresp.getrenu())
+        TransMIRPixel = spi.splev(self.star.nuccd, tck)
+        # glass prism
+        for i in range(len(self.star.nuccd)):
+            # -> J.m-2.s-1
+            if TransCCDPixel[i] > 0.  and TransMIRPixel[i] > 0.:
+                gtr = grismresp.getT(cst.clight/self.star.nuccd[i])
+                TransInstru= gtr*TransCCDPixel[i]*TransMIRPixel[i]                                
+            else:
+                TransInstru= 0
+            eff.append(TransInstru)
+        self.instruEff = np.array( eff )
+        #
+        # Efficiency with no wavelength depend
+        #
+        self.instruEff *= self.star.factorextract 
+        self.instruEff *= self.star.factorslit 
+        self.instruEff *= grismresp.effFirstOrder
+        return self.instruEff
+    
+
+    def _elec2Wmnm(self, aElec, doPlot=False):
+        Coef = self.star.electron2Jnu()
+        ret  = aElec*Coef
+        ret *= self.star.nuccd**2/cst.clight         
+        #print self.mirAera, self.TpsExpo
+        ret /= self.mirAera*self.TpsExpo
+        if doPlot:
+            pl.figure()
+            pl.title("_elec2Wmnm")
+            pl.ylabel(r'$J.m^{-2}.s^{-1}.nm^{-1}$')        
+            pl.plot(self.getWLccd(), ret)       
+            pl.grid()
+        return ret 
+        
+   
+    def getRawFlux_Wmnm(self):
+        """
+        return raw flux in W.m^{-2}.nm^{-1}
+        """
+        ret = self._elec2Wmnm(self.star.elecccd)
+        return ret
+        
+        
+    def getMeanTimeExposForSNR(self, snr):
+        """
+        for photon noise dominant
+        snr = sqrt(<elec>*Tsnr/T)
+        
+        return Tsnr
+        """
+        return (snr**2*self.TpsExpo)/self.star.elecccd.mean()
+    
+#
+# Plot 
+#
+
+        
 
 
 def finalPlot(pstar, atms, pCCD, pMir, pGrism):
@@ -411,13 +534,13 @@ def main():
     # rebin on the ccd grid
     print "computePhotonCCD"
     mystar.computePhotonCCD(gri)
-    if doPlot : mystar.plotNbPhotons("#photon after computePhotonCCD", star.photccd)
+    if doPlot : mystar.plotNbPhotons("#photon after computePhotonCCD",  mystar.photccd)
     
     
     # compute and add photon noise
     print "computePhotonNoise"   
     mystar.computePhotonNoise()
-    if doPlot : mystar.plotNbPhotons("photon noise computePhotonNoise", star.photccdnoise)
+    if doPlot : mystar.plotNbPhotons("photon noise computePhotonNoise",  mystar.photccdnoise)
     
     
     print "addPhotonNoise"
@@ -430,7 +553,7 @@ def main():
     # through the atmosphere
     print "computePhotonATM"
     mystar.computePhotonATM(atms.gettrans())
-    if doPlot : mystar.plotNbPhotons("photatm computePhotonATM", star.photatm)
+    if doPlot : mystar.plotNbPhotons("photatm computePhotonATM",  mystar.photatm)
     
     # for checking
     #star.write('photatm', starname+'photatm.dat')

@@ -127,15 +127,23 @@ class BurkeAtmModel(object):
         self._Par[3] = tau2
         self._Par[4] = alpha
                
+               
     def setParamMol(self, Cmol):
         self._Par[5] = Cmol
+        
+        
+    def setTgray(self, Tgray):
+        self._Par[0] = Tgray
+    
     
     def setParamOzone(self, O3):
         self._Par[6] = O3
         
+        
     def setParamH20(self, aIn):        
         assert (len(aIn) == 3)
         self._Par[7:10] = aIn
+        
         
     def setParamExample1(self):
         self._Par = np.zeros(self._NbPar, dtype=np.float32)
@@ -148,7 +156,8 @@ class BurkeAtmModel(object):
         # 
         self.setParamH20(np.array([1, 0.01, -0.05]))
         
-    def setParamNoEffect(self):
+        
+    def setDefaultParam(self):
         """
         to have template MODTRAN with any modification
         """
@@ -158,9 +167,15 @@ class BurkeAtmModel(object):
         self.setParamOzone(1.0)
         self.setParamH20(np.array([1, 0, 0]))
         
+        
     def setParam(self, par):
         assert (len(par) == self._NbPar)
         self._Par = par
+    
+    
+    def setDefaultConstObs(self):
+        self.setConstObsComp(np.pi/2, 0, self._PressureRef)
+        
         
     def setConstObs(self, pVecObs):
         """        
@@ -168,6 +183,7 @@ class BurkeAtmModel(object):
         alt : 0 Hori, pi/2 zenith
         """
         return self.setConstObsComp(pVecObs[0], pVecObs[1], pVecObs[2])
+    
     
     def setConstObsComp(self, alt, az, pressure):        
         self._AirMass = np.fabs(1/np.cos(np.pi/2 - alt))        
@@ -197,7 +213,7 @@ class BurkeAtmModel(object):
             pl.legend(["gray-aero","Mols","Mola","O3","H2O","all"],loc=4)
             #pl.legend(["gray"])
             pl.title("composant modtran, resolution %d"%self._Tpl._res)
-            pl.xlabel("%g m"%self._Tpl._Unit)
+            pl.xlabel("%g m"%self._Tpl._Unit)            
             pl.grid()
             self._CurtTrans = ret*ret1*ret2*ret3*ret4
         else:

@@ -111,7 +111,7 @@ class starspectrum:
         self.dEdl = np.flipud(self.dEdl)
         
          
-    def readdEdl(self, filename):
+    def readdEdl(self, filename, facEC = 1.0):
         # to read a spectrum in J/m2/s/nm
         facLamba=1
         print "facLamba ", facLamba
@@ -123,7 +123,7 @@ class starspectrum:
             lamb = float(line[0])*facLamba
             self.wl.append(lamb)
             self.nu.append(clight/lamb)
-            dedl = float(line[1])
+            dedl = float(line[1])*facEC
             dedn = lamb*lamb*dedl/clight
             self.dEdn.append(dedn)
             self.dEdl.append(dedl)           
@@ -136,7 +136,7 @@ class starspectrum:
         print "nu read min max", self.nu[0], self.nu[-1]
         print "1/nu read min max", 1/self.nu[-1], 1/self.nu[0]
         print "lbd read min max", self.wl[0], self.wl[-1]
-        
+        self.plotWL()
         
             
     def plotWL(self,pTitle="star spectrum", wl=None, dEdl=None):
@@ -144,21 +144,23 @@ class starspectrum:
         if wl == None: wl=self.wl
         pl.figure()        
         pl.xlabel("wavelength nm")
-        #pl.ylabel("$J.m^{-2}.s^{-1}.nm^{-1}$")
+        pl.ylabel("$J.m^{-2}.s^{-1}.nm^{-1}$")
         pl.grid()
         pl.title(pTitle)
         pl.plot(wl, dEdl)
         
         
-    def plotNbPhotons(self, pTitle="star spectrum", phot = None):
+    def plotNbPhotons(self, pTitle="star spectrum", phot = None, wl = None):
         if phot == None:
             phot = self.phot
+        if wl == None:
+            wl = self.wlccd
         pl.figure()        
         pl.xlabel("? ")
         pl.ylabel("Number photons")
         pl.grid()
         pl.title(pTitle)
-        pl.plot(self.wl, phot)
+        pl.plot(wl, phot)
         
         
     def plotToWLnm(self, nu, val, pTitle="star spectrum"):
@@ -182,14 +184,14 @@ class starspectrum:
         else:
             print 'error reading', filename
 
-    def apertureCorrection(self, seeing, slitwidth, factext=0.68):
+    def apertureCorrection(self, seeing, slitwidth, factext=1.0):
         # apply an aperture correction with respect to the seeing and slitwidth
         # also apply a correction corresponding to the aperture used to extract the 1D spectrum from the 2D spectrum: 1\sigma by default
         sigma_seeing = seeing/(2.*(2.*np.log(2))**.5)
         halfwidth_slit = slitwidth/2.
         self.factorslit = .5*( scipy.special.erf(halfwidth_slit/(sigma_seeing*2.**.5)) - scipy.special.erf(-halfwidth_slit/(sigma_seeing*2.**.5)) )
         self.factorextract = factext 
-        print "apertureCorrection factor: ", self.factorslit, self.factorextract       
+        if S_LevelDbg > 0: print "apertureCorrection factor: ", self.factorslit, self.factorextract       
         self.dEdnAper = self.dEdn*self.factorslit*self.factorextract
         self.dEdlAper = self.dEdl*self.factorslit*self.factorextract
 
@@ -284,7 +286,7 @@ class starspectrum:
                 bordGaucheCCD = self.nuccd[i]-dnccdg
                 if atm[0,j]-dnatmg <= bordGaucheCCD and atm[0,j]+dnatmd > bordGaucheCCD:
                     foundj = True
-                    lastj = np.max(j -1,0)
+                    lastj = np.max(j ,0)
                     break
                 j+=1
             if foundj:
@@ -358,18 +360,18 @@ class starspectrum:
             if self.photatm[i]<0.:
                 self.photatm[i] = 0.
                 self.photatmnoise[i] = 0.
-        print "==========atm trans ", self.photatm.mean()/self.photccd.mean()
+        if S_LevelDbg > 0: print "==========atm trans ", self.photatm.mean()/self.photccd.mean()
 
     def computePhotonMirror(self, mirrorresp):
         # Mirror reflectivity
         ginterp = spi.interp1d(mirrorresp.getnu(), mirrorresp.getrenu(), bounds_error=False, fill_value = 0.)
         mirrortr = ginterp(self.nuccd)
         self.mirrortr = mirrortr
-        print "==========Mirror trans", mirrortr.mean()
+        if S_LevelDbg > 0:print "==========Mirror trans", mirrortr.mean()
         self.photmirror = self.photatm * mirrortr
         self.photmirrornoise = self.photatmnoise * mirrortr
         
-    def computePhotonGrism(self, grismresp, effFirstOrder=0.133):
+    def computePhotonGrism(self, grismresp):
         """
         effFirstOrder : Spectrograph efficiency at 6000Å using grating G250 in 1st order is 13.3%
         http://www.ctio.noao.edu/spectrographs/4m_R-C/r-c_calc.html
@@ -379,9 +381,9 @@ class starspectrum:
         gtr = []
         for i in range(len(self.nuccd)):
             gtr.append(grismresp.getT(clight/self.nuccd[i]))
-        self.grismTrans = np.array(gtr)*effFirstOrder
-        print "==========Grism trans", self.grismTrans.mean()
-        self.photgrism = self.photmirror * np.array(gtr)
+        self.grismTrans = np.array(gtr)*grismresp.effFirstOrder
+        if S_LevelDbg > 0:print "==========Grism trans", self.grismTrans.mean()
+        self.photgrism = self.photmirror * self.grismTrans
         self.photgrismnoise = self.photmirrornoise * np.array(gtr)
 
 
@@ -407,7 +409,7 @@ class starspectrum:
         finterp = spi.interp1d(np.flipud(np.array(y)), np.flipud(self.wl), bounds_error=False, fill_value = 0.)
         # wl antcedent of regular dispersion decomposition
         self.wlccd = np.flipud(finterp(np.flipud(np.array(yccd))))
-        if True:
+        if S_LevelPlot > 3:
             diff = np.diff(self.wlccd)
             pl.figure()
             pl.title("size pixel in wavelength")
@@ -417,16 +419,17 @@ class starspectrum:
             pl.grid()
             
         self.nuccd = clight/self.wlccd
-        print "wlccd size ",np.size(self.wlccd)
+        if S_LevelDbg > 0:print "wlccd size ",np.size(self.wlccd)
         #print "wlccd : ", self.wlccd[0],  self.wlccd[-1]
         lastj = 0          
         for i in range(len(self.nuccd)):
             # size bin inf and sup
             if np.fabs(self.nuccd[i]-5e+14) < 1e+12:
-                print "======================= "
-                print "nu %g Hz,  wl %g nm"%(self.nuccd[i], clight/self.nuccd[i])
-                print ""
-                doPrint = True
+                if S_LevelDbg > 0:
+                    print "======================= "
+                    print "nu %g Hz,  wl %g nm"%(self.nuccd[i], clight/self.nuccd[i])
+                    print ""
+                    doPrint = True
             else:
                 doPrint = False
             if i == 0:
@@ -456,7 +459,8 @@ class starspectrum:
                     
                 if self.nu[j]-dng <= self.nuccd[i]-dnccdg and self.nu[j]+dnd > self.nuccd[i]-dnccdg:
                     foundj = True
-                    lastj = np.max(j -1,0)
+                    lastj = np.max(j ,0)
+                    #lastj = 0
                     break
                 elif self.nu[j] > self.nuccd[i]:
                     break
@@ -514,6 +518,7 @@ class starspectrum:
                         print "%d prop=%g nbPh=%f"%(m, prop, bintmp)
                 self.photccd.append(bintmp)
             else:
+                if S_LevelDbg > 2 : print "don't find"
                 self.photccd.append(0)
                 self.photccdnoise.append(0)
         self.photccd = np.array(self.photccd)
@@ -633,7 +638,7 @@ class starspectrum:
         # Response of the CCD
         finterp = spi.interp1d(ccdresp.getnu(), ccdresp.getrenu(), bounds_error=False, fill_value = 0.)
         ccdr = finterp(self.nuccd)
-        print '==========CCD factor ', ccdr.mean()
+        if S_LevelDbg > 0:print '==========CCD factor ', ccdr.mean()
         self.elecccd = self.photgrism * ccdr
         self.elecccdnoise = self.photgrismnoise * ccdr
         if S_LevelPlot >3:
@@ -791,6 +796,9 @@ class starspectrum:
         self.sensdEdl = self.sensdEdlJMC
         self.sensdEdn = self.sensdEdnJMC 
         self._deltaNuCCD = np.array(self._deltaNuCCD) 
+        
+        
+        
 
     def MakeSensFuncJMC(self, atm, ccdresp, grismresp, mirrorresp, gain=1., effarea=1.0, exptime=240.):
         self._deltaNuCCD = []
@@ -866,7 +874,11 @@ class starspectrum:
         self.sensdEdl = self.sensdEdlJMC
         self.sensdEdn = self.sensdEdnJMC 
         self._deltaNuCCD = np.array(self._deltaNuCCD) 
-        
+    
+    
+    def electron2Jnu(self):
+        return  hplanck*self.nuccd/ self._deltaNuCCD 
+    
         
     def MakeSensFunc(self, atm, ccdresp, grismresp, mirrorresp, gain=1., effarea=1.0, exptime=240.):
         # calculate the sensitivity function for flux calibration        

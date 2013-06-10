@@ -193,7 +193,7 @@ class ObsSurveySimu01(ObsSurvey):
         return default parameter for all flux
         """
         guess = np.zeros(self._NbParam, dtype=np.float64)        
-        self._Oatm.setParamNoEffect()
+        self._Oatm.setDefaultParam()
         g0 = self._Oatm._Par
         print "g0:",g0
         meanTemp = self._oStarCat.getMeanTemp()
@@ -456,7 +456,7 @@ class ObsSurveySimuTemp(ObsSurveySimu01):
         return default parameter for all flux
         """        
         guess = np.zeros(self._NbParam, dtype=np.float64)        
-        self._Oatm.setParamNoEffect()
+        self._Oatm.setDefaultParam()
         g0 = self._Oatm._Par
         print "g0:",g0
         meanTemp = self._oStarCat.getMeanTemp()
@@ -528,14 +528,13 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
         ObsSurveySimu01.__init__(self, pNbNight, pNbObsNight)        
         self._AuxTeles = aux.AuxTeles()
         # 
-        self._NbWL = -1       
-        self._wlMin = 4500  # [angs]
-        self._wlMax = 9500 # [angs]
+        self._NbWL = -1
+        self.setWLInterval(450,950)     
         self.outpuRes = -1
         
-    def setWLInterval(self):
+    def setWLInterval(self,wlMin, wlMax):
         """
-        [angstrom] wave length min max used to fit 
+        [nm] wave length min max used to fit 
         """
         self._wlMin = wlMin
         self._wlMax = wlMax
@@ -554,7 +553,15 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
         """        
         self._AuxTeles = pAuxteles
         assert isinstance(self._AuxTeles, aux.AuxTeles)
-                
+    
+    
+    def getInstruEfficiency(self):        
+        return self._InstruEfficiency
+    
+    
+    def setExposureTime(self, aExpoTime):
+        self._ExpoTime = aExpoTime   
+        
         
     def readObsNight(self, pRep):
         """
@@ -562,16 +569,11 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
         """
         # initialise AuxTeles
         # en nm
-        wl = self._oStarCat.getWL()/10.
-        # defined nb pixel to satisfy output resolution
-        self._AuxTeles.ajustNBPixel(wl)
-        self._NbWL = self._AuxTeles.nbpixel
-        print "nbpixel def", self._AuxTeles.nbpixel
+        wl = None
         # assert isinstance(self._Oatm, atm.BurkeAtmModel)      
         idxFlux = 0
         # index vector parameters : star param, atm param
-        idxPar = self._NbStar*self._NbPstar
-        self.aFlux = np.zeros((self._NbFlux, self._NbWL), dtype=np.float64) 
+        idxPar = self._NbStar*self._NbPstar        
         #  aConst =  _SimuConstObs    
         self.aConst = np.zeros((self._NbFlux, self._NbConst), dtype=np.float32)
         self.aIdxParAtm = np.zeros((self._NbFlux, self._NbPatm), dtype=np.int16)
@@ -583,14 +585,14 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
         idxParTgray = idxParNight + 9  
         self._NameAtm = []
         listAuxteles = []
+        # fix an AuxTeles object for each star
         for idx in range(self._NbStar):
             # deepcopy to save all option choiced
-            simSpec = cp.deepcopy(self._AuxTeles)
-            print "nbpixel ", simSpec.nbpixel
-            spectrum = self._oStarCat.getFluxIdx(idx)           
-            simSpec.setStarSpectrum(wl, spectrum) 
-            listAuxteles.append(simSpec)
-            #simSpec.star.plotWL("star %d"%idx)   
+            simAuxTeles = cp.deepcopy(self._AuxTeles)            
+            spectrum = self._oStarCat.getFluxIdxAtEarth(idx)           
+            simAuxTeles.setStarSpectrum(self._oStarCat.getWL()/10, spectrum) 
+            listAuxteles.append(simAuxTeles)
+            #simAuxTeles.star.plotWL("star %d"%idx)   
 #        for idx in range(self._NbStar):
 #            listAuxteles[idx].star.plotWL("star %d"%idx)                   
         for idxN in range(self._NbNight): 
@@ -606,15 +608,29 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
                     wlAtm = self._Oatm.getWL()
                     trans = self._Oatm.computeAtmTrans()
                     # calibrated star spectrum estimation
-                    simSpec = listAuxteles[self._SimuParObsIdx[idxFlux,1]]
-                    print "nbpixel loop", simSpec.nbpixel
+                    idxStar = self._SimuParObsIdx[idxFlux,1]
+                    simAuxTeles = listAuxteles[idxStar]
                     # en nm
-                    simSpec.setAtmTrans(wlAtm/10, trans)
-                    #simSpec.atms.plot("")
-                    wl, flux  = simSpec.getCalibFlux(240)
-                    self.aFlux[idxFlux,:] = np.flipud(flux)
-                    #self._WL = wl*10                                       
-                    # defined const                         
+                    simAuxTeles.setAtmTrans(wlAtm/10, trans)
+                    #simAuxTeles.atms.plot("")
+                    simAuxTeles.computePhotonElec(self._ExpoTime[idxStar])
+                    if wl == None:
+                        wl = simAuxTeles.getWLccd()[::-1]
+                        iMin, iMax = tl.indexInIntervalCheck(wl, self._wlMin, self._wlMax)
+                        wl = wl[iMin:iMax]
+                        self._NbWL = len(wl)
+                        self._WL = wl.copy()
+                        self.aFlux = np.zeros((self._NbFlux, self._NbWL), dtype=np.float64) 
+                        self.aSigma = np.zeros((self._NbFlux, self._NbWL), dtype=np.float64) 
+                        print "use %d pixels on %d"%(self._NbWL, self._AuxTeles.nbpixel)
+                        self._InstruEfficiency = simAuxTeles.getInstruEfficiency()[::-1][iMin:iMax]
+                        #print "wl ccd", wl
+                    flux  = np.flipud(simAuxTeles.getRawFlux_Wmnm())
+                    self.aFlux[idxFlux,:] = flux[iMin:iMax]
+                    sigma = np.flipud(simAuxTeles.getSigmaPhotonNoise_Wmnm())
+                    self.aSigma[idxFlux,:] = sigma[iMin:iMax]
+                    #self._WL = wl*10
+                    # defined const               
                     self.aConst[idxFlux,:] = self.getConst(idxFlux)
                     # fill table atm parameters
                     self.aIdxParAtm[idxFlux, 0]    = idxParTgray                
@@ -634,13 +650,22 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
             idxParNight = idxParCH20
             idxParCH20 =   idxParNight + 8 
             idxParTgray =  idxParNight + 9                
-        # with last observation
-        self._WL = np.flipud(wl) *10   
+        # with last observation        
         self._NbParam = self._NbStar*self._NbPstar + self._NbNight*(self.getNbParamAtmByNight())
-        # reduce flux to interval wlMin wlMax choiced
-        iMin, iMax = tl.indexInIntervalCheck(self._WL, self._wlMin, self._wlMax)
-        self._WL = self._WL[iMin: iMax]
-        self._NbWL = len( self._WL )
-        self.aFlux = self.aFlux[:,iMin: iMax]
         assert (self._NbWL == self.aFlux.shape[1])
         
+        
+    def plotWithErrorBar(self, idx, pTitle=None):
+        if pTitle == None:
+            myTle = "raw flux density idx %d"%(idx) 
+        pl.figure()
+        pl.title(myTle)
+        wl = self.getWL()
+        pl.plot(wl, self.aFlux[idx])
+        pl.ylabel(self._oStarCat._oKur.UnitFluxStr)
+        idxWL = np.arange(len(wl))[::len(wl)/20]
+        wlSel = wl[idxWL]
+        sigmaSel = self.aSigma[idx, idxWL]
+        signalSel = self.aFlux[idx, idxWL]
+        pl.errorbar(wlSel,signalSel , yerr=sigmaSel, fmt='ro')
+        pl.grid()

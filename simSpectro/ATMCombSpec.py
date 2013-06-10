@@ -2,7 +2,7 @@ from scipy import *
 from constants import *
 import pylab as pl
 import numpy as np 
-
+import tools as tl 
 class ATMCombSpec:
 
     def __init__(self):
@@ -40,6 +40,13 @@ class ATMCombSpec:
         
     def gettrans(self):
         return array([self.nu, self.wl, self.tr])
+    
+    def getTransAtwlDowngrade(self, aWL, resIn, resOut):
+        return tl.downgradeResol(self.wl[::-1], self.tr[::-1], resIn, resOut, xOut=aWL)
+        
+    
+    def getTransAtwl(self, aWL):
+        return tl.interpolBSpline(self.wl[::-1], self.tr[::-1], aWL)
 
     def getabs(self):
         return array([self.nu, self.wl, self.ab])

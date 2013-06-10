@@ -245,7 +245,7 @@ def stellarRadius(temp, magApp, parallaxe):
     """ 
     absMag = magApp - 5*np.log10(1000.0/parallaxe) + 5
     # 4.83 abs magnitude of sun
-    rap = ((5800.0/temp)**2)*(2.51**(4.83-absMag))**0.5
+    rap = ((5800.0/temp)**2)*(2.5**(4.83-absMag))**0.5
     # 696342 km sun radius
     return 696342 * rap
 

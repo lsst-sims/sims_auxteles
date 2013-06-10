@@ -27,7 +27,9 @@ class grism:
         self.a = 1./100.e3 # m
         # prism angle
         self.prismAngle = math.pi/180. # 1 degree
-
+        self.effFirstOrder = 0.5
+        
+        
     def getN(self, l):
         # return the indice of the prism as a function of the wavelength
         return np.sqrt(1. + sum( [ self.B[i]*l*l/(l*l-self.C[i]) for i in range(3) ] ))

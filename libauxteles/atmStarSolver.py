@@ -40,7 +40,16 @@ class StarFluxArray(object):
         print "sizeWl:", sizeWl
         self._aFlux = np.zeros((nbStar, sizeWl), dtype=np.float64)
         print self._aFlux.shape
-                
+        self._aCoef = np.ones(nbStar, dtype=np.float64)
+        
+        
+    def setCoefEarth(self, aCoef):
+        """
+        define coefficient to compute flux observed at earth
+        """
+        self._aCoef = aCoef
+        
+        
     def getFlux(self, idx, parKur):
         if not np.array_equal(parKur, self._aParKur[idx]) :
             #print "New temp %d"%idx,parKur
@@ -51,7 +60,7 @@ class StarFluxArray(object):
             self._aParKur[idx] = parKur
             #print flux.shape
             #print self._aFlux.shape
-            self._aFlux[idx,:] = flux
+            self._aFlux[idx,:] = flux*self._aCoef[idx]
             #print flux
         else:
             #print "StarFluxArray: return memo flux"
@@ -115,7 +124,7 @@ class AtmTransArraySimuSpectro(AtmTransArray):
 
 class AtmStarSolver(object):
     """
-    with leastsq() from scipy optimize package
+    with lmfit optimize package
     """
     def __init__(self):
         # pseudo init pour completion EDI eclipse 
@@ -366,7 +375,8 @@ class AtmStarSolver(object):
             #print   params
             par = np.array([params[a].value for a in params], dtype=np.float64)
             #print par            
-            residu = self.getResidusTempGra(par)
+            #residu = self.getResidusTempGra(par)
+            residu = self._ResidusFunc(par)
             chi2 = (residu**2).sum()
             Tgray = par[aIdxTgray]
             print "Tgray: min %f max %f"%(Tgray.min(), Tgray.max())
@@ -623,6 +633,49 @@ class AtmStarSolver(object):
                   
         return residu.ravel()
 
+        
+    def getResidusTempGraPond(self, param):
+        """
+        with temperature star and gravity
+        """
+        if self._memoStarFlux == None:
+            self._memoStarFlux =  StarFluxArray(self._oObs._NbStar, self._oStar)
+            self._memoStarFlux.setCoefEarth(self._aEarthCoefForFlux)
+        if self._memoAtmTrans == None:
+            self._memoAtmTrans =  AtmTransArray(self._oObs._NbFlux, self._oAtm) 
+        residu = np.copy(self._oObs.aFlux)  
+        #print "================================"  
+        #print param
+        for idx in range(self._oObs._NbFlux):            
+            # compute model transmission 
+            constObs = self._oObs.aConst[idx]            
+            par = param[self._oObs.aIdxParAtm[idx]]
+            #print par          
+            trans = self._memoAtmTrans.getTrans(idx, constObs, par)
+            # compute model flux
+            tempGra = param[self._oObs.aIdxParStar[idx]]            
+            parStar = self._oObs._oStarCat.addMet(self._oObs._SimuParObsIdx[idx, 1], tempGra)            
+            flux = self._memoStarFlux.getFlux(self._oObs._SimuParObsIdx[idx, 1], parStar)   
+#            print   "trans", trans.shape      
+#            print   "flux",flux.shape      
+#            print   "efficiency", self._oObs.getInstruEfficiency().shape   
+#            print   "residu",residu[idx,:].shape
+            fluxTheo = trans * flux  * self._oObs.getInstruEfficiency()
+            residu[idx,:] -= fluxTheo
+            #residu[idx,:] /= self._oObs.aFlux.sum()
+            print "sum", self._oObs.aFlux.sum()
+            if True:
+                pl.figure()
+                pl.plot(self._oAtm.getWL(), fluxTheo) 
+                pl.plot(self._oAtm.getWL(), self._oObs.aFlux[idx] )
+                pl.legend(["theo","meas"])
+                pl.grid()
+            if idx == 3 and True:
+                pl.show()
+                raise        
+            residu = residu/self._aSigma
+        return residu.ravel()
+
 
     def getResidusWithSpecroSimu(self, param):
         """
@@ -655,6 +708,17 @@ class AtmStarSolver(object):
                   
         return residu.ravel()
 
+    def setResidusFunc(self, fResidus):
+        self._ResidusFunc = fResidus
+        
+        
+    def setEarthCoefForFlux(self, aCoef):
+        self._aEarthCoefForFlux =   aCoef
+        
+    def setSigmaMeasure(self, aSigma):
+        self._aSigma =  aSigma/ aSigma.mean()    
+        
+        
     def getResidus(self, param):
         """
         with only temperature star
