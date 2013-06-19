@@ -16,7 +16,7 @@ Arbitrary parameters (gain, exposure time, effective area) can be tuned giving t
 
 EXAMPLE:
 1) init
-. init.bash
+export PYTHONPATH=$PYTHONPATH:$PWD/../libauxteles
 
 2) copy file example in root directiry package
 cp example/* .
@@ -24,18 +24,3 @@ cp example/* .
 3) run AuxSpecGen
 AuxSpecGen.py --seeing 1.0 --slitwidth 1.3 --inputres 1500 alpha_lyr_stis_004nm.txt Modtran_10.dat Modtran_10.dat
 
-=> product 3 output files
-alpha_lyr_stis_004nm.txt_Modtran_10.dat_dEdn.dat
-alpha_lyr_stis_004nm.txt_Modtran_10.dat__Modtran_10.dat_syscaldEdn.dat
-alpha_lyr_stis_004nm.txt_Modtran_10.dat__Modtran_10.dat_syscaldEdl.dat
-
-4) plot data
-file with abcisse is wave length  (suffix XXXdl.yy): plotFileWL.py
-file with abcisse is frequency    (suffix XXXdn.yy): plotFileFREQ.py
-
-data IN 
-python plotFileWL.py  alpha_lyr_stis_004nm.txt
-
-data OUT: 
-python plotFileWL.py  alpha_lyr_stis_004nm.txt_Modtran_10.dat__Modtran_10.dat_syscaldEdl.dat
-python plotFileFREQ.py  alpha_lyr_stis_004nm.txt_Modtran_10.dat_dEdn.dat
