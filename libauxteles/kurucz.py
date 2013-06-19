@@ -148,7 +148,7 @@ class Kurucz(object):
         self.resample(newWL)
         
         
-    def resample(self, pWL):        
+    def resampleWithSpline(self, pWL):        
         """
         resample and delete data ouside pWLmin, pWLmax interval 
         """       
@@ -161,7 +161,7 @@ class Kurucz(object):
             newFlux = np.zeros((sizepWL+3, len(self._Flux[0, :])), dtype=np.float32)
             newFlux[:3,:] = self._Flux[:3, :]
             newFlux[3:sizepWL+3, 0] = pWL 
-            for idx in np.arange(1, len(self._Flux[0,:])): 
+            for idx in np.arange(1, len(self._Flux[0,:])):
                 # Bspline fit - interpole                
                 tck = sci.splrep(WLin, self.getFluxIdx(idx))
                 newFlux[3:sizepWL+3,idx] = sci.splev(pWL, tck)
@@ -182,6 +182,39 @@ class Kurucz(object):
         self.setWLuseAll()
         self._resetInterpolator()
                 
+    def resample(self, pWL):        
+        """
+        resample and delete data ouside pWLmin, pWLmax interval 
+        """       
+        # interpole only around new WL domain 
+        sizepWL = len(pWL)
+        WLin = self.getWL()  
+        if sizepWL > len(self._Flux[3:, 0]):
+            print "resample: oversampling"
+            # expand size : oversampling
+            newFlux = np.zeros((sizepWL+3, len(self._Flux[0, :])), dtype=np.float32)
+            newFlux[:3,:] = self._Flux[:3, :]
+            newFlux[3:sizepWL+3, 0] = pWL 
+            for idx in np.arange(1, len(self._Flux[0,:])):
+                # linear interpolation             
+                tck = sci.interp1d(WLin, self.getFluxIdx(idx))
+                newFlux[3:sizepWL+3,idx] = tck(pWL)
+            self._Flux = newFlux
+        else:
+            # reduce size
+            self.setWLInterval(pWL[0]*0.98, pWL[-1]*1.02)
+            WLin = self.getWL() 
+            for idx in np.arange(1, len(self._Flux[0,:])): 
+                # linear interpolation                
+                tck = sci.interp1d(WLin, self.getFluxIdx(idx))
+                self._Flux[3:sizepWL+3,idx] = tck(pWL)
+            self._Flux[3:sizepWL+3, 0] = pWL 
+            # remove obsolete (WL, Flux)     
+            idxRemove = np.arange(sizepWL+3, len(self._Flux[0,:]))
+            self._Flux = np.delete(self._Flux, idxRemove, 0)
+        # use all wl domain and raz interpole object
+        self.setWLuseAll()
+        self._resetInterpolator()
                 
     def _deleteFluxNotDefined(self):
         """

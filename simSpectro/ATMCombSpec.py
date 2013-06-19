@@ -6,6 +6,7 @@ import tools as tl
 class ATMCombSpec:
 
     def __init__(self):
+        self.filename = ""
         self._initList()  
         
     def _initList(self):
@@ -19,6 +20,7 @@ class ATMCombSpec:
         self.tr = np.flipud(tr)
         self.ab = 1.0 - self.tr
         self.nu = clight/self.wl
+        #self.plotAtm()
         
     def read(self, filename):
         self._initList()
@@ -36,17 +38,33 @@ class ATMCombSpec:
         self.wl = array(self.wl)
         self.tr = array(self.tr)
         self.ab = array(self.ab)
+        self.filename = filename
         #self.plot(filename)
+        
         
     def gettrans(self):
         return array([self.nu, self.wl, self.tr])
     
-    def getTransAtwlDowngrade(self, aWL, resIn, resOut):
-        return tl.downgradeResol(self.wl[::-1], self.tr[::-1], resIn, resOut, xOut=aWL)
-        
     
+    def getTransDowngrade(self, resIn, resOut):
+        #self.plotAtm(self.tr, "in")
+        ret = tl.downgradeResol(self.wl[::-1], self.tr[::-1], resIn, resOut)
+        #self.plotAtm(ret[::-1], "getTransDowngrade")
+        return ret[::-1]
+
+        
+    def plotAtm(self, atm=None, pTit = ""):
+        if atm == None: atm=self.tr
+        pl.figure()        
+        pl.xlabel("wavelength nm")
+        pl.ylabel("%")
+        pl.grid()
+        if pTit == "": pTit="atmosphere transmission "+self.filename
+        pl.title(pTit)
+        pl.plot(self.wl, atm*100)
+        
     def getTransAtwl(self, aWL):
-        return tl.interpolBSpline(self.wl[::-1], self.tr[::-1], aWL)
+        return tl.interpolLinear(self.wl[::-1], self.tr[::-1], aWL)
 
     def getabs(self):
         return array([self.nu, self.wl, self.ab])

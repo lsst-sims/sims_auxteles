@@ -22,7 +22,7 @@ EXAMPLE:
 cp example/* .
 
 3) run AuxSpecGen
-AuxSpecGen.py --seeing 0.1 --slitwidth 1 --inputres 410 alpha_lyr_stis_004nm.txt Modtran_10.dat Modtran_10.dat
+AuxSpecGen.py --seeing 1.0 --slitwidth 1.3 --inputres 1500 alpha_lyr_stis_004nm.txt Modtran_10.dat Modtran_10.dat
 
 => product 3 output files
 alpha_lyr_stis_004nm.txt_Modtran_10.dat_dEdn.dat

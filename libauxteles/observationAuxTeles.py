@@ -563,7 +563,7 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
         self._ExpoTime = aExpoTime   
         
         
-    def readObsNight(self, pRep):
+    def readObsNightOld(self, pRep):
         """
         fill self.aFlux (array flux)  , here by simulation atmosphere and star
         """
@@ -612,6 +612,8 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
                     simAuxTeles = listAuxteles[idxStar]
                     # en nm
                     simAuxTeles.setAtmTrans(wlAtm/10, trans)
+                    spectrum = self._oStarCat.getFluxIdxAtEarth(idxStar)           
+                    simAuxTeles.setStarSpectrum(self._oStarCat.getWL()/10, spectrum)                    
                     #simAuxTeles.atms.plot("")
                     simAuxTeles.computePhotonElec(self._ExpoTime[idxStar])
                     if wl == None:
@@ -653,6 +655,149 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
         # with last observation        
         self._NbParam = self._NbStar*self._NbPstar + self._NbNight*(self.getNbParamAtmByNight())
         assert (self._NbWL == self.aFlux.shape[1])
+
+
+    def readObsNight(self, pRep):
+        """
+        fill self.aFlux (array flux)  , here by simulation atmosphere and star        
+        """
+        self._doParamVector()
+        # initialise AuxTeles
+        # en nm
+        wl = None
+        # assert isinstance(self._Oatm, atm.BurkeAtmModel)      
+        listAuxteles = []
+        # fix an AuxTeles object for each star
+        for idx in range(self._NbStar):
+            # deepcopy to save all option choiced
+            simAuxTeles = cp.deepcopy(self._AuxTeles)            
+            spectrum = self._oStarCat.getFluxIdxAtEarth(idx)           
+            simAuxTeles.setStarSpectrum(self._oStarCat.getWL()/10, spectrum) 
+            listAuxteles.append(simAuxTeles)
+            #simAuxTeles.star.plotWL("star %d"%idx)   
+#        for idx in range(self._NbStar):
+#            listAuxteles[idx].star.plotWL("star %d"%idx)
+        wlAtm = self._Oatm.getWL()                
+        for idxFlux in range(self._NbFlux):
+            print idxFlux
+            # Compute transmission atm 
+            self._Oatm.setConstObs(self.getConst(idxFlux))
+            self._Oatm.setParam(self.getTrueParamAtmIdx(idxFlux))            
+            trans = self._Oatm.computeAtmTrans()
+            # calibrated star spectrum estimation
+            idxStar = self._SimuParObsIdx[idxFlux,1]
+            simAuxTeles = listAuxteles[idxStar]
+            # en nm
+            simAuxTeles.setAtmTrans(wlAtm/10, trans)
+            spectrum = self._oStarCat.getFluxIdxAtEarth(idxStar)           
+            simAuxTeles.setStarSpectrum(self._oStarCat.getWL()/10, spectrum)                    
+            #simAuxTeles.atms.plot("")
+            simAuxTeles.computePhotonElec(self._ExpoTime[idxStar])
+            if wl == None:
+                wl = simAuxTeles.getWLccd()[::-1]
+                iMin, iMax = tl.indexInIntervalCheck(wl, self._wlMin, self._wlMax)
+                wl = wl[iMin:iMax]
+                self._NbWL = len(wl)
+                self._WL = wl.copy()
+                self.aFlux = np.zeros((self._NbFlux, self._NbWL), dtype=np.float64) 
+                self.aSigma = np.zeros((self._NbFlux, self._NbWL), dtype=np.float64) 
+                print "use %d pixels on %d"%(self._NbWL, self._AuxTeles.nbpixel)
+                self._InstruEfficiency = simAuxTeles.getInstruEfficiency()[::-1][iMin:iMax]
+                #print "wl ccd", wl
+            flux  = np.flipud(simAuxTeles.getRawFlux_Wmnm())
+            self.aFlux[idxFlux,:] = flux[iMin:iMax]
+            sigma = np.flipud(simAuxTeles.getSigmaPhotonNoise_Wmnm())
+            self.aSigma[idxFlux,:] = sigma[iMin:iMax]
+
+
+    def readObsNightFast(self, resol):
+        """
+        fill self.aFlux (array flux)  , here by simulation atmosphere and star        
+        """
+        self._doParamVector()
+        wl = self._AuxTeles.getWLccd()[::-1]
+        iMin, iMax = tl.indexInIntervalCheck(wl, self._wlMin, self._wlMax)
+        self._WL = wl[iMin:iMax]
+        self._NbWL = len(self._WL)
+        self.aSNR = np.zeros(self._NbFlux, dtype=np.float64) 
+        self.aFlux = np.zeros((self._NbFlux, self._NbWL), dtype=np.float64) 
+        self.aSigma = np.zeros((self._NbFlux, self._NbWL), dtype=np.float64) 
+        print "use %d pixels on %d"%(self._NbWL, self._AuxTeles.nbpixel)
+        self._InstruEfficiency = self._AuxTeles.getInstruEfficiency()[::-1][iMin:iMax]
+        # define star catalog at wl ccd        
+        self._oStarCat._oKur.resample(self._WL*10)
+        # recompute flux catalog with the new wavelength
+        self._oStarCat._setFlux()      
+        # downgrade resolution MODTRAN template for atmospheric model and resample at wl ccd
+        self._Oatm.downgradeTemplateAndResample( resol, self._WL*10 )        
+        TrueParam = self.getTrueParam(); 
+        aTemp = np.ones(len(wl), dtype=np.float64)            
+        for idxFlux in range(self._NbFlux):                                    
+            fluxTheo = self.computeFluxTheoIdx(idxFlux, TrueParam)
+            aTemp[iMin:iMax] = fluxTheo
+            # compute photon noise for the time exposure associated with star
+            idxStar = self._SimuParObsIdx[idxFlux, 1] 
+            self._AuxTeles.TpsExpo = self._ExpoTime[idxStar]       
+            meas, sigma = self._AuxTeles.addPhotonNoiseAndSigma(aTemp)
+            self.aFlux[idxFlux]  =  meas[iMin:iMax]
+            snr =  fluxTheo.mean()/(self.aFlux[idxFlux]-fluxTheo).std()
+            self.aSNR[idxFlux] = snr
+            print "flux %d, snr meas %f"%(idxFlux,snr)
+            self.aSigma[idxFlux] =  sigma[iMin:iMax]
+        print "SNR mean , std : ", self.aSNR.mean(), self.aSNR.std()
+        print "SNR min , max  : ", self.aSNR.min(), self.aSNR.max()
+        self.snrMean = self.aSNR.mean()
+        
+
+    def _doParamVector(self):
+        """
+        fill array : aIdxParAtm, aIdxParStar
+        """
+        # initialise AuxTeles
+        # en nm
+        # assert isinstance(self._Oatm, atm.BurkeAtmModel)      
+        idxFlux = 0
+        # index vector parameters : star param, atm param
+        idxPar = self._NbStar*self._NbPstar        
+        #  aConst =  _SimuConstObs    
+        self.aConst = np.zeros((self._NbFlux, self._NbConst), dtype=np.float32)
+        self.aIdxParAtm = np.zeros((self._NbFlux, self._NbPatm), dtype=np.int16)
+        self.aIdxParStar = np.zeros((self._NbFlux, self._NbPstar), dtype=np.int16)       
+        # random parameters
+        self._randomTrueParAndConst()
+        idxParNight = idxPar 
+        idxParCH20  = idxParNight + 8 
+        idxParTgray = idxParNight + 9  
+        self._NameAtm = []
+        for idxN in range(self._NbNight): 
+            [self._NameAtm.append(x) for x in self._NameNightAtm]
+            for idxO in range(self._NbPeriodObsByNight):
+                self._NameAtm.append(self._NameWater)            
+                for idxS in range(self._NbStar):
+                    self._NameAtm.append(self._NameTgray) 
+                    print idxN,idxO,idxS
+                    # defined const               
+                    self.aConst[idxFlux,:] = self.getConst(idxFlux)
+                    # fill table atm parameters
+                    self.aIdxParAtm[idxFlux, 0]    = idxParTgray                
+                    self.aIdxParAtm[idxFlux, 1:7]  = np.arange(idxParNight, idxParNight+6)                    
+                    self.aIdxParAtm[idxFlux, 7]    = idxParCH20
+                    self.aIdxParAtm[idxFlux, 8:10] = np.arange(idxParNight+6, idxParNight+8) 
+                    # fill table star parameters                   
+                    for idxPs in range(self._NbPstar):
+                        self.aIdxParStar[idxFlux, idxPs] = idxS*self._NbPstar + idxPs
+                        #self.aIdxParStar[idxFlux, 1] = idxS*2 +1                    
+                    idxFlux +=1
+                    # add 2 for Tgray, C_H20
+                    idxParTgray += 1
+                idxParCH20 = idxParTgray
+                idxParTgray = idxParCH20 + 1
+            # add 8 for tau 0,1,2, alpha, Cmol, CO3, dW_C_H20, dN_C_H20   
+            idxParNight = idxParCH20
+            idxParCH20 =   idxParNight + 8 
+            idxParTgray =  idxParNight + 9                
+        # with last observation        
+        self._NbParam = self._NbStar*self._NbPstar + self._NbNight*(self.getNbParamAtmByNight())
         
         
     def plotWithErrorBar(self, idx, pTitle=None):
@@ -669,3 +814,26 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
         signalSel = self.aFlux[idx, idxWL]
         pl.errorbar(wlSel,signalSel , yerr=sigmaSel, fmt='ro')
         pl.grid()
+        
+        
+    def computeFluxTheoIdx(self, idx, param):
+        """
+        idx   : index flux
+        param : global parameter vector
+        """
+        # compute model transmission  
+        #print "new computeFluxTheoIdx"              
+        self._Oatm.setConstObs(self.aConst[idx])
+        par = param[self.aIdxParAtm[idx]]
+        self._Oatm.setParam(par)
+        trans = self._Oatm.computeAtmTrans()
+        print "mean trans  ", trans.mean()*100
+        # compute model flux
+        tempGra = param[self.aIdxParStar[idx]]
+        #print tempGra, par
+        idxStar = self._SimuParObsIdx[idx, 1]
+        parStar = self._oStarCat.addMet(idxStar, tempGra)
+        flux = self._oStarCat._oKur.getFluxInterLin(parStar)            
+        # model 
+        atmStarMod = trans*flux* self.getInstruEfficiency()*self._oStarCat._Kcoef[idxStar]    
+        return atmStarMod

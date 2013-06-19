@@ -32,8 +32,8 @@ class TemplateMODTRAN(object):
         self._Amola = self._Amola[perm]
         self._AH2O = self._AH2O [perm]
         self._wl = self._wl[perm]
-        self._ref = 650 
-        self._res = 2600 # resolution read in file
+        self._ref = 650.0 
+        self._res = 2600.0 # resolution read in file
                          
                       
     def resampleBetween(self, pWLmin, pWLmax, pNb):

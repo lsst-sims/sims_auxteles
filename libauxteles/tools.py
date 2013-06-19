@@ -14,7 +14,7 @@ import pylab as pl
 
 
 S_verbose = 0
-
+S_doPlot = False
 
 def removeAllEltlike(myList,elt):
     while(True):
@@ -88,7 +88,8 @@ def readTextFileColumn(fileName, sep = None):
     outArray = np.array(listReal)
     outArray = np.reshape(outArray,(cptLine, nbCol))
     return outArray
-
+    
+    
 
 def interpolBSpline(pXin, pYin, pXout, pFlagPlot = False):
     """
@@ -134,6 +135,78 @@ def interpolLinear(pXin, pYin, pXout, pFlagPlot = False):
         pl.title("interpolBSpline function ")
         pl.legend(["Raw","Interpol"])
     return Yout
+
+
+def productOf2array(x1, y1, x2, y2, interpolMeth = interpolLinear):
+    """
+    product of 2 array not defined for the same value
+    return product is defined at intersection x1, x2 with x1 value
+        array x1:        |****|       
+        array x2:   |******|
+        array xInter:    |*|
+    """   
+    x1Inter = None
+    if x2[0] < x1[0]:
+        """
+        3 cases: A, B, C
+        array 1:        |****|
+        array 2: A |***|
+        array 2: B |******|
+        array 2: C |*************|
+        """        
+        if x2[-1] < x1[0]:
+            """
+            cas A
+            """
+            print "no intersection"
+            return None
+        xMin = x1[0]
+        if x2[-1] < x1[-1]:
+            """
+            cas B
+            """            
+            xMax = x2[-1]
+        else:
+            """
+            cas C
+            """            
+            xMax = x1[-1]
+            x1Inter = x1
+            y1Inter = y1
+    else:
+        """
+        3 cases: D, E, F
+        array 1:        |*****|
+        array 2: D        |**|
+        array 2: E        |******|
+        array 2: F              |***|
+        """        
+        if x1[-1] < x2[0]:
+            """
+            cas F
+            """
+            print "no intersection"
+            return None
+        xMin = x2[0]
+        if x2[-1] < x1[-1]:
+            """
+            cas D
+            """            
+            xMax = x2[-1]
+        else:
+            """
+            cas E
+            """
+            xMax = x1[-1]
+    #
+    #print "xMin, xMax ",xMin, xMax
+    if x1Inter == None:
+        IdxMin, IdxMax = indexInInterval(x1, xMin, xMax)
+        x1Inter = x1[IdxMin: IdxMax]
+        y1Inter = y1[IdxMin: IdxMax]
+    y2Inter = interpolMeth(x2, y2, x1Inter)
+    return x1Inter, y2Inter*y1Inter  
+        
 
 
 def indexInIntervalCheck(pX, xMin, xMax):
@@ -194,10 +267,59 @@ def downgradeResol(xIn, yIn, resIn, resOut, ref= 650, xOut=None):
     OUTPUT: 
       convolve signal by gaussian function with sigma ((ref/resOut)**2 - (ref/resIn)**2)**.5
     """
+    sigma = ( (ref/resOut)**2 - (ref/resIn)**2 )
+    if sigma <=0 :
+        # no change
+        print "[convolGauss] resOut > resIn , no downgrad", resIn,resOut
+        if xOut != None:
+            tck  = sci.interp1d(xIn, yIn)      
+            yOut = tck(xOut)
+        else:
+            yOut = yIn
+        return yOut      
+    sigma = sigma**.5
+    minDelta = np.min(np.diff(xIn))
+    nbPoint = 2*int((xIn[-1] - xIn[0])/minDelta)
+    xcst = np.linspace(xIn[0], xIn[-1], nbPoint, True)
+    #xcst = np.arange(xIn[0], xIn[-1], minDelta)
+    oInter = sci.interp1d(xIn, yIn)
+    ycst = oInter(xcst)
+    # put the gaussian kernel into an array
+    kernel = []
+    for e in np.arange(-10.*sigma, 10.*sigma+minDelta, minDelta):
+        kernel.append(gauss(e, sigma, 0.))
+    kernel = np.array(kernel)
+    # convolve    
+    convycst = sp.convolve(ycst, kernel, 'same')
+    # and put it again on the initial grid
+    oInter = sci.interp1d(xcst, convycst)
+    if S_doPlot:
+        pl.figure()
+        pl.plot(xIn, yIn)
+    if xOut != None:        
+        yOut = oInter(xOut)/kernel.sum()
+        if S_doPlot:pl.plot(xOut, yOut)
+    else:
+        yOut = oInter(xIn)/kernel.sum()
+        if S_doPlot:pl.plot(xIn, yOut)    
+    return yOut
+    
+    
+def downgradeResolSpline(xIn, yIn, resIn, resOut, ref= 650, xOut=None):
+    """
+    xIn: can be not regular
+    yIn :  signal value
+    resIn :  resolution In 
+    resOut : resolution out
+    ref : resolution = ref / delta
+    xOut : optional 
+    OUTPUT: 
+      convolve signal by gaussian function with sigma ((ref/resOut)**2 - (ref/resIn)**2)**.5
+    """
     sigma = ( (ref/resOut)**2 - (ref/resIn)**2)
     if sigma <=0 :
         # no change
-        print "[convolGauss] resOut > resIn , no downgrad"
+        print "[convolGauss] resOut > resIn , no downgrad", resIn,resOut
         if xOut != None:
             tck = sci.splrep(xIn, yIn)      
             yOut = sci.splev(xOut, tck, der=0)
@@ -206,7 +328,7 @@ def downgradeResol(xIn, yIn, resIn, resOut, ref= 650, xOut=None):
         return yOut      
     sigma = sigma**.5
     minDelta = np.min(np.diff(xIn))
-    xcst = np.arange(xIn[0], xIn[-1], minDelta)
+    xcst = np.arange(xIn[0], xIn[-1], minDelta/2)
     tck = sci.splrep(xIn, yIn)
     ycst = sci.splev(xcst, tck, der=0)
     # put the gaussian kernel into an array
@@ -218,12 +340,16 @@ def downgradeResol(xIn, yIn, resIn, resOut, ref= 650, xOut=None):
     convycst = sp.convolve(ycst, kernel, 'same')
     # and put it again on the initial grid
     tck = sci.splrep(xcst, convycst)
+    if S_doPlot:
+        pl.figure()
+        pl.plot(xIn, yIn)
     if xOut != None:        
         yOut = sci.splev(xOut, tck, der=0)/kernel.sum()
+        if S_doPlot:pl.plot(xOut, yOut)
     else:
         yOut = sci.splev(xIn, tck, der=0)/kernel.sum()
+        if S_doPlot:pl.plot(xIn, yOut)    
     return yOut
-    
 
 def parallaxeToKm(parallaxe):
     """

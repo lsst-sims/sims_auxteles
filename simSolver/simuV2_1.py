@@ -20,6 +20,7 @@ import pylab as pl
 import burkeAtmModel as atm
 import numpy as np
 import AuxSpecGen as aux
+import pickle as pk
 
 
 ###############################################################################
@@ -47,7 +48,7 @@ class SimuVersion2_1(object):
         self.oAtm = atm.BurkeAtmModel(G_fileModtran)
         
         
-    def computeExposureTime(self, snr, resol):
+    def computeExposureTime(self, snr, resol,wlmin=None, wlmax =None):
         """
         snr : mean snr expected
         
@@ -55,21 +56,24 @@ class SimuVersion2_1(object):
           compute for each star in catalog the exposure time to attain input snr
         """        
         self._SNR = snr
-        self._Resol  = resol
+        self._Resol = resol*1.0
         oKur = kur.Kurucz(G_FileKuruczPic)
         oKur.restrictToWLinterval(self.oAtm.getWL().min()-100, self.oAtm.getWL().max()+100)
-        print self.oAtm.getWL()
+        #print self.oAtm.getWL()
         oKur.setCoefUnitFlux(1e-4, r"$J.m^{-2}.s^{-1}.nm^{-1}$")
         self.oStarCat = star.StarTargetSimuAll(oKur)
         # define default atmospheric transmission
+        self.oAtm.setDefaultConstObs()        
         self.oAtm.setDefaultParam()
-        self.oAtm.setTgray(1.0)
-        self.oAtm.setDefaultConstObs()
+        self.oAtm.setParamAerosolGray(1.0, 0.02, 0.0, 0.0, -1)
+#        self.oAtm.setTgray(1.0)
+        
         transAtm = self.oAtm.computeAtmTrans(False)
+        print "mean trans amt ", transAtm.mean()
         # init aux teles
         self.oAuxTel.setAtmTrans(self.oAtm.getWL()/10.0, transAtm)
         self.oAuxTel.setStarSpectrum(oKur.getWL()/10.0, self.oStarCat.getFluxIdxAtEarth(0))
-        self.oAuxTel.setResolutionAndAjustNBPixel(self.oAtm.getResolution(), resol)
+        self.oAuxTel.setResolutionAndAjustNBPixel(self.oAtm.getResolution(), self._Resol)
         #self.oAuxTel.setResolutionAndAjustNBPixel(60, resol)
         print "nb pixel ", self.oAuxTel.nbpixel
         #self.oStarCat.plotAll()
@@ -80,7 +84,7 @@ class SimuVersion2_1(object):
             self.oAuxTel.setStarSpectrum(oKur.getWL()/10.0, self.oStarCat.getFluxIdxAtEarth(idx))
             self.oAuxTel.getCalibFlux(addNoise=False)
             #self.oAuxTel.plotRawFlux_photonElectron()
-            lTimeInt.append( self.oAuxTel.getMeanTimeExposForSNR(self._SNR) )
+            lTimeInt.append( self.oAuxTel.getMeanTimeExposForSNR(self._SNR, wlmin, wlmax) )
             print "time to SNR %f: %f"%(self._SNR, lTimeInt[idx])
         self.TimeInt = np.array(lTimeInt)
 
@@ -101,6 +105,18 @@ class SimuVersion2_1(object):
         self.oObs.setExposureTime(self.TimeInt)
         self.oObs.readObsNight("")
 
+    
+    def doSimuWithFastModel(self,night=1, obsByNight=24, wlMin=350, wlMax=1000):
+        # define restricted wl
+        self.oObs = obsAT.ObsSurveySimuV2_1(night, obsByNight)
+        self.oObs.setAtmModel(self.oAtm)
+        self.oObs.setStarTarget(self.oStarCat)
+        # set resolution in and out
+        self.oObs.setAuxTeles(self.oAuxTel)
+        self.oObs.setWLInterval(wlMin, wlMax)
+        self.oObs.setExposureTime(self.TimeInt)
+        self.oObs.readObsNightFast(self._Resol)
+        
 
     def initSimpleModelSpectro(self):
         """
@@ -173,29 +189,62 @@ def test_doSimuWithAuxTeles():
 
 def test_initSimpleModelSpectro():
     oSim = SimuVersion2_1()
-    snr = 200
+    snr = 200.0
     resolution = 500
     oSim.computeExposureTime( snr, resolution)  
     night =  1
     obsByNight = 1
     wlMin = 352
     wlMax = 957
-    oSim.doSimuWithAuxTeles( night, obsByNight, wlMin, wlMax)
-    oSim.initSimpleModelSpectro()
+    oSim.oAuxTel.verbose = 10
+    oSim.doSimuWithFastModel( night, obsByNight, wlMin, wlMax)
+    
+    oSim.oAuxTel.getInstruEfficiency(True)
     oSim.oAtm.setDefaultParam()
     oSim.oAtm.setDefaultConstObs()    
     oSim.oAtm.computeAtmTrans(True)
     oSim.oStarCat.plotAll()
    
-def test_initSolver():
+   
+def test_SimuwithFastModelSpectro():
+    np.random.seed(269)
     oSim = SimuVersion2_1()
-    snr = 20000
-    resolution = 100
+    snr = 200.0
+    resolution = 500
+    wlMin = 400
+    wlMax = 950
+    oSim.computeExposureTime( snr, resolution, wlMin, wlMax)  
+    night =  1
+    obsByNight = 24
+    oSim.doSimuWithFastModel( night, obsByNight, wlMin, wlMax)
+    oSim.initSolver()
+    guess = oSim.oObs.getGuessDefault()    
+    if oSim.oSol.solveAtmStarTempGraWithBounds(guess):
+        titre = "resolution=%d snr=%d"%(resolution, snr) 
+        oSim.oSol.plotCostFuncHistory()
+        #oSim.oSol.plotCorrelMatFromlmfit(oSim.oSol._FitRes.params, oSim.oObs.getNameVecParam(), "Correlation matrix %d night(s) %d obs. period with 4 stars, snr=%.1f"%(night, obsByNight, snr) )
+        oSim.oSol.plotErrRel(guess,"guess")
+        oSim.oSol.plotErrRel(oSim.oSol._parEst,"Estimated")
+        oSim.oSol.plotDistribErrRelAtmAll(titre)
+        oSim.oSol.plotTransTrueEst(0,titre)
+        oSim.oSol.plotTransTrueEst(1,titre)        
+        oSim.oSol.plotFluxRawTheo(0, oSim.oSol._parEst)
+        oSim.oSol.plotFluxRawTheo(1, oSim.oSol._parEst)
+        oSim.oSol.plotFluxRawTheo(2, oSim.oSol._parEst)
+        oSim.oSol.plotFluxRawTheo(3, oSim.oSol._parEst)
+        #oSim.oSol.plotFluxRawTheo(36, oSim.oSol._parEst)
+   
+    
+def test_initSolver():
+    np.random.seed(504)
+    oSim = SimuVersion2_1()
+    snr = 40.0
+    resolution = 1000
     oSim.computeExposureTime( snr, resolution)  
     night =  1
-    obsByNight = 4
-    wlMin = 352
-    wlMax = 957
+    obsByNight = 16
+    wlMin = 400
+    wlMax = 950
     oSim.doSimuWithAuxTeles( night, obsByNight, wlMin, wlMax)
     oSim.initSimpleModelSpectro()
     oSim.initSolver() 
@@ -203,21 +252,114 @@ def test_initSolver():
     oSim.oAtm.setDefaultConstObs()    
     oSim.oAtm.computeAtmTrans(True)
     oSim.oStarCat.plotAll()   
-    guess =  oSim.oObs.getTrueParam()
+    guess = oSim.oObs.getGuessDefault()
     if oSim.oSol.solveAtmStarTempGraWithBounds(guess):
         titre = "resolution=%d snr=%d"%(resolution, snr) 
         oSim.oSol.plotCostFuncHistory()
         oSim.oSol.plotCorrelMatFromlmfit(oSim.oSol._FitRes.params, oSim.oObs.getNameVecParam(), "Correlation matrix %d night(s) %d obs. period with 4 stars, snr=%.1f"%(night, obsByNight, snr) )
+        oSim.oSol.plotErrRel(guess,"guess")
         oSim.oSol.plotErrRel(oSim.oSol._parEst,"Estimated")
         oSim.oSol.plotDistribErrRelAtmAll(titre)
         oSim.oSol.plotTransTrueEst(0,titre)
-        oSim.oSol.plotTransTrueEst(1,titre)
-  
+        oSim.oSol.plotTransTrueEst(1,titre)        
+        oSim.oSol.plotFluxRawTheo(0, oSim.oSol._parEst)
+        oSim.oSol.plotFluxRawTheo(1, oSim.oSol._parEst)
+        oSim.oSol.plotFluxRawTheo(2, oSim.oSol._parEst)
+        oSim.oSol.plotFluxRawThele(3, oSim.oSol._parEst)
+        oSim.oSol.plotFluxRawTheo(36, oSim.oSol._parEst)
 
+
+def test_diffFluxRawTheo():
+    np.random.seed(505)
+    oSim = SimuVersion2_1()
+    snr = 4000000000000000000.0
+    resolution = 500
+    oSim.computeExposureTime( snr, resolution)  
+    night =  1
+    obsByNight = 20
+    wlMin = 400
+    wlMax = 950
+    oSim.doSimuWithAuxTeles( night, obsByNight, wlMin, wlMax)
+    oSim.initSimpleModelSpectro()
+    oSim.initSolver()
+    #diff = oSim.oSol.getDiffStarFluxRawTheo()
+    diff = oSim.oSol.getDiffSNRStarFluxRawTheo()
+    pl.figure()
+    pl.plot(oSim.oObs.getWL(), diff[0])
+    pl.plot(oSim.oObs.getWL(),diff[1])
+    pl.plot(oSim.oObs.getWL(),diff[2])
+    pl.plot(oSim.oObs.getWL(),diff[3])
+    pl.plot(oSim.oObs.getWL(),diff[4])
+    pl.legend(["0","1","2","3","4",])
+    pl.grid()
+    pl.figure()
+    pl.title("Mean")
+    pl.plot(oSim.oObs.getWL(),np.mean(diff, axis=0))     
+    pl.grid()
+    pl.figure()
+    pl.title("histogram snr model error, pixel number %d "% oSim.oObs._NbWL)
+    pl.hist(np.mean(diff, axis=0), 40, (-500,500),facecolor='green')
+    pl.xlabel('SNR')
+    pl.figure()
+    pl.title("histogram snr model error, pixel number %d "%oSim.oObs._NbWL)
+    pl.hist(np.mean(diff, axis=0), 40, (-250,250),facecolor='green')
+    pl.xlabel('SNR')
+    diff = oSim.oSol.getDiffStarFluxRawTheo()
+    pl.figure()
+    pl.title("Mean error model for all observation")
+    pl.plot(oSim.oObs.getWL(),np.mean(diff, axis=0))
+    pl.xlabel('nm')  
+    pl.grid()    
+    pl.figure()
+    pl.title("relative error model for all observation")
+    er = diff/oSim.oObs.aFlux
+    pl.plot(oSim.oObs.getWL(),100*np.mean(er, axis=0))
+    pl.xlabel('nm')  
+    pl.ylabel('%')  
+    pl.grid()    
+    oSim.oSol.plotFluxRawTheo(0, oSim.oObs.getTrueParam())
+    oSim.oSol.plotFluxRawTheo(1, oSim.oObs.getTrueParam())
+  
 #
 # mains 
 #
-       
+def simuWithDifferentResolution():    
+    night =  1
+    obsByNight = 20
+    wlMin = 400
+    wlMax = 950
+    snr = 200
+    lRes = [50, 100, 200, 300, 400, 500, 600, 700,800]
+    #lRes = [ 100]
+    lEC = []
+    nbLoop = 7
+    for Li in range(nbLoop):
+        for resol in lRes:
+            np.random.seed(260+Li)
+            oSim = SimuVersion2_1()
+            oSim.computeExposureTime( snr, resol, wlMin, wlMax)  
+            oSim.doSimuWithFastModel( night, obsByNight, wlMin, wlMax)
+            oSim.initSolver()
+            guess = oSim.oObs.getGuessDefault()
+            oSim.oSol.solveAtmStarTempGraWithBounds(guess)
+            errRelTot = oSim.oSol.transmisErrRelAtmAll()
+            lEC.append(errRelTot.std())
+    aEC = np.array(lEC).reshape(nbLoop, len(lRes))
+    fOut = "stdERvResSNRspectro%d.pic"%snr
+    f=open(fOut, "wb")
+    pk.dump(aEC, f, pk.HIGHEST_PROTOCOL)
+    f.close()
+    pl.figure()
+    pl.title("Standard deviation of true relative error atmospheric transmission, SNR ~%.1f"%oSim.oObs.snrMean)
+    print aEC.mean(axis=0), aEC.std(axis=0)
+    pl.errorbar(lRes, aEC.mean(axis=0), yerr=aEC.std(axis=0), fmt='ro')
+    pl.xlim((20, 900))
+    pl.ylim((0, 0.4))
+    pl.grid()
+    pl.ylabel("standard deviation in %")
+    pl.xlabel("spectro resolution")   
+    
+        
 ############################################################################     
 class SimuVersion2_1old():
 ############################################################################    
@@ -311,7 +453,7 @@ def test_residu():
     guess = oSim.oObs.getTrueParam()
     oSim.oSol.getResidusTempGra(guess)
    
-   
+
 def test_SimuAndSolve01():
     nbNight = 1
     nbPerioByNight = 2
@@ -361,7 +503,12 @@ def test_SimuAndSolve01():
 #test_computeExposureTime()
 #test_doSimuWithAuxTeles()
 #test_initSimpleModelSpectro()
-test_initSolver()
+#test_initSolver()
+#test_diffFluxRawTheo()
+test_SimuwithFastModelSpectro()
+
+#simuWithDifferentResolution()
+
 #
 # SimuVersion2_1OLD
 #

@@ -46,7 +46,7 @@ class BurkeAtmModel(object):
         self._PressureRef = pressure*1.0
         # nb paral H20 is egal to nbObs
         self._NbPar = 10 
-        self._Par  = None        
+        self._Par  = np.zeros(self._NbPar, dtype=np.float64)      
         self._aWL = self._Tpl._wl
         self._WL0 = 6750.0    # angstrom 
         self._NameParam = ['$T_{gray}$',r'$\tau_0$',r'$\tau_1$', r'$\tau_2$', r'$\alpha$', '$C_{mol}$', '$C_{O3}$','$C_{H2O}$']
@@ -145,8 +145,7 @@ class BurkeAtmModel(object):
         self._Par[7:10] = aIn
         
         
-    def setParamExample1(self):
-        self._Par = np.zeros(self._NbPar, dtype=np.float32)
+    def setParamExample1(self):        
         # from [1], table 3, 2007, 2nov
         self.setParamAerosolGray(0.98, 3.9/100, 0.02/100, -0.03/100, -1.70)
         # from [1], 4.results , first line

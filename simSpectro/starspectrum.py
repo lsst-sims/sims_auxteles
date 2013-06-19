@@ -20,7 +20,7 @@ import scipy as sp
 import scipy.interpolate as spi
 import scipy.special
 import pylab as pl
-
+import tools as tl
 
 # en m/s
 S_SpeedLight = 3e8
@@ -197,10 +197,8 @@ class starspectrum:
 
     def addPhotonNoise(self):
         # add the calculated photon noise
-        noise = np.random.normal(0., self.photccdnoise)
-        print self.photccd[0:20]
-        self.photccd += noise
-        print noise[0:20]
+        noise = np.random.normal(0., self.photccdnoise)        
+        self.photccd += noise        
         
 
     def computePhoton(self, effarea, exptime=240.):
@@ -368,6 +366,8 @@ class starspectrum:
         mirrortr = ginterp(self.nuccd)
         self.mirrortr = mirrortr
         if S_LevelDbg > 0:print "==========Mirror trans", mirrortr.mean()
+#        print "mirrortr",mirrortr[:10] 
+#        print "photatm ",self.photatm[:10] 
         self.photmirror = self.photatm * mirrortr
         self.photmirrornoise = self.photatmnoise * mirrortr
         
@@ -1032,7 +1032,26 @@ class starspectrum:
             myfile.write(str(spec[0][i])+'\t'+str(spec[1][i])+'\t'+str(spec[2][i])+'\n')
         myfile.close()
 
-
+    
+    def prodWithConvolArray(self, wl, aVal, doPlot=False):
+        #self.plotWL("before")
+        if doPlot:
+            pl.figure()
+            pl.plot(self.wl, self.dEdlAper)
+        xret, yret = tl.productOf2array(wl, aVal, self.wl[::-1], self.dEdlAper[::-1])
+#        print "wl domaine:"
+#        print wl[0], wl[-1]
+#        print self.wl[::-1][0],self.wl[::-1][-1]
+        self.dEdlConv = yret[::-1]
+        self.wl = xret [::-1] 
+        self.dEdnConv = (self.wl**2)*self.dEdlConv/clight              
+        self.nu = clight/self.wl
+        if doPlot:
+            pl.plot(self.wl, self.dEdlConv )    
+            pl.grid()
+            pl.legend(["star only","star*atm"])
+        
+        
     def convolvePhotondEdl(self, sigma):
         minDeltaWL = np.min(np.diff(self.wl[::-1]))
         xcst = np.arange(min(self.wl), max(self.wl), minDeltaWL)
@@ -1145,8 +1164,8 @@ class starspectrum:
                 sn.append(0.)
         sn = np.array(sn)
         dev = calibsys.GetRandomRealization(self.wlccd[::-1], self.caldEdl[::-1], sn[::-1])
-        print "caldEdl", self.caldEdl[0:50]
-        print "dev", dev[0:50]
+        #print "caldEdl", self.caldEdl[0:50]
+        #print "dev", dev[0:50]
         self.syscaldEdl = self.caldEdl + dev[::-1]
         self.syscaldEdn = self.caldEdn + dev
         if S_LevelPlot > 2:

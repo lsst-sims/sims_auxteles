@@ -275,8 +275,8 @@ class AtmStarSolver(object):
         pl.plot(self._oObs.getWL(),  self._oObs.aFlux[idx],"*")
         fluxTheo = self._oObs.computeFluxTheoIdx(idx, param)
         #print len (self._oStar.getWL()), len(fluxTheo)
-        pl.plot(self._oObs._Oatm.getWL(),  fluxTheo)
-        pl.xlabel("Angstrom")
+        pl.plot(self._oObs.getWL(),  fluxTheo)
+        pl.xlabel("nm")
         pl.legend(["raw flux ","raw flux ","theo. flux"])
         pl.grid()
         
@@ -309,6 +309,21 @@ class AtmStarSolver(object):
         pl.xlabel("%")       
         pl.grid()
             
+            
+    def getDiffStarFluxRawTheo(self):
+        TruePar = self._oObs.getTrueParam()
+        aDiff = self._oObs.aFlux.copy()
+        for idxFlux in range(self._oObs._NbFlux):              
+            theoFlux = self._oObs.computeFluxTheoIdx(idxFlux, TruePar)
+            aDiff[idxFlux] -= theoFlux
+        return aDiff
+        
+        
+    def getDiffSNRStarFluxRawTheo(self):        
+        aDiff = self._oObs.aFlux /self.getDiffStarFluxRawTheo()       
+        return aDiff
+        
+        
     def plotDistribErrRelAtmAll(self, pTitle=""):
         pl.figure()
         pl.title("distribution relative error transmission for all flux. %s"% (pTitle))
@@ -322,6 +337,8 @@ class AtmStarSolver(object):
             else: 
                 errRelTot = np.concatenate((errRelTot, errRel))
         pl.hist(errRelTot, 50, facecolor='green', log=True)
+        print errRelTot.mean()        
+        print errRelTot.std()
         pl.xlabel("%")       
         pl.grid()
 
@@ -646,6 +663,7 @@ class AtmStarSolver(object):
         residu = np.copy(self._oObs.aFlux)  
         #print "================================"  
         #print param
+        doPlot = False
         for idx in range(self._oObs._NbFlux):            
             # compute model transmission 
             constObs = self._oObs.aConst[idx]            
@@ -663,18 +681,20 @@ class AtmStarSolver(object):
             fluxTheo = trans * flux  * self._oObs.getInstruEfficiency()
             residu[idx,:] -= fluxTheo
             #residu[idx,:] /= self._oObs.aFlux.sum()
-            print "sum", self._oObs.aFlux.sum()
-            if True:
+            #print "sum", self._oObs.aFlux.sum()
+            if doPlot:
                 pl.figure()
                 pl.plot(self._oAtm.getWL(), fluxTheo) 
                 pl.plot(self._oAtm.getWL(), self._oObs.aFlux[idx] )
                 pl.legend(["theo","meas"])
                 pl.grid()
-            if idx == 3 and True:
+            if idx == 3 and doPlot:
                 pl.show()
                 raise        
-            residu = residu/self._aSigma
-        return residu.ravel()
+        residu = (residu/self._aSigma).ravel()
+        #residu = residu.ravel()
+        #print "residu sum ", residu.sum()
+        return residu
 
 
     def getResidusWithSpecroSimu(self, param):
@@ -716,8 +736,8 @@ class AtmStarSolver(object):
         self._aEarthCoefForFlux =   aCoef
         
     def setSigmaMeasure(self, aSigma):
-        self._aSigma =  aSigma/ aSigma.mean()    
-        
+        self._aSigma =  (1e-16)*aSigma/ aSigma.mean()        
+         
         
     def getResidus(self, param):
         """
