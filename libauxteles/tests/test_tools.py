@@ -9,10 +9,44 @@ import unittest
 from tools import *
 
 
+def test_deltaMagnitudeABConst():
+    print "================test_deltaMagnitudeABConst"
+    size = 2000
+    wl_SFDstar = np.linspace(250, 1200, size)
+    SFDstar = np.ones(size)    
+    TransTrue = SFDstar
+    TransEst = 0.95*TransTrue
+    wl_Trans = wl_SFDstar
+    delta = deltaMagnitudeAB(SFDstar, wl_SFDstar, TransTrue, TransEst, wl_Trans, 'U')
+    print "delta:", delta
+    delta = deltaMagnitudeAB(SFDstar, wl_SFDstar, TransTrue, TransEst, wl_Trans, 'I')
+    print "delta:", delta
+    delta = deltaMagnitudeAB(SFDstar, wl_SFDstar, TransTrue, TransEst, wl_Trans, 'Y')
+    print "delta:", delta
+    
+    
+def test_deltaMagnitudeABLin():
+    print "================test_deltaMagnitudeABLin"
+    size = 2000
+    wl_SFDstar = np.linspace(250, 1200, size)
+    SFDstar = np.ones(size)    
+    TransTrue = SFDstar
+    errTr = np.linspace(0.95, 1.3, size)
+    TransEst = errTr*TransTrue
+    wl_Trans = wl_SFDstar
+    delta = deltaMagnitudeAB(SFDstar, wl_SFDstar, TransTrue, TransEst, wl_Trans, 'U')
+    print "delta:", delta
+    delta = deltaMagnitudeAB(SFDstar, wl_SFDstar, TransTrue, TransEst, wl_Trans, 'I')
+    print "delta:", delta
+    delta = deltaMagnitudeAB(SFDstar, wl_SFDstar, TransTrue, TransEst, wl_Trans, 'Y')
+    print "delta:", delta
+    
 def test_vega(): 
     print coefKuruczEarth(9600, 0.03, 129)
     
 test_vega()    
+test_deltaMagnitudeABConst()
+test_deltaMagnitudeABLin()
 
 class Test(unittest.TestCase):
 

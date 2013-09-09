@@ -382,3 +382,159 @@ def coefKuruczEarth(temp, magApp, parallaxe):
     #print stelRad, distEarth
     return (stelRad/distEarth)**2
     
+
+def plotFile(nameFile):
+    pl.figure()
+    pl.title(nameFile)
+    ret = readTextFileColumn(nameFile)
+    pl.plot(ret[:,0], ret[:,1])
+    
+    
+def plotListFile(lNameFile):
+    pl.figure()
+    lgd = []  
+    for mfile in lNameFile:
+        ret = readTextFileColumn(mfile)
+        pl.plot(ret[:,0], ret[:,1])
+        lgd.append(mfile.split('/')[-1])
+    pl.legend(lgd)
+
+
+# linear interpolation between (x1,y1) and (x2,y2) at point x = x_val
+# by G. Blanc
+def x_linear_interpolate_1D(x_val, x1, x2, y1, y2):
+    if (x_val > x2 or x_val < x1): 
+        print "Pb in x_linear_interpolate_1D : ", x_val, x1, x2, y1, y2
+        return -99
+    a = (y1-y2)/(x1-x2)
+    b = (y2*x1-y1*x2)/(x1-x2)
+    return a * x_val + b
+
+
+# by G. Blanc
+def integre_trapeze(x, fn):
+    if (len(x) != len(fn)):
+        print "integre_trapeze : x et fn n'ont pas la meme dimension !"
+        return -99.
+    som = 0.
+    for i in range(0,len(x)-1):
+        som = som + (x[i+1]-x[i]) * (fn[i] + fn[i+1]) / 2.
+
+    return som
+
+# Return index of tab just below value
+# by G. Blanc
+def get_index_tab_below(value, tab):
+    for i in range(0, len(tab)):
+        if (i == len(tab)-1):
+            index = i
+            break
+        if (value > tab[i]):
+            continue
+        else:
+            if (i == 0):
+                index = 0
+                break
+            else:
+                index = i-1
+                break
+    return index
+
+
+# Interpolate on spectrum flux...
+# by G. Blanc
+def sumSFDforABmag(flux_spectrum, wavelength_spectrum, filter_trans, wavelength_filter):
+
+    if ((len(flux_spectrum) != len(wavelength_spectrum)) or (len(filter_trans) != len(wavelength_filter))):
+        print "Houston!, We have a problem; size of tab non OK in convolution"
+        return -99
+
+    convol = np.zeros(len(wavelength_filter))
+
+    #ws = index of wave spectrum just below the value of the wave of filter
+    ws = get_index_tab_below(wavelength_filter[0], wavelength_spectrum)
+    for wf in range(0,len(wavelength_filter)-1):
+        # To faster the code
+        # ONLY for filters...
+        if (filter_trans[wf] < 0.001):
+            continue
+
+        # increase ws to get lambda spectrum close to lambda of filter 
+        while (wavelength_filter[wf] > wavelength_spectrum[ws+1]):
+            ws += 1
+
+        # Interpolate spectrum flux in x = wavelength_filter[wf]
+        flux_interp = x_linear_interpolate_1D(wavelength_filter[wf], wavelength_spectrum[ws], wavelength_spectrum[ws+1], \
+                                                  flux_spectrum[ws], flux_spectrum[ws+1])
+
+        #print "DEBUG convol : wf = ", wf, wavelength_filter[wf], wavelength_spectrum[ws], wavelength_filter[wf+1], wavelength_spectrum[ws+1],  flux_spectrum[ws], flux_interp, flux_spectrum[ws+1]
+
+        #convol[wf] = flux_interp * filter_trans[wf] #* wavelength_filter[wf]
+        # for photon counting detectors
+        convol[wf] = flux_interp * filter_trans[wf] * wavelength_filter[wf]
+
+    flux_tot = integre_trapeze(wavelength_filter, convol)
+    return flux_tot
+
+
+
+def getFileNameLSSTfilter(letter):
+    lLetter=["u","g","r","i","z","y"]
+    lfilter = letter.lower()
+    if lfilter not in lLetter:
+        return None
+    return '../../data/filter/short_total_%s.dat'%lfilter
+
+
+
+def deltaMagnitudeAB(SFDstar, wl_SFDstar, TransTrue, TransEst, wl_Trans, letterFilter):
+    """
+    SFDstar : spectral flux density star,  W.x{-2}.nm{-1}
+     wl_SFDstar: wavelength in nm
+     TransTrue : true transmission 
+     TransEst : estimated transmission
+     wl_Trans :  wavelength in nm
+     letterFilter : lettter in {ugrizy}
+     
+     return -2.5log_{10}(int_SFD.TransTrue.Filter/(int_SFD.TransEst.Filter))         
+    """
+    fileFilter = getFileNameLSSTfilter(letterFilter)
+    if fileFilter == None:
+        print '[deltaMagnitudeAB] ERROR letter filter "%s" ', letterFilter
+        return None
+    ret = readTextFileColumn(fileFilter)
+    wl = ret[:,0] # in nm
+    trFilter = ret[:,1]
+    print fileFilter
+    #print trFilter[:10]
+    # True transmission 
+    wl_prod , trTot = productOf2array(wl, trFilter, wl_Trans, TransTrue)
+    sumTranstrue = sumSFDforABmag(SFDstar, wl_SFDstar, trTot, wl_prod)
+    if sumTranstrue < 0:
+        print '[deltaMagnitudeAB] ERROR sumSFDforABmag(TransTrue) return ',sumTranstrue
+        return None
+    # estimated transmission 
+    wl_prod , trTot = productOf2array(wl, trFilter, wl_Trans, TransEst)
+    sumTransEst  = sumSFDforABmag(SFDstar, wl_SFDstar, trTot, wl_prod)
+    if sumTranstrue < 0:
+        print '[deltaMagnitudeAB] ERROR sumSFDforABmag(TransEst) return ',sumTransEst
+        return None
+    return -2.5*np.log10(sumTranstrue/sumTransEst)
+    
+    
+    
+
+if __name__ == "__main__":
+    #plotFile('/home/colley/temp/lsst/auxteles/short_total_g.dat')
+    lFile = ['/home/colley/temp/lsst/auxteles/short_total_u.dat']
+    lFile.append('/home/colley/temp/lsst/auxteles/short_total_g.dat')
+    lFile.append('/home/colley/temp/lsst/auxteles/short_total_r.dat')
+    lFile.append('/home/colley/temp/lsst/auxteles/short_total_i.dat')
+    lFile.append('/home/colley/temp/lsst/auxteles/short_total_z.dat')
+    lFile.append('/home/colley/temp/lsst/auxteles/short_total_y.dat')
+    plotListFile(lFile)
+    pl.xlabel('nm')  
+    pl.xlabel('transmission')    
+    pl.title("LSST Filter")
+    pl.grid()
+    pl.show()
