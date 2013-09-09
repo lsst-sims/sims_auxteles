@@ -432,7 +432,7 @@ class AuxTeles(object):
             pl.title("Instrumental efficiency")
             pl.xlabel("nm")
             pl.ylabel("%")
-            pl.legend(["slit seeing","miroir",  "glass grism","blaze 1 order", "CDD", "Total"],loc=7)
+            pl.legend(["slit seeing","mirror",  "glass grism","blaze 1 order", "CCD", "Total"],loc=7)
             pl.grid()
         return self.instruEff
     

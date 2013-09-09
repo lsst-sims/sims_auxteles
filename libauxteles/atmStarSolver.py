@@ -197,6 +197,25 @@ class AtmStarSolver(object):
                 errRelTot = np.concatenate((errRelTot, errRel))
         return errRelTot
     
+    
+    def transmisErrRelAtmAllAndSTD(self):
+        """
+        return vector true relative error transmission function estimated
+        """
+        TruePar = self._oObs.getTrueParam()
+        aSTD = np.zeros(self._oObs._NbFlux, dtype=np.float64)
+        for idxFlux in range(self._oObs._NbFlux):  
+            TransTrue = self._oObs.computeTransTheoIdx(idxFlux, TruePar)
+            TransEst  = self._oObs.computeTransTheoIdx(idxFlux, self._parEst)
+            errRel = 100*(TransEst - TransTrue)/TransTrue
+            aSTD[idxFlux] = errRel.std()
+            if  idxFlux == 0:       
+                errRelTot = errRel
+            else: 
+                errRelTot = np.concatenate((errRelTot, errRel))
+        return errRelTot, aSTD
+    
+   
     def plotCostFuncHistory(self, pTitle=""):
         pl.figure()
         pl.title("Cost function history %s"%pTitle)

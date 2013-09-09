@@ -237,11 +237,13 @@ def test_errobar():
     pl.figure()
     pl.title("Standard deviation true relative error atmospheric transmission")
     print aEC.mean(axis=0), aEC.std(axis=0)
-    pl.errorbar(lRes, aEC.mean(axis=0), yerr=aEC.std(axis=0), fmt='ro')
+    pl.errorbar(lRes, aEC.mean(axis=0), yerr=aEC.std(axis=0), fmt='ro',label="red")
+    pl.errorbar(lRes, aEC.mean(axis=0)+1, yerr=aEC.std(axis=0), fmt='bo',label="blue")
     pl.xlim((20, 900))
     pl.grid()
     pl.ylabel("standard deviation en %")
     pl.xlabel("Resolution")
+    pl.legend(numpoints=1)
 
 
      
@@ -357,9 +359,9 @@ def simuOnlyAtm():
 ##################
 # CLASS SimuAtmStarSolveWithResol
 ##################
-simuWithResolution()
+#simuWithResolution()
 #simuWithDifferentResolution()
-#test_errobar()
+test_errobar()
 
 
 

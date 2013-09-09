@@ -388,6 +388,16 @@ class starspectrum:
 
 
     def computePhotonCCD(self, grism, lpix1=300.e-9, lpix2=1100.e-9, nbpixel=512):
+        #
+        #  Implémentation très lente , peut⁻être remplacer toutes ces boucles imbriquées
+        #  et recherche de borne par un découpage précalculé et un appel à une fonction
+        #  d'intégration numpy :
+        #
+        #        a = np.random.normal(0, 10, 20)
+        #        b=np.split(a,[3, 8, 12, 18])
+        #        [np.trapz(aa) for aa in b]
+        # jm Colley
+        #
         # Dispersion of the grism in lambda
         # sin i - sin i' = lambda/a (put i = 0)
         # calculate the position of self.wl on the ccd and interpolate on the linear grid of the 512 pixels

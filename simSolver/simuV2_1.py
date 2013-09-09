@@ -329,12 +329,15 @@ def simuWithDifferentResolution():
     wlMin = 400
     wlMax = 950
     snr = 200
-    lRes = [50, 100, 200, 300, 400, 500, 600, 700,800]
-    #lRes = [ 100]
+    lRes = [50, 100, 200, 300, 400, 500, 600, 700,800]    
+    #lRes = [ 100, 800]
     lEC = []
+    lMean = []
     nbLoop = 7
+    nbRes = len(lRes)
+    aSTDTol = np.zeros((nbLoop, nbRes, obsByNight*4), dtype=np.float64)
     for Li in range(nbLoop):
-        for resol in lRes:
+        for iRes,resol in enumerate(lRes):
             np.random.seed(260+Li)
             oSim = SimuVersion2_1()
             oSim.computeExposureTime( snr, resol, wlMin, wlMax)  
@@ -342,21 +345,57 @@ def simuWithDifferentResolution():
             oSim.initSolver()
             guess = oSim.oObs.getGuessDefault()
             oSim.oSol.solveAtmStarTempGraWithBounds(guess)
-            errRelTot = oSim.oSol.transmisErrRelAtmAll()
-            lEC.append(errRelTot.std())
+            errRelTot, aSTD = oSim.oSol.transmisErrRelAtmAllAndSTD()
+            aSTDTol[Li, iRes, :] = aSTD
+            lMean.append( errRelTot.mean() )
+            lEC.append( errRelTot.std() )
+    aSTDres = np.array([[a.mean(),a.std()] for a in [aSTDTol[:,i,:] for i in range(nbRes)]])
+    aMean = np.array(lMean).reshape(nbLoop, len(lRes))
     aEC = np.array(lEC).reshape(nbLoop, len(lRes))
-    fOut = "stdERvResSNRspectro%d.pic"%snr
+    fOut = "stdERvResSNRspectro%d-%d.pic"%(snr,nbLoop)
     f=open(fOut, "wb")
     pk.dump(aEC, f, pk.HIGHEST_PROTOCOL)
+    f.close()
+    fOut = "meanERvResSNRspectro%d-%d.pic"%(snr,nbLoop)
+    f=open(fOut, "wb")
+    pk.dump(aMean, f, pk.HIGHEST_PROTOCOL)
     f.close()
     pl.figure()
     pl.title("Standard deviation of true relative error atmospheric transmission, SNR ~%.1f"%oSim.oObs.snrMean)
     print aEC.mean(axis=0), aEC.std(axis=0)
     pl.errorbar(lRes, aEC.mean(axis=0), yerr=aEC.std(axis=0), fmt='ro')
+    pl.errorbar(lRes, aSTDres[:,0], yerr=aSTDres[:,1], fmt='bo')
     pl.xlim((20, 900))
     pl.ylim((0, 0.4))
     pl.grid()
     pl.ylabel("standard deviation in %")
+    pl.xlabel("spectro resolution")   
+    pl.figure()
+    pl.title("Standard deviation of true relative error atmospheric transmission, SNR ~%.1f"%oSim.oObs.snrMean)
+    print aEC.mean(axis=0), aEC.std(axis=0)
+    pl.errorbar(lRes, aSTDres[:,0], yerr=aSTDres[:,1], fmt='bo')
+    pl.xlim((20, 900))
+    pl.ylim((0, 0.4))
+    pl.grid()
+    pl.ylabel("standard deviation in %")
+    pl.xlabel("spectro resolution")   
+    pl.figure()
+    pl.title("Mean of true relative error atmospheric transmission, SNR ~%.1f"%oSim.oObs.snrMean)
+    print aMean.mean(axis=0), aMean.std(axis=0)
+    pl.errorbar(lRes, aMean.mean(axis=0), yerr=aMean.std(axis=0), fmt='ro')
+    pl.xlim((20, 900))
+    pl.grid()
+    pl.ylabel("mean relative error in %")
+    pl.xlabel("spectro resolution")
+     
+    pl.figure()
+    pl.title("true relative error atmospheric transmission, SNR ~%.1f"%oSim.oObs.snrMean)
+    pl.errorbar(lRes, aMean.mean(axis=0), yerr=aMean.std(axis=0), fmt='bo',label="mean")
+    pl.errorbar(lRes, aSTDres[:,0], yerr=aSTDres[:,1], fmt='ro',label="std dev")
+    pl.xlim((20, 900))
+    pl.legend(numpoints=1)
+    pl.grid()
+    pl.ylabel(" %")
     pl.xlabel("spectro resolution")   
     
         
@@ -505,9 +544,9 @@ def test_SimuAndSolve01():
 #test_initSimpleModelSpectro()
 #test_initSolver()
 #test_diffFluxRawTheo()
-test_SimuwithFastModelSpectro()
+#test_SimuwithFastModelSpectro()
 
-#simuWithDifferentResolution()
+simuWithDifferentResolution()
 
 #
 # SimuVersion2_1OLD
