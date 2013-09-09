@@ -430,7 +430,39 @@ class Test(unittest.TestCase):
         except AttributeError:
             pass
         
-        
+
+def test_MKIII2Kurucz():
+    # G5III     5150     +2.54       kp00_5250[g25] 
+    x = 45
+    temp = np.exp(-0.000018*x**3 +  0.002580*x**2  +  ( -0.142389)*x + 11.329507)
+    gra = -0.000043*x**3 +   0.003600*x**2   +  (   -0.119226)*x +     4.816304
+    met = 0.000003*x**3 +  (   -0.000183 )*x**2  +  (  -0.000820)*x + (  -0.028369)
+    print "Kurucz README G5III     T=5150     G=+2.54     "
+    print "temp:", temp
+    print "gra:",gra
+    print "met:",met
+    
+def test_MKV2Kurucz():
+    # A0V       9520     +4.14   
+    x = 20
+    temp = np.exp(-0.000030*x**3 +  0.003951*x**2  +  ( -0.181333)*x + 11.551453)
+    gra = -0.000085*x**3 + 0.006919*x**2   +  (-0.168342)*x +     5.097857
+    met = -0.000038*x**3 +  (   0.005342 )*x**2  +  (-0.235097)*x + (2.989520)
+    print "Kurucz README A0V       T=9520     G=+4.14   "
+    print "temp:", temp
+    print "gra:",gra
+    print "met:",met
+
+
+def test_MK2Kurucz():
+    oKur = Kurucz(FileKuruczPic)
+    print oKur.convertMK("G5", "III")
+    print oKur.convertMK("A0", "V")
+    print oKur.convertMK("AI", "V")
+    print oKur.convertMK("UI", "V")
+    print oKur.convertMK("A0", "v")
+     
+      
 #test_setWLInterval()
 #test_plotFlux()
 #test_getFluxInterLin()
@@ -439,7 +471,13 @@ class Test(unittest.TestCase):
 #unittest.main()
 #test_fitWithBounds()
 #test_restrictToWLinterval()
-test_plotVega()
+#test_plotVega()
+test_MKIII2Kurucz()
+test_MKV2Kurucz()
+test_MK2Kurucz()
+
+    
+
 #test_plotFlux()
 #test_plotNotDefined()
 try:
