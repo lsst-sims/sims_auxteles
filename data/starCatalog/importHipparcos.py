@@ -36,11 +36,12 @@ if NbArgs == 1:
     sys.exit(2)
 
 obj = hip.Hipparcos(MyArgs[1])
-oCat= StarCatalog(obj.nStar)
+oCat=  hip.StarCatalog(obj.nStar)
 obj.extractFieldForAuxteles(oCat)
 obj.close()
-oCat.convertSpectralToKurucz()
-oCat.removeStarNOK()    
+#oCat.convertSpectralToKurucz()
+oCat.removeNotUsed()
+oCat.printCat(0, 20) 
 mfile='hipparcos.pic'
 oCat.save(mfile)
 
