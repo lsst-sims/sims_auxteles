@@ -13,6 +13,38 @@ import scipy.interpolate as sci
 import scipy.optimize as spo
 import lmfit as lm
 
+#
+# fit coefficient MK to Kurucz, defined by M. Creze, APC
+#
+
+G_ErrVerbose = 0
+
+S_MK2TGM = np.array([[
+    [    -0.000005   ,  0.001161  ,  -0.095909  ,  10.906179   ],
+    [    -0.000228    , 0.022146  ,  -0.699160   , 15.938041],
+    [    -0.000018,     0.002580 ,   -0.142389  ,  11.329507   ],
+    [    -0.000060  ,   0.006890   , -0.270872 ,   12.344244],
+    [    -0.000030  ,   0.003951  ,  -0.181333   , 11.551453 ]],
+    
+    [[    -0.000086   ,  0.009600  ,  -0.357420  ,   5.936659   ],
+    [    -0.000696   ,  0.069740  ,  -2.192674  ,  23.146425  ],
+    [    -0.000043 ,    0.003600 ,   -0.119226  ,   4.816304  ],
+    [    -0.000085   ,  0.006919  ,  -0.168342  ,   5.097857   ],
+    [    -0.000006  ,   0.000689  ,  -0.007102    , 3.728180   ]],
+    
+    [[     0.000002 ,   -0.000445 ,    0.021249  ,  -0.359199 ],
+    [     0.000426   , -0.035781  ,   0.882031   , -5.917801  ],
+    [     0.000003  ,  -0.000183 ,   -0.000820 ,   -0.028369  ],
+    [     0.000045  ,  -0.004681  ,   0.148057  ,  -1.394055   ],
+    [    -0.000038  ,   0.005342  ,  -0.235097   ,  2.989520 ]]])
+
+
+S_ROM = {'I': 0, 'II': 1, 'III':2, 'IV': 3, 'V': 4}
+
+
+S_KMType = {'O': 0, 'B': 10, 'A': 20, 'F': 30, 'G': 40, 'K': 50, 'M': 60}
+#S_KMType = {'B': 10, 'A': 20, 'F': 30, 'G': 40, 'K': 50, 'M': 60}
+
 
 
 def read_kurucz_all(directory = '/home/colley/projet/lsst/stellar_spectra/k93models/'):
@@ -81,6 +113,42 @@ def fits2pickle_JMC():
     fits2pickle(fIn, fOut)
     
     
+def convertMK(spec, plum):
+    """
+    convert Morgan-Keenan system in temp, grav, met, 
+    with coefficient defined by M. Creze, APC
+    
+    WARNING:
+     coefficient was fitted without star with type O, but estimation can be done
+    
+    spec [xy] x in [OBAFGKM] y in [0..9]
+    lum  in [I,II,III,IV,V]
+    
+    return None if problem convention    
+    """
+    try: 
+        x = S_KMType[spec[0]]
+    except:
+        if G_ErrVerbose > 0: print "error letter not in [OBAFGKM]: ", spec[0]
+        return None
+    try:
+        xunit = int(spec[1])
+    except:
+        if G_ErrVerbose > 0:print "error second character isn't a number: ", spec[1]
+        return None
+    x += xunit
+    try: 
+        lum = S_ROM[plum]
+    except:
+        if G_ErrVerbose > 0:print "error not in [I,II,III,IV,V] ", plum
+        return None
+    ax = np.array([x**3, x**2, x, 1.0])
+    param = np.zeros(3, dtype=np.float64)
+    param[0] = np.exp(np.dot(ax, S_MK2TGM[0, lum, :]))
+    param[1] = np.dot(ax, S_MK2TGM[1, lum, :])
+    param[2] = np.dot(ax, S_MK2TGM[2, lum, :])
+    return param
+    
     
     
 class Kurucz(object):
@@ -92,35 +160,10 @@ class Kurucz(object):
         line 2 : gravity log_g : 0 to 5
         line 4 : first value
     '''
-    #
-    # fit coefficient MK to Kurucz, defined by M. Creze, APC
-    #
     # dim 1 : temp, grav, met
     # dim 2 : luminosity
     # dim 3 : coef 
     #
-    S_MK2TGM = np.array([[
-        [    -0.000005   ,  0.001161  ,  -0.095909  ,  10.906179   ],
-        [    -0.000228    , 0.022146  ,  -0.699160   , 15.938041],
-        [    -0.000018,     0.002580 ,   -0.142389  ,  11.329507   ],
-        [    -0.000060  ,   0.006890   , -0.270872 ,   12.344244],
-        [    -0.000030  ,   0.003951  ,  -0.181333   , 11.551453 ]],
-        
-        [[    -0.000086   ,  0.009600  ,  -0.357420  ,   5.936659   ],
-        [    -0.000696   ,  0.069740  ,  -2.192674  ,  23.146425  ],
-        [    -0.000043 ,    0.003600 ,   -0.119226  ,   4.816304  ],
-        [    -0.000085   ,  0.006919  ,  -0.168342  ,   5.097857   ],
-        [    -0.000006  ,   0.000689  ,  -0.007102    , 3.728180   ]],
-        
-        [[     0.000002 ,   -0.000445 ,    0.021249  ,  -0.359199 ],
-        [     0.000426   , -0.035781  ,   0.882031   , -5.917801  ],
-        [     0.000003  ,  -0.000183 ,   -0.000820 ,   -0.028369  ],
-        [     0.000045  ,  -0.004681  ,   0.148057  ,  -1.394055   ],
-        [    -0.000038  ,   0.005342  ,  -0.235097   ,  2.989520 ]]])
-    
-    S_ROM = {'I': 0, 'II': 1, 'III':2, 'IV': 3, 'V': 4}
-    
-    S_KMType = {'B': 10, 'A': 20, "F": 30, "G": 40, "K": 50, "M": 60}
         
     def __init__(self, filePickle, test=False):
         try:
@@ -169,6 +212,7 @@ class Kurucz(object):
         
         spec [xy] x in [OBAFGKM] y in [0..9]
         lum  in [I,II,III,IV,V]
+        
         
         return None if problem convention
         

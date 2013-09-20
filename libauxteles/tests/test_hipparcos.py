@@ -60,7 +60,7 @@ def test_saveRead():
    
 #test_Line()
 
-#test_read()
+test_read()
 #test_readKurucz()
 #test_readKuruczRemoveNOK()
-test_saveRead()
+#test_saveRead()

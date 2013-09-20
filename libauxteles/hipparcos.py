@@ -29,35 +29,42 @@ class Hipparcos(object):
 
 
     def extractFieldForAuxteles(self, oCat):
+        print 'Select single star'
         cptLine = 0
         cptNOK = 0
+        cptSingle = 0
         for line in self.fd:
             #print line
+            if line[346] == ' ' and line[350] != 'S': 
+                cptSingle += 1
+            else:
+                # multiple systems case or ambigus
+                continue
             try: 
                 Id = int(line[8:14])
                 dec = float(line[64:76])
                 ra = float(line[51:63])
                 mag = float(line[41:46])
-                para = float(line[79:86])
-                
+                para = float(line[79:86])                
             except:
                 cptNOK +=1
                 continue
+            #print line[346],  line[350]  
             oCat.Id[cptLine]=Id
             oCat.coord[cptLine] = np.array([ra, dec])
             oCat.mag[cptLine] = mag
             oCat.paral[cptLine] = para
-            spec = line[435:447] 
-            #print line[346]  
+            spec = line[435:447]                     
             oCat.spectral[cptLine,0] = ord(line[346])         
             for idx, sym in enumerate(spec):
                 if idx < 7:
                     oCat.spectral[cptLine,idx+1] = ord(sym)
             cptLine += 1
-            if spec[0] == 'O' : print spec
+            #if spec[0] == 'O' : print spec
             #if cptLine > 10: break
-        print 'NOK ', cptNOK
-        print 'OK ', cptLine
+        #print 'NOK ', cptNOK
+        print 'number single star OK ', cptLine
+        #print 'single ', cptSingle
                 
                     
 
@@ -73,6 +80,7 @@ class StarCatalog(object):
         
         
     def printCat(self, beg, end):
+        print "Id\tcoord\t\t\t\tmag\tparax\tspectrale type"
         for idx in range(beg, end):
             spec = ''
             for s in self.spectral[idx]:
@@ -86,11 +94,11 @@ class StarCatalog(object):
         nNOK = 0
         for idx in range(self.nbStar):
             if self.Id[idx] != 0:
-                str = ''
+                mystr = ''
                 for s in self.spectral[idx]:
-                    str += chr(s)
-                spec = str[1:3]
-                lum = str[3:]
+                    mystr += chr(s)
+                spec = mystr[1:3]
+                lum = mystr[3:]
                 a=lum.find(" ")
                 if a > 0 : lum = lum[:a]
                 ret = kur.convertMK(spec, lum)
@@ -100,23 +108,48 @@ class StarCatalog(object):
                 else:
                     nNOK += 1
         print "OK %d on %d"%(nOK, nOK+nNOK)
+
             
-    
-    def removeStarNOK(self):
+    def _removeIdx(self, lIdx):
+        self.Id=np.delete(self.Id, lIdx, 0)
+        self.coord=np.delete(self.coord, lIdx, 0)
+        if hasattr(self, 'kurucz'):
+            self.kurucz=np.delete(self.kurucz, lIdx, 0)
+        self.mag=np.delete(self.mag, lIdx, 0)
+        self.paral=np.delete(self.paral, lIdx, 0)
+        self.spectral=np.delete(self.spectral, lIdx, 0)
+        self.nbStar = len(self.Id)
+
+        
+    def removeStarKuruczNOK(self):
         lIdx=[]
         for idx in range(self.nbStar):
             if np.sum(self.kurucz[idx]) == 0 :
                 lIdx.append(idx)
                 #print "%d is nok"%idx
         # delete line
-        self.Id=np.delete(self.Id, lIdx, 0)
-        self.coord=np.delete(self.coord, lIdx, 0)
-        self.kurucz=np.delete(self.kurucz, lIdx, 0)
-        self.mag=np.delete(self.mag, lIdx, 0)
-        self.paral=np.delete(self.paral, lIdx, 0)
-        self.spectral=np.delete(self.spectral, lIdx, 0)
-        self.nbStar = len(self.Id)
-        print "nb star ok ", self.nbStar
+        self._removeIdx(lIdx)
+        #print "nb star ok ", self.nbStar
+            
+            
+    def removeNotUsed(self):
+        lIdx=[]
+        for idx in range(self.nbStar):
+            if np.sum(self.coord[idx]) == 0 :
+                lIdx.append(idx)
+                #print "%d is nok"%idx
+        # delete line
+        self._removeIdx(lIdx)
+        #print "nb star ok ", self.nbStar
+            
+            
+    def selectMag(self, pMin , pMax):
+        lIdx=[]
+        for idx in range(self.nbStar):
+            mag = self.mag[idx]
+            if mag > pMax or  mag < pMin:
+                lIdx.append(idx)
+        self._removeIdx(lIdx)
             
             
     def save(self, filename):
@@ -130,3 +163,4 @@ class StarCatalog(object):
         obj = pk.load(f)
         f.close()
         return obj
+

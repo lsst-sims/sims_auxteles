@@ -30,6 +30,9 @@ def getFirstCharNotBlanck(myStr):
         
         
 def removeBlanckInString(myStr):
+    """
+    remove first blanck
+    """
     for idx, elt in  enumerate(myStr):
         if   elt != ' ':
             return myStr[idx:]

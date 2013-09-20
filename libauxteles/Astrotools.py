@@ -84,10 +84,10 @@ def tsid(mjd):
 def eq2loc(aldeti):
         
         # fix observation coordinates (decimal degrees, Cerro Pachon)
-	obslong = -70.749389 # LSST longitude 
+        obslong = -70.749389 # LSST longitude 
         obslat  = -30.244333 # LSST latitude
         #obslong = 5.5666666  # LSST longitude 
-        #obslat  = 50.63 # LSST latitude
+        #obslat  = 89 # LSST latitude
         # other coordinates if specified as aldeti[3] and aldeti[4]
         if len(aldeti)==5:
                 obslong = aldeti[3]
@@ -137,7 +137,7 @@ def eq2loc(aldeti):
 #
 #
 def airmass(z_angle) :
-        secz = 1./cos(z_angle*d2r)
+        secz = 1./np.cos(z_angle*d2r)
         sz1 = secz-1.
         airmass = secz - 0.0018167*sz1 - 0.002875*sz1**2 - 0.0008083*sz1**3
 
@@ -154,18 +154,18 @@ def airmass(z_angle) :
 #
 #
 def mdtram(z_angle):
-        secz = 1./cos(z_angle*d2r)
-        chi = log(secz)  
+        secz = 1./np.cos(z_angle*d2r)
+        chi = np.log(secz)  
         mdtairmass =1.00003873*secz-0.00548117*chi**2\
             + 0.00832316*chi**3 - 0.00711221*chi**3 - 0.00003873
         return mdtairmass
 
 def mdtram2za(airmass):
         sz = (airmass + 0.00003873)/1.00003873
-        chi = numpy.log(sz)
+        chi = np.log(sz)
         secz = sz + 0.00548117*chi**2 - 0.00832316*chi**3 + 0.00711221*chi**3
-        chi = numpy.log(secz)
+        chi = np.log(secz)
         secz = sz + 0.00548117*chi**2 - 0.00832316*chi**3 + 0.00711221*chi**3
-        z_angle = r2d*numpy.arccos(1./secz)
+        z_angle = r2d*np.arccos(1./secz)
 
         return z_angle
