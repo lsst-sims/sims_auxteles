@@ -28,7 +28,7 @@ class Hipparcos(object):
         print cptLine
 
 
-    def extractFieldForAuxteles(self, oCat):
+    def extractSingleStarForAuxteles(self, oCat):
         print 'Select single star'
         cptLine = 0
         cptNOK = 0
@@ -55,10 +55,10 @@ class Hipparcos(object):
             oCat.mag[cptLine] = mag
             oCat.paral[cptLine] = para
             spec = line[435:447]                     
-            oCat.spectral[cptLine,0] = ord(line[346])         
+            #oCat.spectral[cptLine,0] = ord(line[346])         
             for idx, sym in enumerate(spec):
-                if idx < 7:
-                    oCat.spectral[cptLine,idx+1] = ord(sym)
+                if idx < 8:
+                    oCat.spectral[cptLine,idx] = ord(sym)
             cptLine += 1
             #if spec[0] == 'O' : print spec
             #if cptLine > 10: break
@@ -79,9 +79,13 @@ class StarCatalog(object):
         self.spectral = np.zeros((nbStar,8), dtype=np.uint8)
         
         
-    def printCat(self, beg, end):
+    def printCat(self, beg, end, pIdx=None):
+        if pIdx == None:
+            myIdx = range(beg, end)
+        else:
+            myIdx = pIdx
         print "Id\tcoord\t\t\t\tmag\tparax\tspectrale type"
-        for idx in range(beg, end):
+        for idx in myIdx:
             spec = ''
             for s in self.spectral[idx]:
                 spec += chr(s) 
@@ -142,7 +146,37 @@ class StarCatalog(object):
         self._removeIdx(lIdx)
         #print "nb star ok ", self.nbStar
             
-            
+    
+    def findTypeStar(self, pType, pSsType=None, pLum=None, pIdx=None):    
+        """
+        problem with luminosity selection , but ok for V
+        """    
+        idx = []
+        if pIdx == None:
+            myIdx = np.arange(self.nbStar)
+        else:
+            myIdx = pIdx
+        #print myIdx
+        typeS = ord(pType)
+        if pLum != None:
+            lum = [ord(l) for l in pLum]
+        if pSsType != None:    
+            ssT = ord(pSsType)
+        if  pSsType == None:
+            if pLum == None:             
+                idx = np.where(self.spectral[myIdx,0] == typeS)[0]
+            else:
+                sLum = len(pLum)
+                idx = np.where(np.logical_and(self.spectral[myIdx,0] == typeS, np.all(self.spectral[myIdx,2:2+sLum] == lum,1)))[0]               
+        else:
+            if pLum == None:                
+                idx = np.where(np.logical_and(self.spectral[myIdx,0] == typeS, self.spectral[myIdx,1] == ssT))[0]
+            else:
+                sLum = len(pLum)
+                idx = np.where(np.logical_and(np.logical_and(self.spectral[myIdx,0] == typeS, np.all(self.spectral[myIdx,2:2+sLum] == lum,1)), self.spectral[myIdx,1] == ssT))[0]            
+        return idx
+                   
+                   
     def selectMag(self, pMin , pMax):
         lIdx=[]
         for idx in range(self.nbStar):
