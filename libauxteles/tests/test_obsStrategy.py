@@ -27,16 +27,16 @@ def test_selectMag():
 def test_computCoordLoc():
     oObs = ObsStrategyReal01(S_pathCat)
     oObs.selectMag(7, 8)
-    oObs.computCoordLoc([2013, 9,20, 12, 30])
+    oObs.computCoordRefObs([2013, 9,20, 12, 30])
     oObs.histoDistZen()
     
 
 def test_plotVisible(): 
     oObs = ObsStrategyReal01(S_pathCat)
     oObs.selectMag(7, 7.015)
-    oObs.computCoordLoc([2013, 9,20, 13, 50])
+    oObs.computCoordRefObs([2013, 9,20, 13, 50])
     oObs.selectVisibleStar(60)
-    oObs.plotVisible()
+    oObs.plotSelectStarsz()
     
     
 def test_multiplot():
@@ -58,7 +58,17 @@ def test_doMultiplotSelect():
     oObs.doMultiplotSelect([2013, 9,20, 13, 00], 3, 3)  
     
     
-    
+def test_getRisingSettingSun():
+    oObs = ObsStrategyReal01(S_pathCat)
+    print oObs.getRisingSettingSun([2013, 10, 8])
+
+
+def test_selectAlgo02():
+    oObs = ObsStrategyReal01(S_pathCat)
+    oObs.selectMag(7, 7.2)
+    oObs.selectAlgo02([2013, 6, 21])
+    oObs.doMultiplotAlgo02()
+      
 #
 # 
 #
@@ -69,10 +79,12 @@ def test_doMultiplotSelect():
 #test_plotVisible()
 #test_multiplot()
 #test_selectAlgo01()
-test_doMultiplotSelect()
+#test_doMultiplotSelect()
+#test_getRisingSettingSun()
+test_selectAlgo02()
 
 
-try:
-    pl.show()
-except AttributeError:
-    pass
+#try:
+#    pl.show()
+#except AttributeError:
+#    pass

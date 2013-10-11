@@ -21,6 +21,13 @@ def frommjd(mjd):
         return gymdf # [ year, month, day, dayfraction]
 #_______________________________________________________________
 #                tomjd
+
+def tomjd_day(gymd):  # input must be [year,month,dayfract]
+        day= int(gymd[2])
+        day_frac = gymd[2]-day
+        return tomjd([gymd[0],gymd[1], day,  day_frac])
+
+
 def tomjd(gymdf):  # input must be [year,month,day,dayfract]
         gdat = date(gymdf[0],gymdf[1],gymdf[2]).toordinal()
         mjdat = gdat - 678576

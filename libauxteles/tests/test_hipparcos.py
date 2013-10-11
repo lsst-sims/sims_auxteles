@@ -9,6 +9,7 @@ from hipparcos import *
 S_PathHip='/home/colley/temp/lsst/hipparcos'
 S_pathCat = "../../data/starCatalog/hipparcos.pic"
 
+
 #
 # CLASS Hipparcos
 #

@@ -6,7 +6,9 @@ Created on 13 sept. 2013
 import numpy as np 
 import kurucz as kur
 import pickle as pk
-
+import pylab as pl
+import Astrotools as astro
+import MJDtools as mjd
 
 class Hipparcos(object):
     
@@ -123,6 +125,7 @@ class StarCatalog(object):
         self.paral=np.delete(self.paral, lIdx, 0)
         self.spectral=np.delete(self.spectral, lIdx, 0)
         self.nbStar = len(self.Id)
+        
 
         
     def removeStarKuruczNOK(self):
@@ -184,8 +187,88 @@ class StarCatalog(object):
             if mag > pMax or  mag < pMin:
                 lIdx.append(idx)
         self._removeIdx(lIdx)
+
+
+    def selectVisibleStar(self, pElv):
+        """
+        fill array self.lIdxSelect index of star with zenith distance compatible with pElv
+        """
+        self.lIdxSelect = []
+        for idx in range (self.nbStar):
+            if self.coodLoc[idx, 1] < pElv: 
+                self.lIdxSelect.append(idx)
+          
+#
+# PLOT
+#
+
+    def plotIdxSelectStar(self, pPidx, pTit, pFile=None):
+        pl.figure()
+        print pFile       
+        ax = pl.subplot(111, polar=True)
+        ax.set_title(pTit)
+        for idxS in pPidx:
+            idx = self.lIdxSelect[idxS]
+            ax.plot(np.deg2rad(self.coodLoc[idx, 0]), np.sin(np.deg2rad(self.coodLoc[idx, 1])),'*b')
+        ax.set_rmax(1.0)
+        ax.grid(True)
+        if pFile != None:
+            pl.savefig(pFile)
             
-            
+           
+    def plotSelectStars(self, pTit, MaxDZ= 90, pFile=None):
+        pl.figure()
+        ax = pl.subplot(111, polar=True)
+        ax.set_title(pTit)
+        for idxSel in self.lIdxSelect:            
+            if self.coodLoc[idxSel, 1] < MaxDZ: 
+                ax.plot(np.deg2rad(self.coodLoc[idxSel, 0]), np.sin(np.deg2rad(self.coodLoc[idxSel, 1])),'.b')
+            else:
+                ax.plot(np.deg2rad(self.coodLoc[idxSel, 0]), np.sin(np.deg2rad(self.coodLoc[idxSel, 1])),'.r')
+        ax.set_rmax(1.0)
+        ax.grid(True)
+        if pFile != None:
+            pl.savefig(pFile)
+        return ax
+
+#
+# observer referential
+#
+    def computCoordRefObsMJD(self, dateMJD, pLidx=None, pSite=None):
+        """
+        pSite: format [longitude, latitude]
+        """        
+        if pLidx == None:
+            Lidx = range (self.nbStar)
+        else:
+            Lidx = pLidx
+        coodLoc = np.empty((len(Lidx),2), dtype=np.float64)
+        if pSite == None:
+            for idx, idxStar in enumerate(Lidx):
+                #print idxStar, self.nbStar, self.coord.shape
+                coodLoc[idx] = astro.eq2loc([self.coord[idxStar,0], self.coord[idxStar,1],dateMJD] )                                   
+        else:
+            for idx, idxStar in enumerate(Lidx):
+                coodLoc[idx] = astro.eq2loc([self.coord[idxStar,0], self.coord[idxStar,1], dateMJD, pSite[0], pSite[1] ] )
+        if pLidx == None:
+            self.coodLoc = coodLoc
+            self.dateMJD = dateMJD
+        else:
+            return coodLoc
+        
+                
+    def computCoordRefObs(self, pDate, pLidx=None, pSite=None):
+        """
+        pDate: format [YYYY, MM, DD, HH, MM]
+        pSite: format [longitude, latitude]
+        """       
+        dateJD = mjd.tomjd(self._ymdhm(pDate))
+        return self.computCoordRefObsMJD(dateJD, pLidx, pSite)
+        
+        
+#
+# I/O
+#           
     def save(self, filename):
         f=open(filename, "wb")
         pk.dump(self, f, pk.HIGHEST_PROTOCOL)

@@ -37,6 +37,11 @@ import numpy as np
 #
 d2r = np.pi/180
 r2d = 1./d2r
+
+# fix observation coordinates (decimal degrees, Cerro Pachon)
+G_LSSTlong = -70.749389 # LSST longitude 
+G_LSSTlat  = -30.244333 # LSST latitude
+
 #
 #_____________________________________________________________
 #
@@ -84,8 +89,8 @@ def tsid(mjd):
 def eq2loc(aldeti):
         
         # fix observation coordinates (decimal degrees, Cerro Pachon)
-        obslong = -70.749389 # LSST longitude 
-        obslat  = -30.244333 # LSST latitude
+        obslong = G_LSSTlong # LSST longitude 
+        obslat  = G_LSSTlat # LSST latitude
         #obslong = 5.5666666  # LSST longitude 
         #obslat  = 89 # LSST latitude
         # other coordinates if specified as aldeti[3] and aldeti[4]
