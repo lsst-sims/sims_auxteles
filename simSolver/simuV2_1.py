@@ -8,9 +8,6 @@ sys.path.append('../libauxteles')
 sys.path.append('../simSpectro')
 
 
-G_FileKuruczPic = '../data/kurucz93/k93.pic'
-G_fileModtran = '../data/modtran/TemplateT04.01_1.txt'
-
 
 import atmStarSolver as sol
 import starTargetSimu as star
@@ -21,6 +18,12 @@ import burkeAtmModel as atm
 import numpy as np
 import AuxSpecGen as aux
 import pickle as pk
+import tools as tl
+import os
+
+
+G_FileKuruczPic = os.path.join(tl.getDirectory(__file__),'../data/kurucz93/k93.pic')
+G_fileModtran = os.path.join(tl.getDirectory(__file__),'../data/modtran/TemplateT04.01_1.txt')
 
 
 ###############################################################################
@@ -57,7 +60,9 @@ class SimuVersion2_1(object):
         """        
         self._SNR = snr
         self._Resol = resol*1.0
-        oKur = kur.Kurucz(G_FileKuruczPic)
+        myPath = os.path.join(tl.getDirectory(__file__),G_FileKuruczPic)
+        print   myPath   
+        oKur = kur.Kurucz(myPath)
         oKur.restrictToWLinterval(self.oAtm.getWL().min()-100, self.oAtm.getWL().max()+100)
         #print self.oAtm.getWL()
         oKur.setCoefUnitFlux(1e-4, r"$J.m^{-2}.s^{-1}.nm^{-1}$")
@@ -399,63 +404,11 @@ def simuWithDifferentResolution():
     pl.xlabel("spectro resolution")   
     
         
-############################################################################     
-class SimuVersion2_1old():
-############################################################################    
-    """
-    used ObsSurveySimuV2_1 class to simulate spectrum ie: 
-     Simu with :
-     * star flux : catalog flux done by Kurucz model
-     * star mvt  : random position 
-     * atm       : Burke with constraints random parameters 
-     * spectro   : used simulator designed by G. Bazin    
-     
-    order call :
-        * setAuxTeles()
-        * doSimu()
-        * initSolver()
-    """
-    def __init__(self, night, obsByNight):
-        self.oAtm = atm.BurkeAtmModel(G_fileModtran)
-        self.oKur = kur.Kurucz(G_FileKuruczPic)
-        self.oKur.setCoefUnitFlux(1e-8)
-        self.oKur.resample(self.oAtm.getWL())
-        self.oStarCat = star.StarTargetSimuAll(self.oKur, 2)
-        print "size Kurucz ", len(self.oKur.getWL())
-        self.oObs = obsAT.ObsSurveySimuV2_1(night,obsByNight)
-        self.oObs.setAtmModel(self.oAtm)
-        self.oObs.setStarTarget(self.oStarCat)
-        
-        
-    def setAuxTeles(self, pAuxteles=None):
-        if pAuxteles==None: 
-            pAuxteles = aux.AuxTeles()
-        self.oObs.setAuxTeles(pAuxteles)
-        
-        
-    def doSimu(self):        
-        self.oObs.readObsNight("")
-    
-    
-    def initSolver(self):
-        self.oSol = sol.AtmStarSolver()
-        self.oKurSol = kur.Kurucz(G_FileKuruczPic)
-        self.oKurSol.setCoefUnitFlux(1e-8)
-        # resample in ccd wl      
-        self.oKurSol.resample(self.oObs._WL)
-        self.oAtmSol = atm.BurkeAtmModel(G_fileModtran)
-        self.oAtmSol.downgradeTemplateAndResample(self.oObs.outpuRes, self.oObs._WL)      
-        self.oSol.init(self.oObs, self.oKurSol, self.oAtmSol)
-
-
-    def getDefaultAuxTeles(self):
-        return aux.AuxTeles()
-    
-################################## END CLASS ##################################    
 
 #
 # tests
 #
+
 def test_doSimu01():
     np.random.seed(1000)
     oSolSim = SimuVersion2_1(1,1)
@@ -545,8 +498,8 @@ def test_SimuAndSolve01():
 #test_initSolver()
 #test_diffFluxRawTheo()
 #test_SimuwithFastModelSpectro()
-
-simuWithDifferentResolution()
+if __name__ == "__main__":
+    simuWithDifferentResolution()
 
 #
 # SimuVersion2_1OLD
