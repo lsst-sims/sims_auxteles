@@ -4,7 +4,6 @@ Created on 30 oct. 2013
 @author: colley
 '''
 
-
 import sys
 sys.path.append('../libauxteles')
 sys.path.append('../simSpectro')
