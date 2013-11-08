@@ -11,13 +11,15 @@ import tools as tl
     
 class BurkeAtmModel(object):
     """
+    Burke parameter model are storage in _Par[] variable with order:
+    ================================================================
         Tgray :   self._Par[0]
-        Tau0 :   self._Par[1]
-        Tau1 :   self._Par[2]
-        Tau2 :   self._Par[3] 
+        Tau0 :    self._Par[1]
+        Tau1 :    self._Par[2]
+        Tau2 :    self._Par[3] 
         alpha :   self._Par[4]
-        Cmol :   self._Par[5]
-        C_O3 :   self._Par[6]
+        Cmol :    self._Par[5]
+        C_O3 :    self._Par[6]
         C_H2O :   self._Par[7]
         dC_{H2O}/dEW :   self._Par[8]
         dC_{H2O}/dNS : self._Par[9]
@@ -40,6 +42,7 @@ class BurkeAtmModel(object):
         '''        
         '''
         if ModFileTempl == "": return 
+        print ModFileTempl
         self._Tpl = tmod.TemplateMODTRAN(ModFileTempl)
         # convert in angstrom
         self._Tpl.convertWaveLength(1.e-10)
@@ -184,7 +187,10 @@ class BurkeAtmModel(object):
         return self.setConstObsComp(pVecObs[0], pVecObs[1], pVecObs[2])
     
     
-    def setConstObsComp(self, alt, az, pressure):        
+    def setConstObsComp(self, alt, az, pressure):
+        """
+        alt : pi/2 zenith
+        """        
         self._AirMass = np.fabs(1/np.cos(np.pi/2 - alt))        
         self._Alt = alt
         self._Az = az

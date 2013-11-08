@@ -12,6 +12,7 @@ import numpy as np
 import AuxSpecGen as aux
 import copy as cp
 import tools as tl
+import obsStrategy as obS
 
 
 
@@ -21,11 +22,13 @@ class ObsSurvey(object):
         self.aFlux = None
         # constant model vector for each flux
         self.aConst = None
+        #
         # aIdxParAtm : indirection table for atmospheric parameters
         # return for idx flux , idx in global vector parameter of atmospheric associated to input idx flux
         # the order is coherent with convention used by BurkeAtmModel class ie:
         #   Tgray, Tau0, Tau1 , Tau2, alpha, Cmol, C_O3, C_H2O, dC_{H2O}/dEW, dC_{H2O}/dNS 
         self.aIdxParAtm = None
+        #
         # aIdxParStar : indirection table for star Kurucz parameters
         # return for idx flux , idx in global vector parameter Kurucz associated to input idx flux
         # the order is coherent with convention used by Kurucz class ie:
@@ -41,14 +44,17 @@ class ObsSurvey(object):
         self._NameWater = '$C_{H2O}$'
         self._NameStar = []
         
+        
     def readObsNight(self, pRep):
         """
         fill aFlux,aConst,aIdxParAtm,aIdxParStar
         """
         pass
     
+    
     def getGuessParam(self):
         pass
+    
     
     def plotObs(self,idx, pTitle=""):        
         pl.figure()
@@ -93,6 +99,7 @@ class ObsSurveySimu01(ObsSurvey):
         # observation constant [idx flux]= time, alt, az, pressure
         self._SimuConstObs  = np.zeros((self._NbFlux, self._NbConst) , dtype=np.float32)        
         
+        
     def _randomTrueParAndConst(self):
         self._createTrueParAndConst()
         #######:  _SimuParNight       
@@ -121,13 +128,13 @@ class ObsSurveySimu01(ObsSurvey):
         ######## _SimuParObsIdx
         # idx night
         idx = np.arange(self._NbNight)
-        self._SimuParObsIdx[:,0] = np.outer(idx, np.ones(self._NbPeriodObsByNight*self._NbStar, dtype=np.int32)).ravel()
+        self._SimuParObsIdx[:,0] = np.outer(idx, np.ones(self._NbPeriodObsByNight*self._NbStarByPeriod, dtype=np.int32)).ravel()
         # idx star
-        idx = np.arange(self._NbStar)
+        idx = np.arange(self._NbStarByPeriod)
         self._SimuParObsIdx[:,1] = np.outer( np.ones(self._NbPeriodObs, dtype=np.int32), idx ).ravel()   
         # idx  period observation  
         idx = np.arange(self._NbPeriodObs)
-        self._SimuParObsIdx[:,2] = np.outer(idx,  np.ones(self._NbStar, dtype=np.int32) ).ravel()        
+        self._SimuParObsIdx[:,2] = np.outer(idx,  np.ones(self._NbStarByPeriod, dtype=np.int32) ).ravel()        
         ######## _SimuConstObs
         # ptg, alt , a
         self._SimuConstObs[:,0] = np.random.uniform(np.deg2rad(45), np.deg2rad(90), self._NbFlux)
@@ -137,6 +144,8 @@ class ObsSurveySimu01(ObsSurvey):
         #print self._SimuConstObs[:,3]
         # time
         self._SimuConstObs[:,3] = np.arange(self._NbFlux)
+        
+        
 
 # PUBLIC        
 ########    
@@ -145,8 +154,9 @@ class ObsSurveySimu01(ObsSurvey):
 # SETTER              
     def setStarTarget(self, pOstar):
         assert isinstance(pOstar, star.StarTargetSimuAll)    
-        self._oStarCat = pOstar
+        self._oStarCat = pOstar        
         self._NbStar = self._oStarCat._NbStar
+        self._NbStarByPeriod = self._NbStar
         self._NbWL = self._oStarCat._NbWL
         self._NbPstar  = self._oStarCat._NbPstar
         self._NbPeriodObs = self._NbNight*self._NbPeriodObsByNight
@@ -155,20 +165,25 @@ class ObsSurveySimu01(ObsSurvey):
             self._NameStar.append('$t\degree$')   
             self._NameStar.append('$gra$')
                 
+                
     def setAtmModel(self, pOatm):
         assert isinstance(pOatm, atm.BurkeAtmModel)                       
         self._Oatm = pOatm
         self._NbPatm = self._Oatm._NbPar
                 
+                
     def setAuxTeles(self, pOauxTeles):
         pass
+    
     
 # GETTER
     def getWL(self):
         return self._Oatm._aWL
    
+   
     def getNameVecParam(self):
         return self._NameStar+self._NameAtm    
+    
     
     def getTrueParamAtmIdx(self, pIdx):
         """
@@ -182,11 +197,13 @@ class ObsSurveySimu01(ObsSurvey):
         par[7] = self._SimuParC_H2O[self._SimuParObsIdx[pIdx,2]]
         return par
         
+        
     def getConst(self, pIdx):
         """
         return observation constants for Burke model format for flux pIdx
         """
         return self._SimuConstObs[pIdx,:]
+    
     
     def getGuessDefault(self):
         """
@@ -206,14 +223,17 @@ class ObsSurveySimu01(ObsSurvey):
         print guess
         return guess
     
+    
     def getFirstIdxAtm(self):
         """
         return index of first parameter relative to atmopshere in parameter vector 
         """
         return  2*self._NbStar
     
+    
     def getIdxGravity(self):
         return [2*i+1 for i in range(self._NbStar)]
+    
     
     def getIdxTgray(self):
         aIdx = []
@@ -222,12 +242,14 @@ class ObsSurveySimu01(ObsSurvey):
                 aIdx.append(idx)
         return aIdx
     
+    
     def getIdxAlpha(self):
         aIdx = []
         for idx, name in enumerate(self.getNameVecParam()):
             if name == r'$\alpha$':
                 aIdx.append(idx)
         return aIdx
+    
     
     def getIdxTau0(self):
         aIdx = []
@@ -236,17 +258,20 @@ class ObsSurveySimu01(ObsSurvey):
                 aIdx.append(idx)
         return aIdx
     
+    
     def getAtmPart(self, pParam):
         """
         get atmosphere part of parameter pParam
         """
         return pParam[self.getFirstIdxAtm():]
     
+    
     def getStarPart(self, pParam):
         """
         get star part of parameter pParam
         """
         return pParam[:self.getFirstIdxAtm()]
+    
     
     def _getxNightParam(self, offset, pParam):
         ret = np.zeros(self._NbNight, dtype=pParam.dtype)
@@ -256,17 +281,20 @@ class ObsSurveySimu01(ObsSurvey):
             ret[idx] = pParam[start + offset + offsetNight*idx]
         return ret
     
+    
     def getTau0Param(self,pParam):
         """
         extract Tau0 parameters from pParam
         """
         return self._getxNightParam(0, pParam)
     
+    
     def getAlphaParam(self,pParam):
         """
         extract Alpha parameters from pParam
         """
         return self._getxNightParam(3, pParam)
+    
     
     def getTrueParam(self):
         """
@@ -283,6 +311,7 @@ class ObsSurveySimu01(ObsSurvey):
                 par[self.aIdxParAtm[idx]] = self.getTrueParamAtmIdx(idx)
             self._TrueParam = par
         return np.copy(self._TrueParam)
+        
         
     def readObsNight(self, pRep):
         """
@@ -349,8 +378,10 @@ class ObsSurveySimu01(ObsSurvey):
         # with last observation    
         self._NbParam = self._NbStar*self._NbPstar + self._NbNight*(self.getNbParamAtmByNight())
     
+    
     def getNbParamAtmByNight(self):
         return 8 + self._NbPeriodObsByNight*(1+self._NbStar)
+    
     
     def addNoisebySNRglobal(self, snr=100, doPlot=False):
         mean = self.aFlux.ravel().mean()
@@ -372,6 +403,7 @@ class ObsSurveySimu01(ObsSurvey):
             pl.legend(["no noise","with noise","no noise","with noise" ])
             pl.grid()
             
+            
     def addNoisebySNR(self, snr=100, doPlot=[]):
         aFlux = self.aFlux.copy()
         for idxF in range(self._NbFlux):
@@ -391,6 +423,7 @@ class ObsSurveySimu01(ObsSurvey):
             pl.xlabel("Angstrom")            
             pl.grid()
     
+    
     def computeTransTheoIdx(self, idx, param):
         """
         idx   : index flux
@@ -401,6 +434,7 @@ class ObsSurveySimu01(ObsSurvey):
         self._Oatm.setParam(parBurke)
         trans = self._Oatm.computeAtmTrans()
         return trans
+    
     
     def computeFluxTheoIdx(self, idx, param):
         """
@@ -420,6 +454,7 @@ class ObsSurveySimu01(ObsSurvey):
         # model 
         atmStarMod = trans*flux            
         return atmStarMod
+                 
                                  
 # PLOT FUNCTION
     def plotFlux(self,idx):
@@ -524,7 +559,7 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
     """
     
     
-    def __init__(self, pNbNight=1, pNbObsNight=1):
+    def __init__(self, pNbNight, pNbObsNight):
         ObsSurveySimu01.__init__(self, pNbNight, pNbObsNight)        
         self._AuxTeles = aux.AuxTeles()
         # 
@@ -835,5 +870,112 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
         parStar = self._oStarCat.addMet(idxStar, tempGra)
         flux = self._oStarCat._oKur.getFluxInterLin(parStar)            
         # model 
-        atmStarMod = trans*flux* self.getInstruEfficiency()*self._oStarCat._Kcoef[idxStar]    
+        atmStarMod = trans*flux*self.getInstruEfficiency()*self._oStarCat._Kcoef[idxStar]    
         return atmStarMod
+
+
+
+class ObsSurveySimuV2_2(ObsSurveySimuV2_1):
+    """
+    Simu with :
+     * star flux : catalog flux done by Kurucz model
+     * star mvt  : simulation from Hipparcos catalog, self.DataStar 
+     * atm       : Burke with constraints random parameters 
+     * spectro   : used simulator designed by G. Bazin
+     
+    Principal method:
+     * readObsNight() : simulated all data observation    
+    """
+    
+    def __init__(self, pDataStar):        
+        self.DataStar = obS.DataPositionStarTarget()
+        self.DataStar = pDataStar
+        super(ObsSurveySimuV2_2,self).__init__(1, self.DataStar.IdPos.shape[0])
+
+    
+    def setStarTarget(self, pOstar):
+        super(ObsSurveySimuV2_2, self).setStarTarget(pOstar)
+        print "par la setStarTarget"
+        self._NbFlux = self.DataStar.IdPos.size
+        self._NbStarByPeriod = self.DataStar.IdPos.shape[1]
+        
+        
+    def _randomTrueParAndConst(self):
+        super(ObsSurveySimuV2_2, self)._randomTrueParAndConst()        
+        # redefined _SimuConstObs
+        # ptg, alt 
+        #self._SimuConstObs[:,0] = np.random.uniform(np.deg2rad(45), np.deg2rad(90), self._NbFlux)
+        #print self.DataStar.Pos.shape
+        #print self._SimuConstObs.shape
+        self._SimuConstObs[:,0] = np.pi/2 - np.deg2rad(self.DataStar.Pos[:,:,1].ravel())
+        # ptg, azimuth
+        self._SimuConstObs[:,1] = np.fmod(np.deg2rad(self.DataStar.Pos[:,:,0].ravel()), 2*np.pi)
+        # redefined time
+        idx = np.ones(self._NbStarByPeriod)
+        self._SimuConstObs[:,3] = np.outer(self.DataStar.Time, idx).ravel()
+        print self._SimuParObsIdx[:,0]
+        for idx, ID in enumerate(self.DataStar.IdPos.ravel()):
+            idxInCat = self._oStarCat.IDstar2Idx(ID)
+            if idxInCat == None:
+                print "unknow ID star in target catalog ", ID
+                raise
+            self._SimuParObsIdx[idx,1] = idxInCat
+        print self._SimuParObsIdx[:,1]
+        print self._SimuParObsIdx[:,2]
+       
+        
+        
+    def _doParamVector(self):
+        """
+        fill array : aIdxParAtm, aIdxParStar
+        """
+        # initialise AuxTeles
+        # en nm
+        # assert isinstance(self._Oatm, atm.BurkeAtmModel)      
+        idxFlux = 0
+        # index vector parameters : star param, atm param
+        idxPar = self._NbStar*self._NbPstar        
+        #  aConst =  _SimuConstObs    
+        self.aConst = np.zeros((self._NbFlux, self._NbConst), dtype=np.float32)
+        self.aIdxParAtm = np.zeros((self._NbFlux, self._NbPatm), dtype=np.int16)
+        self.aIdxParStar = np.zeros((self._NbFlux, self._NbPstar), dtype=np.int16)       
+        # random parameters
+        self._randomTrueParAndConst()
+        idxParNight = idxPar 
+        idxParCH20  = idxParNight + 8 
+        idxParTgray = idxParNight + 9  
+        self._NameAtm = []
+        assert self._NbNight == 1
+        for idxN in range(self._NbNight): 
+            [self._NameAtm.append(x) for x in self._NameNightAtm]
+            for idxO in range(self._NbPeriodObsByNight):
+                self._NameAtm.append(self._NameWater)            
+                for idxS in range(self._NbStarByPeriod):
+                    self._NameAtm.append(self._NameTgray) 
+                    print idxN,idxO,idxS
+                    # defined const               
+                    self.aConst[idxFlux,:] = self.getConst(idxFlux)
+                    # fill table atm parameters
+                    self.aIdxParAtm[idxFlux, 0]    = idxParTgray                
+                    self.aIdxParAtm[idxFlux, 1:7]  = np.arange(idxParNight, idxParNight+6)                    
+                    self.aIdxParAtm[idxFlux, 7]    = idxParCH20
+                    self.aIdxParAtm[idxFlux, 8:10] = np.arange(idxParNight+6, idxParNight+8) 
+                    # fill table star parameters                        
+                    for idxPs in range(self._NbPstar):
+                        self.aIdxParStar[idxFlux, idxPs] = self._SimuParObsIdx[idxFlux,1]*self._NbPstar + idxPs
+                        #self.aIdxParStar[idxFlux, 1] = idxS*2 +1
+                    print  idxFlux, self._SimuParObsIdx[idxFlux,1]               
+                    idxFlux +=1
+                    # add 2 for Tgray, C_H20
+                    idxParTgray += 1
+                idxParCH20 = idxParTgray
+                idxParTgray = idxParCH20 + 1
+            # add 8 for tau 0,1,2, alpha, Cmol, CO3, dW_C_H20, dN_C_H20   
+            idxParNight = idxParCH20
+            idxParCH20 =   idxParNight + 8 
+            idxParTgray =  idxParNight + 9                
+        # with last observation        
+        self._NbParam = self._NbStar*self._NbPstar + self._NbNight*(self.getNbParamAtmByNight())
+       
+       
+        

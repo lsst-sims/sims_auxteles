@@ -10,6 +10,67 @@ import pylab as pl
 import Astrotools as astro
 import MJDtools as mjd
 
+
+def arrayInt2str(aInt):
+    mystr = ''
+    for s in aInt:
+        mystr += chr(s) 
+    return  mystr  
+
+
+def MorganKeeman2Kurucz(sMK):
+    """
+    ok only if sMK in  [BAFGKM][0..9]['I','II','III','IV','V']
+    """
+    spec = sMK[0:2]
+    lum = sMK[2:]
+    a=lum.find(" ")
+    if a > 0 : lum = lum[:a]
+    ret = kur.convertMK(spec, lum)
+    if ret == None:
+        print "Can't convert: ", sMK
+    return ret        
+
+        
+def MorganKeeman2Kurucz_robust(sMK):
+    """
+    manage 2 problems in sMK string
+     * presence of / character, => try substring 
+     * if sMK is only [BAFGKM][0..9], => add random luninosity   
+     
+    return:
+     * None
+     * temp, grav, met    
+    """    
+    aLum = ["I", "II","III", "III", "IV", "IV", "V", "V", "V"]
+    sLum = 9
+    a = sMK.find("/") 
+    if a > 0:
+        if a <= 2: 
+            print " %s try with %s"%(sMK, sMK[a+1:])
+            return MorganKeeman2Kurucz_robust(sMK[a+1:])         
+        else:
+            print " %s try with %s"%(sMK, sMK[:a])
+            return MorganKeeman2Kurucz_robust(sMK[:a])            
+    spec = sMK[0:2]
+    lum = sMK[2:]
+    if lum[0] == " ":
+        #print " no lim ",sMK
+        #return None
+        lum = aLum[np.random.randint(sLum)]
+    else:
+        a=lum.find(" ")
+        if a > 0 : lum = lum[:a]
+    ret = kur.convertMK(spec, lum)
+    if ret == None:
+        print "Can't convert: ", sMK
+#    else:
+#        print "ok for ", sMK
+    return ret        
+        
+   
+    
+    
 class Hipparcos(object):
     
     def __init__(self, pathHip):
@@ -74,7 +135,7 @@ class StarCatalog(object):
     
     def __init__(self, nbStar):
         self.nbStar = nbStar
-        self.Id = np.zeros(nbStar, dtype=np.int32)
+        self.Id = np.zeros(nbStar, dtype=np.int32) # ID hipparcos
         self.coord = np.zeros((nbStar,2), dtype=np.float64)
         self.mag = np.zeros(nbStar, dtype=np.float32)
         self.paral = np.zeros(nbStar, dtype=np.float32)
@@ -94,7 +155,10 @@ class StarCatalog(object):
             print "%d\t(%.8f, %.8f)\t%.1f\t%.1f\t%s"%(self.Id[idx],self.coord[idx,0], self.coord[idx,1], self.mag[idx], self.paral[idx], spec)
         
     
-    def convertSpectralToKurucz(self):
+    def convertSpectralToKuruczOld(self):
+        """
+        ok even if []
+        """
         self.kurucz = np.zeros((self.nbStar,3), dtype=np.float32)
         nOK = 0
         nNOK = 0
@@ -103,8 +167,8 @@ class StarCatalog(object):
                 mystr = ''
                 for s in self.spectral[idx]:
                     mystr += chr(s)
-                spec = mystr[1:3]
-                lum = mystr[3:]
+                spec = mystr[0:2]
+                lum = mystr[2:]
                 a=lum.find(" ")
                 if a > 0 : lum = lum[:a]
                 ret = kur.convertMK(spec, lum)
@@ -113,6 +177,28 @@ class StarCatalog(object):
                     nOK += 1
                 else:
                     nNOK += 1
+        print "OK %d on %d"%(nOK, nOK+nNOK)
+        
+        
+    def convertSpectralToKurucz(self):
+        """
+        manage / character (split in sub-string) and add a random luminosity is not available 
+        """
+        self.kurucz = np.zeros((self.nbStar,3), dtype=np.float32)
+        nOK = 0
+        nNOK = 0
+        for idx in range(self.nbStar):
+            if self.Id[idx] != 0:
+                mystr = ''
+                for s in self.spectral[idx]:
+                    mystr += chr(s)
+                #ret = MorganKeeman2Kurucz(mystr)
+                ret = MorganKeeman2Kurucz_robust(mystr)
+                if ret != None:
+                    self.kurucz[idx,:] = ret
+                    nOK += 1
+                else:
+                    nNOK += 1        
         print "OK %d on %d"%(nOK, nOK+nNOK)
 
             

@@ -424,6 +424,7 @@ class Test(unittest.TestCase):
         pl.plot(oKur.getWL(), oKur.getFluxInterLin(par))
         pl.legend(["True","Fit"])
     
+    
     def test_zz(self):
         try:
             pl.show()

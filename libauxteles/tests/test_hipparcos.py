@@ -33,6 +33,7 @@ def test_readKurucz():
     obj.extractSingleStarForAuxteles(oCat)
     oCat.printCat(10000, 10200)
     oCat.convertSpectralToKurucz()
+    oCat.removeStarKuruczNOK()
     obj.close()
     
     
@@ -67,7 +68,7 @@ def test_saveRead():
 
 #test_Line()
 #test_read()
-#test_readKurucz()
+test_readKurucz()
 #test_readKuruczRemoveNOK()
 #test_saveRead()
 
@@ -111,6 +112,6 @@ def testStarCatalog_OrangeDwarf():
 #
 # TEST method 
 #
-testStarCatalog_findTypeStar01()
-testStarCatalog_RedDwarf()
-testStarCatalog_OrangeDwarf()
+#testStarCatalog_findTypeStar01()
+#testStarCatalog_RedDwarf()
+#testStarCatalog_OrangeDwarf()

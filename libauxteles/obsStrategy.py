@@ -12,15 +12,90 @@ import numpy as np
 import pylab as pl
 import copy
 import ephem as eph 
+import pickle as pk
+
 
 S_LevelPlot = 5
 
 
-class ObsStrategyReal01(object):
+
+class DataPositionStarTarget(object):
+    """
+    class to store result of simulation of position of stars target
+    """
+    
+    def setPeriodObs(self, pDate, pBeg, pEnd):
+        """
+        pDate: like [2013, 6, 21]
+        pBeg:[mjd]
+        pEnd:[mjd]
+        """
+        self.Date = pDate
+        self.Beg = pBeg
+        self.End = pEnd
+        
+        
+    def setStarPosition(self, pId, pPos, pTime):
+        """        
+        pId:   (n,4)   Identificator hipparcos catalog
+        pPos:  (n,4,2) position in horizontal coordinate [deg] (azimuth, dist_zenital)
+        pTime: (n,1)   [mjd] time of observation
+        
+        with: n number of period observation 
+        """
+        self.IdPos   = pId
+        self.Pos  = pPos
+        self.Time = pTime
+        
+        
+    def setStarConstant(self, pId, pKur, pPar, pMag, pMK):
+        """
+        pId: (s,1) Identificator hipparcos catalog
+        pKur: (s,3) Kurucz parameters (temp, grav, met)
+        pPar: (s,1) parallaxe gives by Hipparcos
+        pMag: (s,1) magnitude gives by Hipparcos
+        pMK : (s,8) spectral type Morgan-keeman
+        
+        with: s number of star observed
+        """
+        self.IdCst = pId
+        self.Kur = pKur
+        self.Par = pPar
+        self.Mag = pMag
+        self.MK = pMK
+        
+        
+    def save(self, filename):
+        f=open(filename, "wb")
+        pk.dump(self, f, pk.HIGHEST_PROTOCOL)
+        f.close()
+        
+        
+    def read(self, filename):
+        f=open(filename, "rb")
+        obj = pk.load(f)
+        f.close()
+        return obj        
+
+
+    def __str__(self):
+        ret ='ID\t(temp,\t\tgra,\tmet)\tparal\tmag\tTypeSpect\n'
+        for idx, ID in enumerate(self.IdCst):
+            mkStr = hip.arrayInt2str(self.MK[idx])
+            ret += '%d\t(%.1f,\t%.2f,\t%.2f)\t%.1f\t%.1f\t%s\n'%(ID, self.Kur[idx,0], self.Kur[idx,1],self.Kur[idx,2], self.Par[idx], self.Mag[idx], mkStr)
+        ret += '\nHipparcos ID star observed by period:\n'
+        for idx, star in enumerate(self.IdPos):
+            ret += '%03d %s\n'%(idx+1, str(star))
+        return ret 
+
+
+class ObsStrategyReal(object):
     def __init__(self, fileCat):
         oTemp = hip.StarCatalog(0)
         self.oCat =  hip.StarCatalog(0)      
         self.oCat =  oTemp.read(fileCat)
+        self.oCat.convertSpectralToKurucz()
+        self.oCat.removeStarKuruczNOK()
         self.MaxDZ = 60 # distance zenital max
         self.deltaTimeObs = 20 # in minute
         
@@ -73,8 +148,7 @@ class ObsStrategyReal01(object):
         return  [YYYY, MM, DD, .DD]
         """
         return  [pDate[0], pDate[1], pDate[2], (pDate[3] + pDate[4]/60.)/24.]
-    
-     
+         
 
     def selectAlgo01(self, pTbeg, pTend):
         """
@@ -141,6 +215,14 @@ class ObsStrategyReal01(object):
     
     
     def selectAlgo02(self, pDate):
+        """
+        pDate like [2013, 6, 21]
+        
+        defined:
+         * self.tDeb, self.tEnd : time begin end observation
+         
+        return:
+        """
         # define number of observation
         # =============================
         Tephem= self.getRisingSettingSun(pDate)
@@ -149,6 +231,7 @@ class ObsStrategyReal01(object):
             return 
         print Tephem
         #print list(Tephem[0].triple())
+        self.Date = pDate
         self.tDeb = Tephem[0]
         self.tEnd = Tephem[1]
         tDeb = mjd.tomjd_day(list(Tephem[0].triple()))
@@ -160,13 +243,18 @@ class ObsStrategyReal01(object):
             return False
         print "duree de la nuit:", (tEnd-tDeb)*24.0
         # alloc data structure
+        #
+        # number of period observation
         self.nbPeriodObs = int(duree*60/self.deltaTimeObs)
+        # star target coordinates
         self.coordStarTarget = np.empty((self.nbPeriodObs,4,2), dtype=np.float64)
+        # time period observation
         self.timeObs = tDeb + (np.arange(self.nbPeriodObs)*20.)/(60*24)
         print self.timeObs, tEnd
+        # index star target in catalog self.oCat
         self.idxStarTarget = np.ones((self.nbPeriodObs,4), dtype=np.int64)        
         print "nbPeriodObs:", self.nbPeriodObs
-        # First selection at tDeb
+        # First selection at tDeb        
         self.oCat.computCoordRefObsMJD(tDeb)
         self.oCat.selectVisibleStar(self.MaxDZ)        
         self._selectNearZenith()
@@ -181,17 +269,18 @@ class ObsStrategyReal01(object):
         selectStarVis.append(self.lIdxZen3[idx])
         idx = np.random.randint(len(self.lIdxZen4))
         selectStarVis.append(self.lIdxZen4[idx])        
-        selectStar = [self.oCat.lIdxSelect[idx] for idx in selectStarVis]        
+        selectStar = [self.oCat.lIdxSelect[idx] for idx in selectStarVis]   
+            
         # compute position of ref. star for each observation period
         self.idxStarTarget *= np.array(selectStar)
         print self.idxStarTarget
+        print self.oCat.kurucz[selectStar]
         for idx, tMJD in enumerate(self.timeObs):
             self.coordStarTarget[idx] = self.oCat.computCoordRefObsMJD(tMJD, self.idxStarTarget[idx])
-        # test risind selectin star
+        # test rising selection stars
         for idxObs, tMJD in enumerate(self.timeObs):
             for idxStar in range(4):
-                if self.coordStarTarget[idxObs, idxStar, 1] > self.MaxDZ:
-                    # must replace this star 
+                if self.coordStarTarget[idxObs, idxStar, 1] > self.MaxDZ:                                    
                     print "Must replace star Id %d at %f"%(self.idxStarTarget[idxObs, idxStar],tMJD)
                     # select possible star
                     self.oCat.computCoordRefObsMJD(tMJD)
@@ -220,21 +309,52 @@ class ObsStrategyReal01(object):
                         print "select zone 1"
                     idxStarSel = np.random.randint(len(lIdxHor))                    
                     idxNewStar = self.oCat.lIdxSelect[lIdxHor[idxStarSel]]
+                    print self.oCat.kurucz[idxNewStar]
                     # replace idx star
                     self.idxStarTarget[idxObs:, idxStar] = idxNewStar
                     # update coordloc all , not optimal but easy ..
                     for idx2, tMJD2 in enumerate(self.timeObs):
                         self.coordStarTarget[idx2] = self.oCat.computCoordRefObsMJD(tMJD2, self.idxStarTarget[idx2])
-                    
-            
+                        
+                        
+    def saveResultAlgo02(self, pFile):
+        oData = DataPositionStarTarget()
+        oData.setPeriodObs(self.Date, self.tDeb, self.tEnd)
+        IdStar = self.oCat.Id[self.idxStarTarget]
+        oData.setStarPosition(IdStar, self.coordStarTarget, self.timeObs)
+        # alloc
+        nbStar=0
+        lId = [] # identificator Hipparcos
+        lIdx = [] # index 
+        print "idxStarTarget:",  self.idxStarTarget  
+        print "IdStar: ",IdStar
+        rIdxStarTarget = self.idxStarTarget.ravel()
+        for idx,iStar in enumerate(IdStar.ravel()):
+            print idx,iStar, lId
+            if not (iStar in lId):
+                lId.append(iStar)
+                lIdx.append(rIdxStarTarget[idx])
+                nbStar += 1
+        aId = np.array(lId, dtype=np.int64)
+        aKur = np.empty((nbStar,3), dtype=np.float32)
+        aPar = np.empty(nbStar, dtype=np.float32)
+        aMag = np.empty(nbStar, dtype=np.float32)
+        aSpect = np.zeros((nbStar,8), dtype=np.uint8)
+        for idx, iStar in enumerate(aId):
+            i = lIdx[idx]
+            aKur[idx]   = self.oCat.kurucz[i]
+            aPar[idx]   = self.oCat.paral[i]
+            aMag[idx]   = self.oCat.mag[i]
+            aSpect[idx] = self.oCat.spectral[i]    
+        oData.setStarConstant(aId, aKur, aPar, aMag, aSpect)
+        oData.save(pFile)
+        print oData
         
         
         
 ##############################
 # Plot
-##############################
-        
-         
+##############################                 
          
     def doMultiplot(self, pDate, pPasMn, pNpas):
         mDate = copy.copy(pDate)

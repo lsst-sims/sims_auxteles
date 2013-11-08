@@ -525,7 +525,16 @@ def deltaMagnitudeAB(SFDstar, wl_SFDstar, TransTrue, TransEst, wl_Trans, letterF
     return -2.5*np.log10(sumTranstrue/sumTransEst)
     
     
-    
+def getDirectory(path):
+    """
+    path=/path/to/my/file.xx
+    return 
+    /path/to/my
+    """
+    ipath = path[::-1]
+    idx = ipath.find('/')
+    return ipath[idx+1:][::-1]
+        
 
 if __name__ == "__main__":
     #plotFile('/home/colley/temp/lsst/auxteles/short_total_g.dat')
@@ -537,7 +546,7 @@ if __name__ == "__main__":
     lFile.append('/home/colley/temp/lsst/auxteles/short_total_y.dat')
     plotListFile(lFile)
     pl.xlabel('nm')  
-    pl.xlabel('transmission')    
+    pl.ylabel('transmission')    
     pl.title("LSST Filter")
-    pl.grid()
+    pl.gri
     pl.show()
