@@ -1,4 +1,5 @@
 import unittest
+
 from burkeAtmModel import *
 import scipy.optimize as spo
 
