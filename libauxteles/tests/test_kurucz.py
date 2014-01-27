@@ -3,9 +3,11 @@ Created on 14 nov. 2012
 
 @author: colley
 '''
+from mpl_toolkits.mplot3d import Axes3D
 import unittest
+
 from kurucz import *
-from mpl_toolkits.mplot3d import Axes3D 
+
 
 FileKuruczPic = '../../data/kurucz93/k93.pic'
 
@@ -465,7 +467,7 @@ def test_MK2Kurucz():
      
       
 #test_setWLInterval()
-#test_plotFlux()
+test_plotFlux()
 #test_getFluxInterLin()
 #test_resample()
 #test_fitTempGra()
