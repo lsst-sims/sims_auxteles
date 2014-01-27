@@ -5,10 +5,11 @@ Created on 14 nov. 2012
 '''
 
 import numpy as np
-import templatMODTRAN as tmod
 import pylab as pl
+import templatMODTRAN as tmod
 import tools as tl
-    
+
+
 class BurkeAtmModel(object):
     """
     Burke parameter model are storage in _Par[] variable with order:

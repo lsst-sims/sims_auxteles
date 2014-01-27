@@ -3,12 +3,12 @@ Created on 13 sept. 2013
 
 @author: colley
 '''
-import numpy as np 
-import kurucz as kur
-import pickle as pk
-import pylab as pl
 import Astrotools as astro
 import MJDtools as mjd
+import kurucz as kur
+import numpy as np
+import pickle as pk
+import pylab as pl
 
 
 def arrayInt2str(aInt):

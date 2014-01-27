@@ -4,6 +4,18 @@ Created on 6 dec. 2012
 @author: colley
 '''
 import sys
+
+import atmStarSolver as sol
+from burkeAtmModel import BurkeAtmModel
+import kurucz as kur
+import numpy as np
+import observationAuxTeles as obsAT
+import pickle as pk
+import pylab as pl
+import starTargetSimu as star
+import tools as tl
+
+
 sys.path.append('../libauxteles')
 sys.path.append('../simSpectro')
 
@@ -12,15 +24,6 @@ G_FileKuruczPic = '../data/kurucz93/k93.pic'
 G_fileModtran = '../data/modtran/TemplateT04.01_1.txt'
 
 
-import atmStarSolver as sol
-import starTargetSimu as star
-import observationAuxTeles as obsAT
-import kurucz as kur
-import pylab as pl
-from burkeAtmModel import BurkeAtmModel
-import numpy as np
-import tools as tl 
-import pickle as pk
 
 
 ###############################################################################

@@ -4,23 +4,26 @@ Created on 16 avr. 2013
 @author: colley
 '''
 
+import os
 import sys
+
+import AuxSpecGen as aux
+import atmStarSolver as sol
+import burkeAtmModel as atm
+import kurucz as kur
+import numpy as np
+import observationAuxTeles as obsAT
+import pickle as pk
+import pylab as pl
+import starTargetSimu as star
+import tools as tl
+
+
 sys.path.append('../libauxteles')
 sys.path.append('../simSpectro')
 
 
 
-import atmStarSolver as sol
-import starTargetSimu as star
-import observationAuxTeles as obsAT
-import kurucz as kur
-import pylab as pl
-import burkeAtmModel as atm
-import numpy as np
-import AuxSpecGen as aux
-import pickle as pk
-import tools as tl
-import os
 
 
 G_FileKuruczPic = os.path.join(tl.getDirectory(__file__),'../data/kurucz93/k93.pic')
@@ -335,8 +338,8 @@ def simuWithDifferentResolution():
     wlMin = 400
     wlMax = 950
     snr = 200
-    lRes = [50, 100, 200, 300, 400, 500, 600, 700,800]    
-    #lRes = [ 100, 800]
+    #lRes = [50, 100, 200, 300, 400, 500, 600, 700,800]    
+    lRes = [ 100, 800]
     lEC = []
     lMean = []
     nbLoop = 7

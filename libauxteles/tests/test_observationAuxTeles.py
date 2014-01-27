@@ -63,12 +63,25 @@ def test_ObsSurveySimuV2_2_doSimu():
     simu.oObs.plotFlux(3)
     simu.oObs.plotFlux(4)
     simu.oObs.plotFlux(5)
-   
+    
+
+def test_ObsSurveySimuV2_2_posStar():
+    print "============== test_ObsSurveySimuV2_2_doSimu"
+    simu = simuV2_2.SimuVersion2_2()
+    simu.setFileStarPos(S_StarPos)
+    simu.computeExposureTime(200, 500)
+    print simu.dataStar
+    simu.doSimuWithFastModel()
+    simu.oObs.plotAllPositionStar("", 'starpos') 
+ 
+ 
 #
 # TEST
 #
+
 #test_ObsSurveySimuV2_2_init()
-test_ObsSurveySimuV2_2_doSimu()
+#test_ObsSurveySimuV2_2_doSimu()
+test_ObsSurveySimuV2_2_posStar()
 
 
 try:

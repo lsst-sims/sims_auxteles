@@ -13,6 +13,7 @@ import scipy.interpolate as sci
 import scipy.optimize as spo
 import lmfit as lm
 
+
 #
 # fit coefficient MK to Kurucz, defined by M. Creze, APC
 #
@@ -42,8 +43,8 @@ S_MK2TGM = np.array([[
 S_ROM = {'I': 0, 'II': 1, 'III':2, 'IV': 3, 'V': 4}
 
 
-S_KMType = {'O': 0, 'B': 10, 'A': 20, 'F': 30, 'G': 40, 'K': 50, 'M': 60}
-#S_KMType = {'B': 10, 'A': 20, 'F': 30, 'G': 40, 'K': 50, 'M': 60}
+#S_KMType = {'O': 0, 'B': 10, 'A': 20, 'F': 30, 'G': 40, 'K': 50, 'M': 60}
+S_KMType = {'B': 10, 'A': 20, 'F': 30, 'G': 40, 'K': 50, 'M': 60}
 
 
 
@@ -210,7 +211,7 @@ class Kurucz(object):
         """
         convert Morgan-Keenan system in temp, grav, met
         
-        spec [xy] x in [OBAFGKM] y in [0..9]
+        spec [xy] x in [BAFGKM] y in [0..9]
         lum  in [I,II,III,IV,V]
         
         
@@ -220,7 +221,7 @@ class Kurucz(object):
         try: 
             x = Kurucz.S_KMType[spec[0]]
         except:
-            print "error letter not in [OBAFGKM]: ", spec[0]
+            print "error letter not in [BAFGKM]: ", spec[0]
             return None
         try:
             xunit = int(spec[1])

@@ -4,13 +4,14 @@ Created on 6 nov. 2012
 @author: colley
 '''
 
-import numpy as np
 import math
-import pyfits as pf
-import scipy.interpolate as sci
-import scipy as sp
-import pylab as pl
 
+import numpy as np
+import pyfits as pf
+import pylab as pl
+import scipy as sp
+import scipy.interpolate as sci
+import os.path as osp
 
 
 S_verbose = 0
@@ -374,7 +375,7 @@ def stellarRadius(temp, magApp, parallaxe):
     """ 
     absMag = magApp - 5*np.log10(1000.0/parallaxe) + 5
     # 4.83 abs magnitude of sun
-    rap = ((5800.0/temp)**2)*(2.5**(4.83-absMag))**0.5
+    rap = ((5800.0/temp)**2)*(2.512**(4.83-absMag))**0.5
     # 696342 km sun radius
     return 696342 * rap
 
@@ -524,7 +525,11 @@ def deltaMagnitudeAB(SFDstar, wl_SFDstar, TransTrue, TransEst, wl_Trans, letterF
         return None
     return -2.5*np.log10(sumTranstrue/sumTransEst)
     
-    
+
+def getRootPackage():
+    return osp.normpath(getDirectory(__file__)+'/..')
+
+  
 def getDirectory(path):
     """
     path=/path/to/my/file.xx
@@ -534,7 +539,10 @@ def getDirectory(path):
     ipath = path[::-1]
     idx = ipath.find('/')
     return ipath[idx+1:][::-1]
-        
+
+def getOutputDir():
+    return osp.normpath(getDirectory(__file__)+'/../output')
+
 
 if __name__ == "__main__":
     #plotFile('/home/colley/temp/lsst/auxteles/short_total_g.dat')

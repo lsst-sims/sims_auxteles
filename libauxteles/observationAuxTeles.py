@@ -13,10 +13,12 @@ import AuxSpecGen as aux
 import copy as cp
 import tools as tl
 import obsStrategy as obS
+import os
 
 
-
+###############################################################################
 class ObsSurvey(object):
+###############################################################################
     def __init__(self):
         # array flux measured
         self.aFlux = None
@@ -62,8 +64,10 @@ class ObsSurvey(object):
         pl.title('Obs flux '+pTitle)
         pl.grid()
         
-
+        
+###############################################################################
 class ObsSurveySimu01(ObsSurvey):
+###############################################################################
     """
     simu with random position, atm param
     
@@ -145,11 +149,9 @@ class ObsSurveySimu01(ObsSurvey):
         # time
         self._SimuConstObs[:,3] = np.arange(self._NbFlux)
         
-        
 
 # PUBLIC        
 ########    
-
 
 # SETTER              
     def setStarTarget(self, pOstar):
@@ -470,9 +472,29 @@ class ObsSurveySimu01(ObsSurvey):
             pl.plot(self.getWL(), self.aFlux[idx,:])
             pl.title("Flux simu star/atm %d"%idx)
             pl.grid()
+    
+    
+    def plotAllPositionStar(self, pTit, pName=None):
+        perObs = -1
+        for idx, Lobs in enumerate(self._SimuConstObs):
+            if perObs != self._SimuParObsIdx[idx,2]:
+                if pName != None and perObs >= 0 :
+                    mfile = "../output/%s%03d.png"%(pName, perObs)
+                    mfile = os.path.join(tl.getDirectory(__file__),mfile)
+                    print mfile
+                    pl.savefig(mfile)                
+                pl.figure()
+                ax = pl.subplot(111, polar=True)                
+                ax.grid(True)                                
+                perObs = self._SimuParObsIdx[idx,2]
+                ax.set_title(pTit+" period %d"%perObs)
+            ax.plot(Lobs[1], np.cos(Lobs[0]), '*y', markersize=10)
+            ax.set_rmax(1.0)
+         
 
-
+###############################################################################
 class ObsSurveySimuTemp(ObsSurveySimu01):
+###############################################################################
     """
     simu with random position, atm param, 
     star : only one parameter temperature
@@ -546,10 +568,12 @@ class ObsSurveySimuTemp(ObsSurveySimu01):
             self._NameStar.append('$t\degree$')   
     
 
+###############################################################################
 class ObsSurveySimuV2_1(ObsSurveySimu01):
+###############################################################################
     """
     Simu with :
-     * star flux : catalog flux done by Kurucz model
+     * star flux : catalog flux done by Kurucz model with temerature and gravity
      * star mvt  : random position 
      * atm       : Burke with constraints random parameters 
      * spectro   : used simulator designed by G. Bazin
@@ -874,11 +898,12 @@ class ObsSurveySimuV2_1(ObsSurveySimu01):
         return atmStarMod
 
 
-
+###############################################################################
 class ObsSurveySimuV2_2(ObsSurveySimuV2_1):
+###############################################################################
     """
     Simu with :
-     * star flux : catalog flux done by Kurucz model
+     * star flux : catalog flux done by Kurucz model with temerature and gravity
      * star mvt  : simulation from Hipparcos catalog, self.DataStar 
      * atm       : Burke with constraints random parameters 
      * spectro   : used simulator designed by G. Bazin

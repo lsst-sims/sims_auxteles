@@ -13,6 +13,7 @@ import pylab as pl
 import copy
 import ephem as eph 
 import pickle as pk
+import tools as tl
 
 
 S_LevelPlot = 5
@@ -89,7 +90,9 @@ class DataPositionStarTarget(object):
         return ret 
 
 
+###############################################################################
 class ObsStrategyReal(object):
+###############################################################################    
     def __init__(self, fileCat):
         oTemp = hip.StarCatalog(0)
         self.oCat =  hip.StarCatalog(0)      
@@ -222,6 +225,7 @@ class ObsStrategyReal(object):
          * self.tDeb, self.tEnd : time begin end observation
          
         return:
+           Position of 4 star at each instant, manage rising and setting star
         """
         # define number of observation
         # =============================
@@ -236,6 +240,7 @@ class ObsStrategyReal(object):
         self.tEnd = Tephem[1]
         tDeb = mjd.tomjd_day(list(Tephem[0].triple()))
         tEnd = mjd.tomjd_day(list(Tephem[1].triple()))
+        print "mjd ", tDeb, tEnd
         # coherence test
         duree = (tEnd-tDeb)*24.0
         if duree<0 or duree > 14: 
@@ -246,7 +251,7 @@ class ObsStrategyReal(object):
         #
         # number of period observation
         self.nbPeriodObs = int(duree*60/self.deltaTimeObs)
-        # star target coordinates
+        # star target local coordinates
         self.coordStarTarget = np.empty((self.nbPeriodObs,4,2), dtype=np.float64)
         # time period observation
         self.timeObs = tDeb + (np.arange(self.nbPeriodObs)*20.)/(60*24)
@@ -317,6 +322,112 @@ class ObsStrategyReal(object):
                         self.coordStarTarget[idx2] = self.oCat.computCoordRefObsMJD(tMJD2, self.idxStarTarget[idx2])
                         
                         
+    def selectAlgo03(self, pDate, nbPeriodObs=24):
+        """
+        pDate like [2013, 6, 21]
+        
+        defined:
+         * self.tDeb, self.tEnd : time begin end observation
+         
+        return:
+          only 4 stars and fix nbPeriodObs
+        """
+        # define number of observation
+        # =============================
+        Tephem= self.getRisingSettingSun(pDate)
+        if Tephem == None:
+            print "Can't observe with condition !"
+            return 
+        print Tephem
+        #print list(Tephem[0].triple())
+        self.Date = pDate
+        self.tDeb = Tephem[0]
+        self.tEnd = Tephem[1]
+        tDeb = mjd.tomjd_day(list(Tephem[0].triple()))
+        tEnd = mjd.tomjd_day(list(Tephem[1].triple()))
+        print "mjd ", tDeb, tEnd
+        # coherence test
+        dureeHour = (tEnd-tDeb)*24.0
+        if dureeHour<0 or dureeHour > 14: 
+            print "duration NOK ? %fh"%dureeHour
+            return False
+        print "dureeHour de la nuit:", (tEnd-tDeb)*24.0
+        # alloc data structure
+        #
+        # number of period observation
+        self.deltaTimeObs = 5.0
+        self.nbPeriodObs = int(dureeHour*60/self.deltaTimeObs)
+        # star target coordinates
+        self.coordStarTarget = np.empty((self.nbPeriodObs,4,2), dtype=np.float64)
+        # time period observation
+        self.timeObs = tDeb + np.arange(self.nbPeriodObs)*(self.deltaTimeObs/(60*24))
+        # index star target in catalog self.oCat
+        self.idxStarTarget = np.ones((self.nbPeriodObs,4), dtype=np.int64)        
+        print "nbPeriodObs:", self.nbPeriodObs
+        print self.timeObs
+        # First selection at tDeb        
+        self.oCat.computCoordRefObsMJD(tDeb)
+        self.oCat.selectVisibleStar(self.MaxDZ)        
+        self._selectNearZenith()
+        self._selectNearHorizon()
+        # choice ref star random
+        selectStarVis = []        
+        selectStarVis.append(self.lIdxHor1[0])        
+        selectStarVis.append(self.lIdxHor2[0])
+        selectStarVis.append(self.lIdxZen3[0])        
+        selectStarVis.append(self.lIdxZen4[0])        
+        selectStar = [self.oCat.lIdxSelect[idx] for idx in selectStarVis]            
+        # compute position of ref. star for each observation period
+        self.idxStarTarget *= np.array(selectStar)
+        print self.idxStarTarget
+        print self.oCat.kurucz[selectStar]
+        for idx, tMJD in enumerate(self.timeObs):
+            self.coordStarTarget[idx] = self.oCat.computCoordRefObsMJD(tMJD, self.idxStarTarget[idx])
+        # test rising selection stars
+        rising = False
+        for idxObs, tMJD in enumerate(self.timeObs):            
+            for idxStar in range(4):
+                print tMJD, idxStar
+                if self.coordStarTarget[idxObs, idxStar, 1] > self.MaxDZ:                                    
+                    print "Must replace star Id %d at %f"%(self.idxStarTarget[idxObs, idxStar],tMJD)
+                    rising = True
+                if rising: break
+            if rising: break
+        # fix end time when first star rising
+        tEnd = tMJD
+        print "mjd ", tDeb, tEnd
+        # coherence test
+        dureeHour = (tEnd-tDeb)*24.0
+        if dureeHour<0 or dureeHour > 14: 
+            print "duration NOK ? %fh"%dureeHour
+            return False
+        print "dureeHour de la nuit:", (tEnd-tDeb)*24.0
+        # alloc data structure
+        #
+        # number of period observation
+        self.nbPeriodObs = nbPeriodObs*1.0
+        deltaTpsObsHour =  dureeHour/self.nbPeriodObs
+        self.deltaTimeObs =  deltaTpsObsHour*60
+        # star target coordinates
+        self.coordStarTarget = np.empty((self.nbPeriodObs,4,2), dtype=np.float64)
+        # time period observation
+        self.timeObs = tDeb + np.arange(self.nbPeriodObs)*deltaTpsObsHour/24        
+        print "new time observation: ", self.timeObs, tEnd
+        # index star target in catalog self.oCat
+        self.idxStarTarget = np.ones((self.nbPeriodObs,4), dtype=np.int64)        
+        print "nbPeriodObs:", self.nbPeriodObs
+        # First selection at tDeb        
+        self.idxStarTarget *= np.array(selectStar)
+        print "idxStarTarget: ", self.idxStarTarget
+        print self.oCat.kurucz[selectStar]
+        for idx, tMJD in enumerate(self.timeObs):
+            self.coordStarTarget[idx] = self.oCat.computCoordRefObsMJD(tMJD, self.idxStarTarget[idx])
+        print "Result:"
+        print '  nb obs: ', self.nbPeriodObs
+        print '  Time observation:\n', self.timeObs
+        print '  position: \n', self.coordStarTarget
+                        
+                        
     def saveResultAlgo02(self, pFile):
         oData = DataPositionStarTarget()
         oData.setPeriodObs(self.Date, self.tDeb, self.tEnd)
@@ -381,12 +492,12 @@ class ObsStrategyReal(object):
             pl.savefig(mfile)
             
             
-    def doMultiplotAlgo02(self):
+    def doMultiplotAlgo(self, nameFile="starView"):
         t0 = self.timeObs[0]
         for idxTime, tMJD in enumerate(self.timeObs):
             self.oCat.computCoordRefObsMJD(tMJD)
             self.oCat.selectVisibleStar(90)
-            mfile="/home/colley/temp/montage/starViewAlgo02-%03d.png"%idxTime
+            mfile=tl.getRootPackage()+"/output/%s-%03d.png"%(nameFile,idxTime)
             d0 = (tMJD-t0)*24
             hour = int(d0)
             mnt = (d0-hour)*60
@@ -398,6 +509,18 @@ class ObsStrategyReal(object):
             pl.savefig(mfile)
             print mfile
         
+        
+    def doPlotStarTraj(self):
+        """
+        trajectory of selected stars on one plot
+        """
+        pl.figure()
+        ax = pl.subplot(111, polar=True)
+        ax.set_title("Trajectory of stars selected")
+        for aPos in self.coordStarTarget:
+            for pos in aPos:                
+                ax.plot(np.deg2rad(pos[0]), np.sin(np.deg2rad(pos[1])),'*y', markersize=10)
+
         
 #
 # STAT

@@ -69,8 +69,20 @@ def test_selectAlgo02():
     oObs = ObsStrategyReal(S_pathCat)
     oObs.selectMag(7, 8)
     oObs.selectAlgo02([2013, 12, 21])
+    #oObs.saveResultAlgo02("selectStar.pkl")
+    #oObs.doMultiplotAlgo02()
+    
+    
+def test_selectAlgo03():
+    # seed 14 OK
+    np.random.seed(14)
+    oObs = ObsStrategyReal(S_pathCat)
+    oObs.selectMag(7, 7.2)
+    oObs.selectAlgo03([2013, 12, 21],20)
     oObs.saveResultAlgo02("selectStar.pkl")
-    oObs.doMultiplotAlgo02()
+    oObs.doPlotStarTraj()
+
+   
       
 #
 # 
@@ -84,10 +96,10 @@ def test_selectAlgo02():
 #test_selectAlgo01()
 #test_doMultiplotSelect()
 #test_getRisingSettingSun()
-test_selectAlgo02()
+test_selectAlgo03()
 
 
-#try:
-#    pl.show()
-#except AttributeError:
-#    pass
+try:
+    pl.show()
+except AttributeError:
+    pass

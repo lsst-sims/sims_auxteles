@@ -4,9 +4,10 @@ Created on 3 juin 2013
 @author: colley
 '''
 import unittest
-from starTargetSimu import *
+
 import kurucz as kz
 import obsStrategy as obS
+from starTargetSimu import *
 
 
 S_FileKuruczPic = '../../data/kurucz93/k93.pic'

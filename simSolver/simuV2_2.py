@@ -4,25 +4,31 @@ Created on 30 oct. 2013
 @author: colley
 '''
 
+import os
 import sys
+
+import AuxSpecGen as aux
+import atmStarSolver as sol
+import burkeAtmModel as atm
+import kurucz as kur
+import numpy as np
+import obsStrategy as obS
+import observationAuxTeles as obsAT
+import pickle as pk
+import pylab as pl
+import simuV2_1 as simu
+import starTargetSimu as star
+import tools as tl
+
+
 sys.path.append('../libauxteles')
 sys.path.append('../simSpectro')
 
-S_StarPos = "../data/simuRef/starPos2013-12-21.pkl"
 
-import atmStarSolver as sol
-import starTargetSimu as star
-import observationAuxTeles as obsAT
-import kurucz as kur
-import pylab as pl
-import burkeAtmModel as atm
-import numpy as np
-import AuxSpecGen as aux
-import pickle as pk
-import simuV2_1 as simu
-import obsStrategy as obS
-import os
-import tools as tl
+#S_StarPos = "../data/simuRef/starPos2013-12-21.pkl"
+S_StarPos = "../data/simuRef/select4Star_20.pkl"
+
+
 
 
 ###############################################################################
@@ -61,7 +67,7 @@ class SimuVersion2_2(simu.SimuVersion2_1):
         #
         d = self.dataStar
         self.oStarCat.setAllStars(d.Kur[:,0], d.Kur[:,2], d.Kur[:,1], d.Mag, d.Par, d.IdCst)
-        #self.oStarCat.setMetToZero()
+        self.oStarCat.setMetToZero()
         print self.oStarCat._aParam
      
 
@@ -89,7 +95,6 @@ class SimuVersion2_2(simu.SimuVersion2_1):
         self.oAuxTel.setAtmTrans(self.oAtm.getWL()/10.0, transAtm)
         self.oAuxTel.setStarSpectrum(self.oStarCat._oKur.getWL()/10.0, self.oStarCat.getFluxIdxAtEarth(0))
         self.oAuxTel.setResolutionAndAjustNBPixel(self.oAtm.getResolution(), self._Resol)
-        #self.oAuxTel.setResolutionAndAjustNBPixel(60, resol)
         print "nb pixel ", self.oAuxTel.nbpixel
         #self.oStarCat.plotAll()
         lTimeInt = []
@@ -139,10 +144,13 @@ class SimuVersion2_2(simu.SimuVersion2_1):
 #
 
 def test_SimuwithFastModelSpectro():
+    """
+    
+    """
     np.random.seed(29)
     oSim = SimuVersion2_2()
     oSim.setFileStarPos(S_StarPos)
-    snr = 200.0
+    snr = 2000000000000.0
     resolution = 500
     wlMin = 400
     wlMax = 950
@@ -165,6 +173,82 @@ def test_SimuwithFastModelSpectro():
         oSim.oSol.plotFluxRawTheo(3, oSim.oSol._parEst)
         #oSim.oSol.plotFluxRawTheo(36, oSim.oSol._parEst)
         
+
+def simuWithDifferentResolution():
+    obsByNight = 20
+    wlMin = 400
+    wlMax = 950
+    snr = 200
+    lRes = [50, 100, 200, 300, 400, 500, 600, 700,800]    
+    lRes = [ 200, 500]
+    lEC = []
+    lMean = []
+    nbLoop = 7
+    nbRes = len(lRes)
+    aSTDTol = np.zeros((nbLoop, nbRes, obsByNight*4), dtype=np.float64)
+    for Li in range(nbLoop):
+        for iRes,resol in enumerate(lRes):
+            np.random.seed(260+Li)
+            oSim = SimuVersion2_2()
+            oSim.setFileStarPos(S_StarPos)
+            oSim.computeExposureTime( snr, resol, wlMin, wlMax)  
+            oSim.doSimuWithFastModel(wlMin, wlMax)
+            oSim.initSolver()
+            guess = oSim.oObs.getGuessDefault()
+            oSim.oSol.solveAtmStarTempGraWithBounds(guess)
+            errRelTot, aSTD = oSim.oSol.transmisErrRelAtmAllAndSTD()
+            aSTDTol[Li, iRes, :] = aSTD
+            lMean.append( errRelTot.mean() )
+            lEC.append( errRelTot.std() )
+    aSTDres = np.array([[a.mean(),a.std()] for a in [aSTDTol[:,i,:] for i in range(nbRes)]])
+    aMean = np.array(lMean).reshape(nbLoop, len(lRes))
+    aEC = np.array(lEC).reshape(nbLoop, len(lRes))
+    fOut = "stdERvResSNR%dspectro2-%d.pkl"%(snr,nbLoop)
+    f=open(fOut, "wb")
+    pk.dump(aEC, f, pk.HIGHEST_PROTOCOL)
+    f.close()
+    fOut = "meanERvResSNR%dspectro2-%d.pkl"%(snr,nbLoop)
+    f=open(fOut, "wb")
+    pk.dump(aMean, f, pk.HIGHEST_PROTOCOL)
+    f.close()
+    pl.figure()
+    pl.title("Standard deviation of true relative error atmospheric transmission, SNR ~%.1f"%oSim.oObs.snrMean)
+    print aEC.mean(axis=0), aEC.std(axis=0)
+    pl.errorbar(lRes, aEC.mean(axis=0), yerr=aEC.std(axis=0), fmt='ro')
+    pl.errorbar(lRes, aSTDres[:,0], yerr=aSTDres[:,1], fmt='bo')
+    pl.xlim((20, 900))
+    pl.ylim((0, 0.4))
+    pl.grid()
+    pl.ylabel("standard deviation in %")
+    pl.xlabel("spectro resolution")   
+    pl.figure()
+    pl.title("Standard deviation of true relative error atmospheric transmission, SNR ~%.1f"%oSim.oObs.snrMean)
+    print aEC.mean(axis=0), aEC.std(axis=0)
+    pl.errorbar(lRes, aSTDres[:,0], yerr=aSTDres[:,1], fmt='bo')
+    pl.xlim((20, 900))
+    pl.ylim((0, 0.4))
+    pl.grid()
+    pl.ylabel("standard deviation in %")
+    pl.xlabel("spectro resolution")   
+    pl.figure()
+    pl.title("Mean of true relative error atmospheric transmission, SNR ~%.1f"%oSim.oObs.snrMean)
+    print aMean.mean(axis=0), aMean.std(axis=0)
+    pl.errorbar(lRes, aMean.mean(axis=0), yerr=aMean.std(axis=0), fmt='ro')
+    pl.xlim((20, 900))
+    pl.grid()
+    pl.ylabel("mean relative error in %")
+    pl.xlabel("spectro resolution")     
+    pl.figure()
+    pl.title("true relative error atmospheric transmission, SNR ~%.1f"%oSim.oObs.snrMean)
+    pl.errorbar(lRes, aMean.mean(axis=0), yerr=aMean.std(axis=0), fmt='bo',label="mean")
+    pl.errorbar(lRes, aSTDres[:,0], yerr=aSTDres[:,1], fmt='ro',label="std dev")
+    pl.xlim((20, 900))
+    pl.legend(numpoints=1)
+    pl.grid()
+    pl.ylabel(" %")
+    pl.xlabel("spectro resolution")   
+    
+
         
 #
 # MAIN 
@@ -172,6 +256,7 @@ def test_SimuwithFastModelSpectro():
         
 if __name__ == "__main__":
     test_SimuwithFastModelSpectro()
+    #simuWithDifferentResolution()
 
 try:
     pl.show()

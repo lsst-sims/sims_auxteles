@@ -3,15 +3,14 @@ Created on 5 dec. 2012
 
 @author: colley
 '''
-import observationAuxTeles as obsAT
-import scipy.optimize as spo
-import numpy as np
-import kurucz as kur
 import burkeAtmModel as atm
-import pylab as pl
+import kurucz as kur
 import lmfit as lm
-import tools as tl 
-
+import numpy as np
+import observationAuxTeles as obsAT
+import pylab as pl
+import scipy.optimize as spo
+import tools as tl
 
 
 def getCorrelMatrixFromlmfit(pPars):
@@ -438,7 +437,7 @@ class AtmStarSolver(object):
             if idx in aIdxGra:
                 parGuess.add("p%d"%idx, val, min= 0.5, max=4.5)
             elif idx in aIdxTgray:
-                parGuess.add("p%d"%idx, val, min= 0.4, max=1.00001)
+                parGuess.add("p%d"%idx, val, min= 0.4, max=1.0)
             elif idx in aIdxalpha:
                 parGuess.add("p%d"%idx, val, min= -2.1, max=0)
             elif idx in aIdxTau0:

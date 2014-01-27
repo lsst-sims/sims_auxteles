@@ -43,10 +43,16 @@ def test_deltaMagnitudeABLin():
     
 def test_vega(): 
     print coefKuruczEarth(9600, 0.03, 129)
-    
+
+def test_getOutputDir():
+    print "test_getOutputDir: "
+    print getOutputDir()
+ 
 test_vega()    
 test_deltaMagnitudeABConst()
 test_deltaMagnitudeABLin()
+test_getOutputDir()
+
 
 class Test(unittest.TestCase):
 
@@ -58,8 +64,9 @@ class Test(unittest.TestCase):
         
     def test_02(self):
         # mon comm
-        ret = readTextFileColumn('/home/colley/temp/lsst/modtran/TemplateT04.01_1.txt')        
+        ret = readTextFileColumn(getRootPackage()+'/data/modtran/TemplateT04.01_1.txt')        
         print ret
+
 
     def test_stellarRadius(self):
         """

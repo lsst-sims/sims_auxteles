@@ -4,8 +4,8 @@ Created on 21 fevr. 2013
 @author: colley
 '''
 import basicSimuV01 as bsimu
-import pylab as pl
 import numpy as np
+import pylab as pl
 
 
 def plotStdERtransVersusSNR():
