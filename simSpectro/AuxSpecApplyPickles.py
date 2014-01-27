@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from starspectrum import *
 from ATMCombSpec import *
-from mirror import *
-from grism import *
 from ccd import *
 from filter import *
+from grism import *
+from mirror import *
+from starspectrum import *
 
 
 liststars = []

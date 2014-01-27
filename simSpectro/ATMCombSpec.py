@@ -1,8 +1,11 @@
 from scipy import *
+
 from constants import *
+import numpy as np
 import pylab as pl
-import numpy as np 
-import tools as tl 
+import tools as tl
+
+
 class ATMCombSpec:
 
     def __init__(self):

@@ -5,9 +5,11 @@ Created on 31 août 2012
 @author: colley
 '''
 
+import sys
+
 import numpy as np
 import pylab as pl
-import sys 
+
 
 # en m/s
 G_SpeedLight = 3e8

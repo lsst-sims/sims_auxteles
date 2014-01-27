@@ -12,27 +12,25 @@
 
 # include some useful libraries
 import getopt
-import sys
 import os
+import sys
 
-# and class definitions
-import starspectrum as star
 import ATMCombSpec as atm
-import mirror as mir
-import grism as grm
-import ccd 
-import CalibSys as cal 
-import scipy as sp 
+import CalibSys as cal
+import ccd
+from constants import hplanck
 import constants as cst
+import grism as grm
+import mirror as mir
 import numpy as np
 import pylab as pl
-from constants import hplanck
+import scipy as sp
 import scipy.interpolate as spi
+import starspectrum as star
 import tools as tl
 
 
-
-
+# and class definitions
 def getDirectory(path):
     """
     path=/path/to/my/file.xx
@@ -479,9 +477,9 @@ class AuxTeles(object):
         if wlmax == None:
             wlmax = self.star.wlccd[::-1][-1]
         iMin, iMax = tl.indexInIntervalCheck(self.star.wlccd[::-1], wlmin, wlmax)
-        print self.star.wlccd[::-1][0], self.star.wlccd[::-1][-1]
-        print wlmin, wlmax
-        print iMin, iMax
+#        print self.star.wlccd[::-1][0], self.star.wlccd[::-1][-1]
+#        print wlmin, wlmax
+#        print iMin, iMax
         return (snr**2*self.TpsExpo)/self.star.elecccd[::-1][iMin: iMax].mean()
     
 #
@@ -625,6 +623,7 @@ if __name__ == "__main__":
     #pl.ioff()
     #pl.matplotlib.use('GTKAgg')
     main()
+
 
 try:
     pl.show()

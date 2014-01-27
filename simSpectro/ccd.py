@@ -11,10 +11,11 @@
 # include some useful libraries
 # and class definitions
 from constants import *
-#from scipy import *
 import numpy as np
 import pylab as pl
 
+
+#from scipy import *
 class ccd:
 
     def __init__(self):

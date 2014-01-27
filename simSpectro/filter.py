@@ -1,6 +1,7 @@
 from scipy import *
-from scipy import interpolate
+
 from constants import *
+
 
 class filter:
 

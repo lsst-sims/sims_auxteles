@@ -2,7 +2,8 @@
 # basic compute photon-electron for star 
 #
 
-import numpy as np 
+import numpy as np
+
 
 C_speedLigth_m_s = 3.0e8
 C_Planck_J_s = 6.63e-34

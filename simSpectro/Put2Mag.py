@@ -1,9 +1,11 @@
 #!/usr/bin/env python2.6
 # -*- coding: utf-8 -*-
 
-from filter import *
 from scipy.integrate import *
 import sys
+
+from filter import *
+
 
 if len(sys.argv) != 4:
     print 'usage: Put2Mag.py file.in mag file.out'

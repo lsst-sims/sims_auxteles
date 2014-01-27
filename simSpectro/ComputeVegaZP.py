@@ -1,8 +1,10 @@
 #!/usr/bin/env python2.6
 # -*- coding: utf-8 -*-
 
-from filter import *
 from scipy.integrate import *
+
+from filter import *
+
 
 v = filter()
 v.readl('/Users/gurvan/Models/Filters/Landolt/sv_-27A.dat', 1.)

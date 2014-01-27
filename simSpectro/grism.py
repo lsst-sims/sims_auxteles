@@ -11,9 +11,9 @@
 # include some useful libraries
 # and class definitions
 import math
+
 from constants import *
 import numpy as np
-
 
 
 class grism:

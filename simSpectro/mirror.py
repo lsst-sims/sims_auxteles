@@ -10,8 +10,10 @@
 
 # include some useful libraries
 # and class definitions
-from constants import *
 from scipy import *
+
+from constants import *
+
 
 class mirror:
 

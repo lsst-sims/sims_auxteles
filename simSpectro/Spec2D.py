@@ -1,5 +1,6 @@
 import pyfits
 
+
 class Spec2D:
 
     def __init__(self):
