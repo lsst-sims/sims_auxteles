@@ -6,10 +6,8 @@ Created on 2 avr. 2013
 import unittest
 
 from AuxSpecGen import *
-import tools as tl
 import kurucz as kur
-import pylab as pl
-import burkeAtmModel as atm
+
 
 S_DirExple = getModuleDirectory()+"/example/"
 S_StarFile = S_DirExple+'alpha_lyr_stis_004nm.txt'

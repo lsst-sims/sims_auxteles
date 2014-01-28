@@ -23,7 +23,7 @@ import constants as cst
 import grism as grm
 import mirror as mir
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as pl
 import scipy as sp
 import scipy.interpolate as spi
 import starspectrum as star

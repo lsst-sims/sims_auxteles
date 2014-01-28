@@ -8,7 +8,7 @@ import MJDtools as mjd
 import kurucz as kur
 import numpy as np
 import pickle as pk
-import pylab as pl
+import matplotlib.pyplot as pl
 
 
 def arrayInt2str(aInt):

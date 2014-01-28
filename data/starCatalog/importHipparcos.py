@@ -5,15 +5,16 @@
 # Sept 2013
 #
 
+import getopt
 import os
 import sys
-import getopt
+
+import hipparcos as hip
 
 
 sys.path.append('../../libauxteles')
 
 
-import hipparcos as hip
 
 def usage():
     print 'NAME'    

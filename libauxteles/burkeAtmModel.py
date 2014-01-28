@@ -5,7 +5,7 @@ Created on 14 nov. 2012
 '''
 
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as pl
 import templatMODTRAN as tmod
 import tools as tl
 

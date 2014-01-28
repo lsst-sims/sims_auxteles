@@ -18,7 +18,7 @@ import scipy.special
 
 from constants import *
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as pl
 import scipy as sp
 import scipy.interpolate as spi
 import tools as tl

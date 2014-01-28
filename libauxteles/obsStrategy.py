@@ -9,7 +9,7 @@ import hipparcos as hip
 import MJDtools as mjd
 import Astrotools as astro
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as pl
 import copy
 import ephem as eph 
 import pickle as pk

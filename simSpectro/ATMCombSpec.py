@@ -2,7 +2,7 @@ from scipy import *
 
 from constants import *
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as pl
 import tools as tl
 
 

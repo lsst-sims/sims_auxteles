@@ -11,7 +11,7 @@ import kurucz as kur
 import numpy as np
 import observationAuxTeles as obsAT
 import pickle as pk
-import pylab as pl
+import matplotlib.pyplot as pl
 import starTargetSimu as star
 import tools as tl
 

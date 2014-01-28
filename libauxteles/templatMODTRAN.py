@@ -5,7 +5,7 @@ Created on 6 nov. 2012
 '''
 
 import tools as tl 
-import pylab as pl
+import matplotlib.pyplot as pl
 import numpy as np
 
 

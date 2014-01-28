@@ -6,7 +6,7 @@ Created on 4 dec. 2012
 import kurucz as kur
 import numpy as np 
 import tools as tl
-import pylab as pl
+import matplotlib.pyplot as pl
         
         
         

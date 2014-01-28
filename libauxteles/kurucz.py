@@ -8,7 +8,7 @@ import pickle as pk
 import numpy as np
 import math
 import pyfits as pf
-import pylab as pl
+import matplotlib.pyplot as pl
 import scipy.interpolate as sci
 import scipy.optimize as spo
 import lmfit as lm

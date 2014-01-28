@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import unittest
 
 from kurucz import *
-
+pl.ioff()
 
 FileKuruczPic = '../../data/kurucz93/k93.pic'
 

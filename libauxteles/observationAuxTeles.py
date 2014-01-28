@@ -6,7 +6,7 @@ Created on 30 nov. 2012
 
 import burkeAtmModel as atm
 import starTargetSimu as star
-import pylab as pl
+import matplotlib.pyplot as pl
 import kurucz as kur
 import numpy as np
 import AuxSpecGen as aux

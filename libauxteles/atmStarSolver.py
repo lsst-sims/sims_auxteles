@@ -8,7 +8,7 @@ import kurucz as kur
 import lmfit as lm
 import numpy as np
 import observationAuxTeles as obsAT
-import pylab as pl
+import matplotlib.pyplot as pl
 import scipy.optimize as spo
 import tools as tl
 

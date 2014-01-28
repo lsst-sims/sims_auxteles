@@ -8,7 +8,7 @@ import math
 
 import numpy as np
 import pyfits as pf
-import pylab as pl
+import matplotlib.pyplot as pl
 import scipy as sp
 import scipy.interpolate as sci
 import os.path as osp

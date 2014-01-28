@@ -15,7 +15,7 @@ import numpy as np
 import obsStrategy as obS
 import observationAuxTeles as obsAT
 import pickle as pk
-import pylab as pl
+import matplotlib.pyplot as pl
 import simuV2_1 as simu
 import starTargetSimu as star
 import tools as tl

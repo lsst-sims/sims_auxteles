@@ -5,7 +5,7 @@ Created on 21 fevr. 2013
 '''
 import basicSimuV01 as bsimu
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as pl
 
 
 def plotStdERtransVersusSNR():
