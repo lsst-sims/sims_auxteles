@@ -546,15 +546,16 @@ def getOutputDir():
 
 if __name__ == "__main__":
     #plotFile('/home/colley/temp/lsst/auxteles/short_total_g.dat')
-    lFile = ['/home/colley/temp/lsst/auxteles/short_total_u.dat']
-    lFile.append('/home/colley/temp/lsst/auxteles/short_total_g.dat')
-    lFile.append('/home/colley/temp/lsst/auxteles/short_total_r.dat')
-    lFile.append('/home/colley/temp/lsst/auxteles/short_total_i.dat')
-    lFile.append('/home/colley/temp/lsst/auxteles/short_total_z.dat')
-    lFile.append('/home/colley/temp/lsst/auxteles/short_total_y.dat')
+    localPath = '../data/filter/'
+    lFile = [localPath+'short_total_u.dat']
+    lFile.append(localPath+'short_total_g.dat')
+    lFile.append(localPath+'short_total_r.dat')
+    lFile.append(localPath+'short_total_i.dat')
+    lFile.append(localPath+'short_total_z.dat')
+    lFile.append(localPath+'short_total_y.dat')
     plotListFile(lFile)
     pl.xlabel('nm')  
     pl.ylabel('transmission')    
     pl.title("LSST Filter")
-    pl.gri
+    pl.grid
     pl.show()
