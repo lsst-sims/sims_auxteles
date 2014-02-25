@@ -21,7 +21,7 @@ sys.path.append('../simSpectro')
 
 
 G_FileKuruczPic = '../data/kurucz93/k93.pic'
-G_fileModtran = '../data/modtran/TemplateT04.01_1.txt'
+S_fileModtran = '../data/modtran/TemplateT04.01_1.txt'
 
 
 
@@ -33,7 +33,7 @@ class SimuAtmStarSolve():
         self.oKur.setCoefUnit(1e-8)
         self.oKur.resampleBetween(4000, 10000, 500)
         self.oStarCat = star.StarTargetSimuAll(self.oKur, 2)
-        self.oAtm = BurkeAtmModel(G_fileModtran)
+        self.oAtm = BurkeAtmModel(S_fileModtran)
         self.oAtm.resample( self.oKur.getWL() )
         self.oObs = obsAT.ObsSurveySimu01(night,obsByNight)
         self.oObs.setAtmModel(self.oAtm)
@@ -136,7 +136,7 @@ class SimuAtmStarSolveWithResol():
     used data with given resolution
     """
     def __init__(self, night, obsByNight, resol):
-        self.oAtm = BurkeAtmModel(G_fileModtran)
+        self.oAtm = BurkeAtmModel(S_fileModtran)
         self.oAtm.downgradeTemplate(resol)
         # create regular grid, number of node agree with resolution and Nyquist criterion  
         newWL = np.linspace(self.oAtm._aWL[0], self.oAtm._aWL[-1], self.oAtm.getNBins())
@@ -260,7 +260,7 @@ class SimuAtmStarSolve2(SimuAtmStarSolve):
         self.oKur.setCoefUnit(1e-8)
         self.oKur.resampleBetween(4000, 10000, 1000)
         self.oStarCat = star.StarTargetSimuAll(self.oKur,1)
-        self.oAtm = BurkeAtmModel(G_fileModtran)
+        self.oAtm = BurkeAtmModel(S_fileModtran)
         self.oAtm.resample( self.oKur.getWL())
         self.oObs = obsAT.ObsSurveySimu02(night,obsByNight)
         self.oObs.setAtmModel(self.oAtm)

@@ -23,6 +23,13 @@ def test_resampleBetween():
     oMOD.resampleBetween(500, 1000, 512)
     oMOD.plotTemplate(500, 1000, "resample")
     
+    
+def test_restrictWL():
+    oMOD = TemplateMODTRAN(FileMOD)
+    oMOD.plotTemplate()
+    oMOD.restrictWL(300, 1100)
+    oMOD.plotTemplate()
+
 class Test(unittest.TestCase):
 
 
@@ -31,7 +38,9 @@ class Test(unittest.TestCase):
 
 
 #test_plotTemplate()
-test_resampleBetween()
+#test_resampleBetween()
+test_restrictWL()
+
 
 try:
     pl.show()

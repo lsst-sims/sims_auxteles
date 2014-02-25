@@ -255,8 +255,8 @@ def simuWithDifferentResolution():
 #
         
 if __name__ == "__main__":
-    test_SimuwithFastModelSpectro()
-    #simuWithDifferentResolution()
+    #test_SimuwithFastModelSpectro()
+    simuWithDifferentResolution()
 
 try:
     pl.show()

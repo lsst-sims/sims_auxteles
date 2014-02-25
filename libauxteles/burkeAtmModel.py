@@ -28,14 +28,15 @@ class BurkeAtmModel(object):
     
     def _razNeg(self, pAr):
         idx = np.where(pAr < 0.0)[0]
-#        if len(idx)  > 0:
-#            print "======================================================================Some negative value ", idx  
-#            pl.figure()
-#            pl.plot(pAr)
-#            pAr[idx] = 0
-#            pl.plot(pAr,'*')
-#            pl.ploself._AbsH2OConst*t(pAr)
-#            pl.grid()                    
+        if len(idx)  > 0 and False:
+            print "======================================================================Some negative value ", idx  
+            pl.figure()
+            pl.plot(pAr)
+            pAr[idx] = 0
+            pl.plot(pAr,'*')
+            pl.plot(pAr)
+            pl.grid() 
+            pl.show()                   
         pAr[idx] = 0
         return pAr
         
@@ -75,9 +76,14 @@ class BurkeAtmModel(object):
         rangeWL = self._aWL[-1] - self._aWL[0]
         return 2*int(rangeWL/self.getDeltaWL() + 1)
     
+    
     def downgradeTemplate(self, res):
         self._Tpl.downgradeTemplate(res)
-        
+                
+                
+    def restrictWL(self, pWLmin, pWlmax):        
+        self._Tpl.restrictWL(pWLmin, pWlmax)
+        self._aWL = self._Tpl._wl
         
     def downgradeTemplateAndResample(self, res, pWL):
         self._Tpl.downgradeTemplateAndResample(res, pWL)
@@ -98,7 +104,8 @@ class BurkeAtmModel(object):
         tau  = self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3]
         #tau  = self._Par[1] + self._EW*self._Par[2] + self._NS*self._Par[3]
         #print 'rap:', self._aWL[0]/self._WL0, self._aWL[-1]/self._WL0
-        tau *= np.power(self._aWL/self._WL0, self._Par[4])        
+        tau *= np.power(self._aWL/self._WL0, self._Par[4]) 
+        #print "check unit ", self._aWL.mean(),  self._WL0    
         return self._razNeg(self._Par[0]*np.exp(-self._AirMass*tau))
         
     def _transMols(self):
@@ -164,7 +171,7 @@ class BurkeAtmModel(object):
         """
         to have template MODTRAN with any modification
         """
-        self._Par = np.zeros(self._NbPar, dtype=np.float32)
+        self._Par = np.zeros(self._NbPar, dtype=np.float64)
         self.setParamAerosolGray(0.9, 0.05, 0.0, 0.0, -1)
         self.setParamMol(1.0)
         self.setParamOzone(1.0)
@@ -198,7 +205,7 @@ class BurkeAtmModel(object):
         self._EW = np.cos(alt)*np.sin(az)  
         self._NS = np.cos(alt)*np.cos(az)            
         self._PresRat = pressure*1.0/self._PressureRef
-        #print "PresRat: ",self._PresRat, pressure
+        print "PresRat: ",self._PresRat, pressure
         
 # getter
     def computeAtmTrans(self, flagPlot=False):

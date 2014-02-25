@@ -5,7 +5,7 @@ Created on 6 nov. 2012
 '''
 
 import math
-
+from sys import stderr
 import numpy as np
 import pyfits as pf
 import matplotlib.pyplot as pl
@@ -49,7 +49,11 @@ def readTextFileColumn(fileName, sep = None):
     listReal = []
     cptLine = 0
     cptLineTot = 0
-    fd = open(fileName, 'r')
+    try: 
+        fd = open(fileName, 'r')
+    except:
+        print "Can't open ", fileName
+        return None
     for line in fd.readlines():
         cptLineTot +=1
         #print "'%s'"%line 
@@ -205,7 +209,7 @@ def productOf2array(x1, y1, x2, y2, interpolMeth = interpolLinear):
     #
     #print "xMin, xMax ",xMin, xMax
     if x1Inter == None:
-        IdxMin, IdxMax = indexInInterval(x1, xMin, xMax)
+        IdxMin, IdxMax = indexMinMaxInInterval(x1, xMin, xMax)
         x1Inter = x1[IdxMin: IdxMax]
         y1Inter = y1[IdxMin: IdxMax]
     y2Inter = interpolMeth(x2, y2, x1Inter)
@@ -222,20 +226,17 @@ def indexInIntervalCheck(pX, xMin, xMax):
       * None if min(pX) <= xMin < xMax  <=  max(pX) is False
       * idxMin, idxMax as  xMin <= pX[idxMin:idxMax] <= xMax      
     """
-    idx = np.where(pX >= xMin)[0]
-    if len(idx) == 0:
-        print "ERROR [indexInInterval]: xMin <  min(pX)"
-        return None
-    IdxMin = idx[0]
-    idx = np.where(pX <= xMax)[0]
-    if len(idx) == 0:
-        print "ERROR [indexInInterval]: xMax > max(pX)"
-        return None
-    IdxMax = idx[-1]
-    return IdxMin, IdxMax
+    print pX[0], pX[-1]
+    if xMin < pX[0] or xMax > pX[-1]:
+        stderr.write('\nxMin < pX[0] or xMax > pX[-1] is false!')
+        stderr.write('\n    bound pX     : %f %f'%( pX[0], pX[-1]))
+        stderr.write('\n    min,max asked: %f %f\n'%( xMin, xMax))
+        stderr.flush()
+        return None, None
+    return indexMinMaxInInterval (pX, xMin, xMax)
 
 
-def indexInInterval(pX, xMin, xMax):
+def indexMinMaxInInterval(pX, xMin, xMax):
     """
     pX numpy array sorted small to tall
     xMin, xMax in same unit than pX 
@@ -254,8 +255,20 @@ def indexInInterval(pX, xMin, xMax):
     else:
         IdxMax = idx[-1]
     return IdxMin, IdxMax
+
+
+def getIndexInInterval(pX, xMin, xMax):
+    """
+    pX numpy array sorted small to tall
+    xMin, xMax in same unit than pX 
     
+    return :
+      *  list index  where  xMin <= pX[list index] <= xMax      
+    """
+    IdxMin, IdxMax = indexMinMaxInInterval(pX, xMin, xMax)
+    return range(IdxMin, IdxMax)
     
+        
 def gauss(x, sigma, mu=0.):
     return np.exp(-(x-mu)*(x-mu)/(2.*sigma*sigma))/(sigma*np.sqrt(2*np.pi))
     

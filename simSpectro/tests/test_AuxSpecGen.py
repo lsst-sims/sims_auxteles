@@ -15,7 +15,7 @@ S_AtmFile = S_DirExple+'Modtran_10.dat'
 S_AtmFile2 = S_DirExple+'Modtran_50.dat'
 S_AtmFile3 = S_DirExple+'Modtran_100.dat'
 G_FileKuruczPic = '../../data/kurucz93/k93.pic'
-G_fileModtran = '../../data/modtran/TemplateT04.01_1.txt'
+S_fileModtran = '../../data/modtran/TemplateT04.01_1.txt'
 
 
 
@@ -128,7 +128,7 @@ def test_getMeanTimeExposForSNR():
 
 def test_getFluxWithStarLowResolution():
     resol = 500
-    oAtm = atm.BurkeAtmModel(G_fileModtran)
+    oAtm = atm.BurkeAtmModel(S_fileModtran)
     oKur = kur.Kurucz(G_FileKuruczPic)
     oKur.restrictToWLinterval(oAtm.getWL().min()-100, oAtm.getWL().max()+100) 
     oKur.setCoefUnitFlux(1e-4, r"$J.m^{-2}.s^{-1}.nm^{-1}$")

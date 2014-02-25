@@ -1,0 +1,15 @@
+Do a giff: convert 
+==========
+convert star*.png -resize "50%" starPos%03d.jpg
+convert -delay 50 starPos*.jpg starPosAni.gif
+convert star*.png -resize "50%" -delay 50 staraaa.gif
+
+
+Do a movie: ffmpeg
+===========
+
+# pour redéfinir la taille de la video '-s 400x300' après l'option -i sinon pb
+ffmpeg -i aero%04d.png  -s 400x300 aerosolYear06b.avi
+
+# pour avoir une bonne qualité d'image ajout de 'b 400k'
+ffmpeg -i aero%04d.png -b 400k -s 400x300 aerosolYear02.avi

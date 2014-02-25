@@ -13,6 +13,8 @@ import scipy.optimize as spo
 import tools as tl
 
 
+S_verbose = 0
+
 def getCorrelMatrixFromlmfit(pPars):
     sizeMat = len(pPars)
     corMat = np.ones((sizeMat, sizeMat), dtype=np.float32)
@@ -400,8 +402,7 @@ class AtmStarSolver(object):
         if guess == None:
             guess = self._oObs.getGuessDefault()
         self._cptIte =0 
-        def getResidu(params):
-            print "================== START %d =============="%self._cptIte
+        def getResidu(params):            
             #print "getResidu ", param
             # add temp  
             #print "param: ", param            
@@ -414,8 +415,10 @@ class AtmStarSolver(object):
             residu = self._ResidusFunc(par)
             chi2 = (residu**2).sum()
             Tgray = par[aIdxTgray]
-            print "Tgray: min %f max %f"%(Tgray.min(), Tgray.max())
-            print "chi2: ", chi2
+            if S_verbose > 2 :
+                print "================== START %d =============="%self._cptIte
+                print "Tgray: min %f max %f"%(Tgray.min(), Tgray.max())
+                print "chi2: ", chi2
             self._CostFunc.append(chi2)
             self._cptIte += 1
             #if self._cptIte == 20: raise
@@ -444,7 +447,7 @@ class AtmStarSolver(object):
                 parGuess.add("p%d"%idx, val, min= 0.005, max=0.1)
             else:
                 parGuess.add("p%d"%idx, val)
-        print parGuess 
+        #print parGuess 
         res = self._FitRes = lm.minimize(getResidu, parGuess, ftol=1e-5, xtol= 1e-5)
         if res.success:
             print "FIT OK :",  res.message

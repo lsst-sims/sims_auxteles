@@ -34,8 +34,22 @@ class TemplateMODTRAN(object):
         self._wl = self._wl[perm]
         self._ref = 650.0 
         self._res = 2600.0 # resolution read in file
-                         
-                      
+    
+    
+    def restrictWL(self, pWLmin, pWlmax):
+        """
+        restrict wavelength and all MODTRAN template to pWLmin, pWlmax 
+        """
+        iMin, iMax = tl.indexInIntervalCheck(self._wl, pWLmin, pWlmax)
+        print  iMin, iMax
+        # suppress wl
+        self._wl = self._wl[iMin:iMax]
+        self._A03 = self._A03[iMin:iMax]
+        self._AH2O = self._AH2O[iMin:iMax]
+        self._Amola = self._Amola[iMin:iMax]
+        self._Amols = self._Amols[iMin:iMax]
+        
+        
     def resampleBetween(self, pWLmin, pWLmax, pNb):
         newWL = np.linspace(pWLmin, pWLmax, pNb, True)
         self.resample(newWL)
@@ -114,7 +128,7 @@ class TemplateMODTRAN(object):
         TrAll = self.getTrAll()
         pl.plot(self._wl[idxMin:idxMax], TrAll[idxMin:idxMax],'y')
         pl.title("Template MODTRAN transmission "+pTitle)
-        pl.legend(["03","mols","mola/02","H2O","all"],loc=3)
+        pl.legend(["03","mols","mola/02","H2O","all"],loc=4)
         pl.grid()
         pl.xlabel("%gm"%self._Unit )
         pl.ylabel("%")

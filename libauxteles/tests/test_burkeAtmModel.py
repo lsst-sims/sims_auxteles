@@ -4,9 +4,12 @@ from burkeAtmModel import *
 import scipy.optimize as spo
 
 
-G_fileModtran = '../../data/modtran/TemplateT04.01_1.txt'
+S_fileModtran = '../../data/modtran/TemplateT04.01_1.txt'
 CptCall = 0
 
+#
+# STUDY
+#
 
 def plotErrRelAtm(pTrue, pEst, pTitle=""):    
     pl.figure()
@@ -15,33 +18,113 @@ def plotErrRelAtm(pTrue, pEst, pTitle=""):
     pl.plot(Err)
     pl.ylabel("%")
     pl.grid()
+
+
+def plotAeroBurke():
+    atmTheo = BurkeAtmModel(S_fileModtran)
+    atmTheo.setDefaultParam()
+    atmTheo.setConstObsComp(np.pi/2, 0, 775)    
+    aLeg = []
+    pl.figure()
+    pl.xlim(3000, 10000)
+    pl.ylim(ymin=0.8)    
+    pl.xlabel("angstrom")
+    mesTilte = "Aerosol transmission Burke model from paper 2010\nTable 3 from observation Cerro Tololo 2007:'-' 2008:'.'\n"
+    mesTilte += r'$TransAero=e^{{-\tau_0(\frac{\lambda}{\lambda_{{ref}}})^{{\alpha}}}}$'
+    mesTilte += '\n'
+    pl.title(mesTilte)
+    par = [0.015, -0.94]
+    aLeg.append(r"$\tau_0$: %.3f $\alpha$: %.2f"%(par[0], par[1]))
+    atmTheo.setParamAerosolGray(1,par[0] , 0, 0, par[1] )
+    pl.plot(atmTheo.getWL(), atmTheo._transGrayAero())
+    par = [0.039, -1.70]
+    aLeg.append(r"$\tau_0$: %.3f $\alpha$: %.2f"%(par[0], par[1]))
+    atmTheo.setParamAerosolGray(1,par[0] , 0, 0, par[1] )
+    pl.plot(atmTheo.getWL(), atmTheo._transGrayAero())
+    par = [0.056, -0.95]
+    aLeg.append(r"$\tau_0$: %.3f $\alpha$: %.2f"%(par[0], par[1]))
+    atmTheo.setParamAerosolGray(1,par[0] , 0, 0, par[1] )
+    pl.plot(atmTheo.getWL(), atmTheo._transGrayAero())
+    par = [0.012, -0.5]
+    aLeg.append(r"$\tau_0$: %.3f $\alpha$: %.2f"%(par[0], par[1]))
+    atmTheo.setParamAerosolGray(1,par[0] , 0, 0, par[1] )
+    pl.plot(atmTheo.getWL(), atmTheo._transGrayAero(), '.')
+    par = [0.008, -1.1]
+    aLeg.append(r"$\tau_0$: %.3f $\alpha$: %.2f"%(par[0], par[1]))
+    atmTheo.setParamAerosolGray(1,par[0] , 0, 0, par[1] )
+    pl.plot(atmTheo.getWL(), atmTheo._transGrayAero(), '.')
+    par = [0.008, -1.5]
+    aLeg.append(r"$\tau_0$: %.3f $\alpha$: %.2f"%(par[0], par[1]))
+    atmTheo.setParamAerosolGray(1,par[0] , 0, 0, par[1] )
+    pl.plot(atmTheo.getWL(), atmTheo._transGrayAero(), '.')
+    #
+    pl.legend(aLeg, loc="best")
+    pl.grid()
     
     
+def plotAeroSNfac():
+    atmTheo = BurkeAtmModel(S_fileModtran)
+    atmTheo._WL0 = 10000    
+    atmTheo.setDefaultParam()
+    atmTheo.setConstObsComp(np.pi/2, 0, 775)    
+    aLeg = []
+    pl.figure()
+    pl.xlim(3000, 10000)
+    pl.xlabel("angstrom")
+    pl.ylim(ymin=0.8)
+    mesTilte = "Aerosol transmission SN factory\n"
+    mesTilte += r'$TransAero=e^{{-\tau_0(\frac{\lambda}{\lambda_{{ref}}})^{{\alpha}}}}$'
+    mesTilte += '\n'
+    pl.title(mesTilte)
+    par = [0.008, -1.2]
+    aLeg.append(r"$\tau_0$: %.3f $\alpha$: %.2f"%(par[0], par[1]))
+    atmTheo.setParamAerosolGray(1,par[0] , 0, 0, par[1] )
+    pl.plot(atmTheo.getWL(), atmTheo._transGrayAero())
+    par = [0.008, -3]
+    aLeg.append(r"$\tau_0$: %.3f $\alpha$: %.2f"%(par[0], par[1]))
+    atmTheo.setParamAerosolGray(1,par[0] , 0, 0, par[1] )
+    pl.plot(atmTheo.getWL(), atmTheo._transGrayAero())
+    par = [0.008, 0.5]
+    aLeg.append(r"$\tau_0$: %.3f $\alpha$: %.2f"%(par[0], par[1]))
+    atmTheo.setParamAerosolGray(1,par[0] , 0, 0, par[1] )
+    pl.plot(atmTheo.getWL(), atmTheo._transGrayAero())
+    par = [0.02, 2]
+    aLeg.append(r"$\tau_0$: %.3f $\alpha$: %.2f"%(par[0], par[1]))
+    atmTheo.setParamAerosolGray(1,par[0] , 0, 0, par[1] )
+    pl.plot(atmTheo.getWL(), atmTheo._transGrayAero())
+    #
+    pl.legend(aLeg, loc="best")
+    pl.grid()
+
+#
+# TEST
+#
+
 def test_init():    
-    oAtm= BurkeAtmModel(G_fileModtran)
+    oAtm= BurkeAtmModel(S_fileModtran)
     par = np.zeros(oAtm._NbPar)
     oAtm.setParam(par)
     oAtm.printBurkeModelParam()
         
         
 def test_setDefaultModel():   
-    oAtm= BurkeAtmModel(G_fileModtran)   
+    oAtm= BurkeAtmModel(S_fileModtran)   
     oAtm.setParamExample1()
     oAtm.printBurkeModelParam()
     
     
 def test_ComputeAtmTransmission():       
-    oAtm= BurkeAtmModel(G_fileModtran)   
+    oAtm= BurkeAtmModel(S_fileModtran)   
     oAtm.setParamExample1()
     oAtm.computeAtmTransAtConstObs(np.pi/3, np.pi/2, 800)    
-    oAtm.plotCurrentTrans()
+    oAtm.computeAtmTrans(True)
 #    oAtm.computeAtmTransAtConstObs(np.pi/4, np.pi/2, 850)
 #    oAtm.plotCurrentTrans()
     oAtm.printBurkeModel()
     
     
 def test_AltVariation():
-    oAtm= BurkeAtmModel(G_fileModtran)   
+    oAtm= BurkeAtmModel(S_fileModtran)   
     oAtm.setDefaultParam()
     pl.figure()
     aAlt= np.deg2rad(np.linspace(30, 90, 4))
@@ -58,7 +141,7 @@ def test_AltVariation():
 
     
 def test_PresVariation():    
-    oAtm= BurkeAtmModel(G_fileModtran)   
+    oAtm= BurkeAtmModel(S_fileModtran)   
     oAtm.setParamExample1()
     pl.figure()
     aPres= np.linspace(650, 950, 4)
@@ -76,7 +159,7 @@ def test_PresVariation():
  
 def test_CH20Variation():   
     aVar = np.linspace(0.6, 1.4,4)
-    oAtm= BurkeAtmModel(G_fileModtran)   
+    oAtm= BurkeAtmModel(S_fileModtran)   
     oAtm.setParamExample1()
     oAtm.setConstObsComp(np.pi/2, 0, 750)
     par= np.copy(oAtm._Par)
@@ -96,7 +179,7 @@ def test_CH20Variation():
 
 
 def test_leastsq01():
-    oAtm= BurkeAtmModelv1(G_fileModtran, np.array([0]))
+    oAtm= BurkeAtmModelv1(S_fileModtran, np.array([0]))
     oAtm.setConstObsComp(np.pi/2, 0, np.array([0.]), 750)
     oAtm.setParamExample1()
     #oAtm.setDefaultParam()
@@ -130,7 +213,7 @@ def test_leastsq01():
 
 
 def test_leastsq02():
-    oAtm= BurkeAtmModel(G_fileModtran, np.array([0]))
+    oAtm= BurkeAtmModel(S_fileModtran, np.array([0]))
     oAtm.setConstObsComp(np.pi/3, np.pi/4, np.array([0.]), 750)
     oAtm.setParamExample1()
     #oAtm.setDefaultParam()
@@ -168,11 +251,15 @@ def test_leastsq02():
         print "FIT NOK : ",  res[3]
        
        
-def test_leastsq03():    
-    oAtm= BurkeAtmModel(G_fileModtran)
+def test_leastsq03():
+    """
+    Fit 3 atm. transmission with 3 different pointing
+    """
+    print "="*80+" test_leastsq03"
+    oAtm= BurkeAtmModel(S_fileModtran)
     matVarObs = np.array([[np.pi/2, 0,  750], 
-                       [np.pi/3.5, np.pi/3, 750],
-                       [np.pi/4, np.pi,  750]])    
+                          [np.pi/3.5, np.pi/3, 750],
+                          [np.pi/4, np.pi,  750]])    
     MyLegv=[]
     oAtm.setConstObs(matVarObs[0,:])
     oAtm.setParamExample1()
@@ -256,7 +343,7 @@ def test_leastsq03():
 
 
 def test_downgradeTemplate():
-    oAtm= BurkeAtmModel(G_fileModtran)
+    oAtm= BurkeAtmModel(S_fileModtran)
     oAtm.setParamExample1()
     trFull = oAtm.computeAtmTransAtConstObs(np.pi/3, np.pi/2, 800)
     res = 200
@@ -270,7 +357,7 @@ def test_downgradeTemplate():
     
     
 def test_downgradeTrans():
-    oAtm= BurkeAtmModel(G_fileModtran)
+    oAtm= BurkeAtmModel(S_fileModtran)
     oAtm.setParamExample1()
     trFull = oAtm.computeAtmTransAtConstObs(np.pi/3, np.pi/2, 800)
     x = oAtm.getWL().copy()
@@ -290,7 +377,7 @@ def test_downgradeTrans():
     
 def test_downgradeTemplateAndResample(res = 600):
     newx = np.linspace(3000, 9000, 800)
-    oAtm= BurkeAtmModel(G_fileModtran)
+    oAtm= BurkeAtmModel(S_fileModtran)
     oAtm.setParamExample1()
     trFull = oAtm.computeAtmTransAtConstObs(np.pi/3, np.pi/2, 800)
     x = oAtm.getWL().copy()    
@@ -310,18 +397,22 @@ class Test(unittest.TestCase):
     
     
     def test_covar2Correl(self):
-        oAtm= BurkeAtmModel(G_fileModtran)
+        oAtm= BurkeAtmModel(S_fileModtran)
         mat = np.array([[2,4],[4,9]])
         oAtm._covar2Correl(mat)
         
-        
+
+#
+# MAIN TEST
+#
+   
 #test_init()
 #test_setDefaultModel()
-#test_ComputeAtmTransmission()
+test_ComputeAtmTransmission()
 #test_downgradeTemplate()
-test_downgradeTemplateAndResample(500)
-test_downgradeTemplateAndResample(200)
-test_downgradeTemplateAndResample(100)
+#test_downgradeTemplateAndResample(500)
+#test_downgradeTemplateAndResample(200)
+#test_downgradeTemplateAndResample(100)
 #test_downgradeTrans()
 
 #test_comparedowngrade()
@@ -332,6 +423,14 @@ test_downgradeTemplateAndResample(100)
 #np.random.seed(150)
 #test_leastsq03()
 #test_leastsq03_v2()
+
+
+#
+# MAIN STUDY
+#
+
+#plotAeroBurke()
+#plotAeroSNfac()
 
 
 try:

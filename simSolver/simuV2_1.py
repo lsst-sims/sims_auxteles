@@ -27,7 +27,7 @@ sys.path.append('../simSpectro')
 
 
 G_FileKuruczPic = os.path.join(tl.getDirectory(__file__),'../data/kurucz93/k93.pic')
-G_fileModtran = os.path.join(tl.getDirectory(__file__),'../data/modtran/TemplateT04.01_1.txt')
+S_fileModtran = os.path.join(tl.getDirectory(__file__),'../data/modtran/TemplateT04.01_1.txt')
 
 
 ###############################################################################
@@ -52,7 +52,7 @@ class SimuVersion2_1(object):
         
     def __init__(self):
         self.oAuxTel = aux.AuxTeles()
-        self.oAtm = atm.BurkeAtmModel(G_fileModtran)
+        self.oAtm = atm.BurkeAtmModel(S_fileModtran)
         
         
     def computeExposureTime(self, snr, resol,wlmin=None, wlmax =None):
