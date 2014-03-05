@@ -40,6 +40,7 @@ class BurkeAtmModel(object):
         pAr[idx] = 0
         return pAr
         
+        
     def __init__(self, ModFileTempl, pressure=782):
         '''        
         '''
@@ -59,15 +60,24 @@ class BurkeAtmModel(object):
         self._NameParam.append('$dC_{H2O}/dNS$')
         self._AbsH2OConst = 10.0**(-0.4*0.01)
         self._AbsO2Const  = 10.0**(-0.4*0.005)
+        # from Burke et All Article 2010
+        self._SlopeExtO3 = 0.97
+        self._SlopeExtRayleigh = 0.99
+        self._SlopeExtO2 = 0.59
+        self._SlopeExtH2O = 0.71
+   
     
     def getWL(self):
         return self._aWL 
     
+    
     def getResolution(self):
         return self._Tpl._res
     
+    
     def getDeltaWL(self):
         return self._Tpl._ref / self._Tpl._res
+    
     
     def getNBins(self):
         """
@@ -84,6 +94,7 @@ class BurkeAtmModel(object):
     def restrictWL(self, pWLmin, pWlmax):        
         self._Tpl.restrictWL(pWLmin, pWlmax)
         self._aWL = self._Tpl._wl
+        
         
     def downgradeTemplateAndResample(self, res, pWL):
         self._Tpl.downgradeTemplateAndResample(res, pWL)
@@ -108,22 +119,36 @@ class BurkeAtmModel(object):
         #print "check unit ", self._aWL.mean(),  self._WL0    
         return self._razNeg(self._Par[0]*np.exp(-self._AirMass*tau))
         
+        
     def _transMols(self):
         #return self._razNeg(1.0 - self._Par[5]*self._PresRat*np.power(self._Tpl._Amols, self._AirMass))
-        return self._razNeg(1.0 - self._Par[5]*self._PresRat*(1.0 - np.power(self._Tpl.getTrmols(), self._AirMass)))
+        #return self._razNeg(1.0 - self._Par[5]*self._PresRat*(1.0 - np.power(self._Tpl.getTrmols(), self._AirMass)))
+        factAM = 10**(-self._SlopeExtRayleigh*(self._AirMass - 1)/2.5)
+        Abpt = (1 - factAM) + factAM*self._Tpl._Amols
+        return self._razNeg(1.0 - self._Par[5]*self._PresRat*Abpt)
+    
     
     def _transMola(self): 
         #return self._razNeg(1.0 - np.sqrt(self._Par[5]*self._PresRat)*self._AbsO2Const*np.power(self._Tpl._Amola, self._AirMass))
-        return self._razNeg(1.0 - np.sqrt(self._Par[5]*self._PresRat)*(1.0 - self._AbsO2Const*np.power(self._Tpl.getTrmola(), self._AirMass)))
+        #return self._razNeg(1.0 - np.sqrt(self._Par[5]*self._PresRat)*(1.0 - self._AbsO2Const*np.power(self._Tpl.getTrmola(), self._AirMass)))
+        factAM = 10**(-self._SlopeExtO2*(self._AirMass - 1)/2.5)
+        Abpt = (1 - factAM) + factAM*self._Tpl._Amola 
+        return self._razNeg(1.0 - np.sqrt(self._Par[5]*self._PresRat)*Abpt)
+     
      
     def _transO3(self):
         #return self._razNeg(1.0 - self._Par[6]*np.power(self._Tpl._A03, self._AirMass))
-        return self._razNeg(1.0 - self._Par[6]*(1.0 - np.power(self._Tpl.getTr03(), self._AirMass)))
+        factAM = 10**(-self._SlopeExtO3*(self._AirMass - 1)/2.5)
+        Abpt = (1 - factAM) + factAM*self._Tpl._AO3       
+        return self._razNeg(1.0 - self._Par[6]*Abpt)
+        
         
     def _transH2O(self):
         C_H20 = self._Par[7] + self._EW*self._Par[8] + self._NS*self._Par[9]
         #return self._razNeg(1.0 - C_H20*self._AbsH2OConst*np.power(self._Tpl._AH2O, self._AirMass))
-        return self._razNeg(1.0 - C_H20*(1.0 - self._AbsH2OConst*np.power(self._Tpl.getTrH2O(), self._AirMass)))
+        factAM = 10**(-self._SlopeExtH2O*(self._AirMass - 1)/2.5)
+        Abpt = (1 - factAM) + factAM*self._Tpl._AH2O
+        return self._razNeg(1.0 - C_H20*Abpt)
     
 #       
 # PUBLIC
@@ -172,7 +197,7 @@ class BurkeAtmModel(object):
         to have template MODTRAN with any modification
         """
         self._Par = np.zeros(self._NbPar, dtype=np.float64)
-        self.setParamAerosolGray(0.9, 0.05, 0.0, 0.0, -1)
+        self.setParamAerosolGray(0.98, 0.05, 0.0, 0.0, -1)
         self.setParamMol(1.0)
         self.setParamOzone(1.0)
         self.setParamH20(np.array([1, 0, 0]))
@@ -223,7 +248,7 @@ class BurkeAtmModel(object):
             ret4= self._transH2O()
             pl.plot(self._aWL,ret4,'r--.')
             pl.plot(self._aWL,ret*ret1*ret2*ret3*ret4)
-            pl.legend(["gray-aero","Mols","Mola","O3","H2O","all"],loc=4)
+            pl.legend(["gray-aero","Mols","Mola","O3","H2O","all"],loc="best")
             #pl.legend(["gray"])
             pl.title("composant modtran, resolution %d"%self._Tpl._res)
             pl.xlabel("%g m"%self._Tpl._Unit)            

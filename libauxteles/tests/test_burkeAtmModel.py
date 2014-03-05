@@ -109,8 +109,10 @@ def test_init():
         
 def test_setDefaultModel():   
     oAtm= BurkeAtmModel(S_fileModtran)   
-    oAtm.setParamExample1()
+    oAtm.setDefaultConstObs()
+    oAtm.setDefaultParam()
     oAtm.printBurkeModelParam()
+    oAtm.computeAtmTrans(True)
     
     
 def test_ComputeAtmTransmission():       
@@ -408,7 +410,7 @@ class Test(unittest.TestCase):
    
 #test_init()
 #test_setDefaultModel()
-test_ComputeAtmTransmission()
+#test_ComputeAtmTransmission()
 #test_downgradeTemplate()
 #test_downgradeTemplateAndResample(500)
 #test_downgradeTemplateAndResample(200)
@@ -421,7 +423,7 @@ test_ComputeAtmTransmission()
 #test_CH20Variation()
 
 #np.random.seed(150)
-#test_leastsq03()
+test_leastsq03()
 #test_leastsq03_v2()
 
 

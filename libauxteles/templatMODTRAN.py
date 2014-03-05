@@ -22,12 +22,14 @@ class TemplateMODTRAN(object):
         self._wl = out[:,0]
         self._Unit = unit
         # _Axx absorption 
-        self._A03   = 1 - out[:,3]
+        self._AO3   = 1 - out[:,3]
+        # keyword MODTRAN: MOL_SCAT
         self._Amols = 1 - out[:,5]
+        # keyword MODTRAN: O2
         self._Amola = 1 - out[:,7]
         self._AH2O  = 1 - out[:,2]*out[:,4]
         perm = np.argsort(self._wl)
-        self._A03 = self._A03[perm]
+        self._AO3 = self._AO3[perm]
         self._Amols = self._Amols[perm]
         self._Amola = self._Amola[perm]
         self._AH2O = self._AH2O [perm]
@@ -44,7 +46,7 @@ class TemplateMODTRAN(object):
         print  iMin, iMax
         # suppress wl
         self._wl = self._wl[iMin:iMax]
-        self._A03 = self._A03[iMin:iMax]
+        self._AO3 = self._AO3[iMin:iMax]
         self._AH2O = self._AH2O[iMin:iMax]
         self._Amola = self._Amola[iMin:iMax]
         self._Amols = self._Amols[iMin:iMax]
@@ -61,8 +63,9 @@ class TemplateMODTRAN(object):
             a[idx] = 0.0
         return a
     
+    
     def downgradeTemplate(self, resOut):
-        self._A03 = self._setZeroNeg(tl.downgradeResol(self._wl, self._A03, self._res, resOut, self._ref))
+        self._AO3 = self._setZeroNeg(tl.downgradeResol(self._wl, self._AO3, self._res, resOut, self._ref))
         self._AH2O = self._setZeroNeg(tl.downgradeResol(self._wl, self._AH2O, self._res, resOut, self._ref))
         self._Amola = self._setZeroNeg(tl.downgradeResol(self._wl, self._Amola, self._res, resOut, self._ref))
         self._Amols = self._setZeroNeg(tl.downgradeResol(self._wl, self._Amols, self._res, resOut, self._ref))        
@@ -70,7 +73,7 @@ class TemplateMODTRAN(object):
         
         
     def downgradeTemplateAndResample(self, resOut, pWL):
-        self._A03 = self._setZeroNeg(tl.downgradeResol(self._wl, self._A03, self._res, resOut, self._ref, pWL))
+        self._AO3 = self._setZeroNeg(tl.downgradeResol(self._wl, self._AO3, self._res, resOut, self._ref, pWL))
         self._AH2O = self._setZeroNeg(tl.downgradeResol(self._wl, self._AH2O, self._res, resOut, self._ref, pWL))
         self._Amola = self._setZeroNeg(tl.downgradeResol(self._wl, self._Amola, self._res, resOut, self._ref, pWL))
         self._Amols = self._setZeroNeg(tl.downgradeResol(self._wl, self._Amols, self._res, resOut, self._ref, pWL))
@@ -79,7 +82,7 @@ class TemplateMODTRAN(object):
         
         
     def resample(self, pWL):
-        self._A03 = tl.interpolLinear(self._wl, self._A03, pWL)        
+        self._AO3 = tl.interpolLinear(self._wl, self._AO3, pWL)        
         self._AH2O = tl.interpolLinear(self._wl, self._AH2O, pWL)        
         self._Amola = tl.interpolLinear(self._wl, self._Amola, pWL)        
         self._Amols= tl.interpolLinear(self._wl, self._Amols, pWL)        
@@ -94,7 +97,7 @@ class TemplateMODTRAN(object):
                 
                 
     def getTr03(self):
-        return 1.0 - self._A03
+        return 1.0 - self._AO3
         
     def getTrmols(self):
         return 1.0 - self._Amols    
