@@ -79,20 +79,16 @@ def read_kurucz_all(directory = '/home/colley/projet/lsst/stellar_spectra/k93mod
             nom_file_kurucz = directory + "%s/%s_%s.fits" % (metal_dir[m], metal_dir[m], step_temperature[t])
             for g in range(0, nb_logg):
                 loggravity_name = "g%02i" %(int(math.floor(step_gravity[g]*10.)))
-
                 data_k93 = pf.getdata(nom_file_kurucz)
                 print "read ",nom_file_kurucz
                 wavelength = data_k93.field('wavelength')
                 flux = data_k93.field(loggravity_name)
-
                 data[3:1224,0] = wavelength # * 10. # To get wavelength in A
                 data[0,indice_col] = step_metal[m]
                 data[1,indice_col] = step_temperature[t]
                 data[2,indice_col] = step_gravity[g]
-                data[3:1224,indice_col] = flux
-                
+                data[3:1224,indice_col] = flux                
                 indice_col += 1
-
                 #print m, t, g, data[0:5,0:5]
     return data
 

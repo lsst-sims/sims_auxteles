@@ -9,7 +9,7 @@ import burkeAtmModel as bam
 import numpy as np
 import scipy.optimize as spo
 import lmfit as lm
-import copy 
+
 
 #
 # Static Constant
@@ -22,108 +22,9 @@ S_file = "../data/simuRef/trans_final.plt"
 S_fileModtran = '../data/modtran/TemplateT04.01_1.txt'
 S_fileAero = "../data/simuRef/trans_aero.plt"
 
-_keyTP7 = "FREQ COMBIN    H2O   UMIX     O3  TRACE     N2    H2Ob MOLEC AER+CLD  HNO3 AER+CLD    -LOG    CO2     CO    CH4    N2O     O2    NH3     NO    NO2    SO2  CFC11  CFC12  CFC13  CFC14  CFC22 CFC113 CFC114 CFC115 CLONO2   HNO4 CHCL2F   CCL4   N2O5"
-S_KeyTP7 = _keyTP7.split()
 
 
 
-
-def readMODTRANtp7(pFile, pListCol, pWLMin=None, pWLmax=None):
-    """
-    read tp7 output modtran and select column
-    WARNING : must add # to catch header !
-    parameters: 
-     * pFile :  string with path and name file
-     * pListCol :  list of selected column
-     * pWLMin, pWLmax : min max wavelength in Angstrom
-     
-    return:
-     * numpy array where column 0 is  wavelength in Angstrom and other columns are selected by pListCol
-    """  
-    # reorder keyword like tp7 file sense, import for pyplot.legend()
-    lSelectIdx = [S_KeyTP7.index(key) for key in pListCol]
-    IdxSort = np.argsort(lSelectIdx)    
-    ListColStr = [pListCol[idx] for idx in IdxSort]
-    # read tp7 file
-    aRet = tl.readTextFileColumn(pFile)
-    if aRet is None: 
-        print "ERROR: ", aRet
-        return
-    # selected columns
-    remCol = set(range(aRet.shape[1]))
-    ListCol = copy.copy(lSelectIdx)
-    ListCol.append(0)
-    remCol = list(remCol - set(ListCol))
-    aRet = np.delete(aRet, remCol, 1)    
-    # cm^-1 to angstrom
-    wlAngs = 1.0e8/aRet[:,0]
-    if pWLmax != None:        
-        IdxRet = tl.indexInIntervalCheck(-wlAngs, -pWLmax, -pWLMin)
-        if IdxRet[0] is None:
-            return None
-        # suppress line
-        aRet = aRet[IdxRet[0]: IdxRet[1]]
-    # replace wl in angstrom
-    aRet[:,0] = 1.0e8/aRet[:,0]
-    # growing sense
-    aRet = np.flipud(aRet)
-    # plot
-    if S_DoPlot:
-        pl.figure()
-        pl.title('MODTRAN TP7 transmission selected')
-        pl.xlabel("Angstrom")
-        for col in aRet[:,1:].T:
-            pl.plot(aRet[:,0], col)
-        pl.grid()
-        pl.legend(ListColStr,loc="best")
-    return aRet
-
-
-def readMODTRANtp7bis(pFile, pListCol, pWLMin=None, pWLmax=None):
-    """
-    read tp7 output modtran and select column
-    WARNING : must add # to catch header !
-    parameters: 
-     * pFile :  string with path and name file
-     * pListCol :  list of selected column
-     * pWLMin, pWLmax : min max wavelength in Angstrom
-     
-    return:
-     * numpy array where column 0 is  wavelength in Angstrom and other columns are selected by pListCol
-    """  
-    # reorder keyword like tp7 file sense, import for pyplot.legend()
-    lSelectIdx = [S_KeyTP7.index(key) for key in pListCol]
-    # read tp7 file
-    aRet = tl.readTextFileColumn(pFile)
-    if aRet is None: 
-        print "ERROR: ", aRet
-        return
-    # selected columns
-    lSelectIdx.insert(0,0)
-    aRet = np.flipud(aRet.T[lSelectIdx].T)
-    print aRet
-    # cm^-1 to angstrom
-    wlAngs = 1.0e8/aRet[:,0]
-    if pWLmax != None:        
-        IdxRet = tl.indexInIntervalCheck(wlAngs, pWLMin, pWLmax)
-        if IdxRet[0] is None:
-            raise
-            return None
-        # suppress line
-        aRet = aRet[IdxRet[0]: IdxRet[1]]
-    # replace wl in angstrom
-    aRet[:,0] = 1.0e8/aRet[:,0]
-    # growing sense
-    # plot
-    if S_DoPlot:
-        pl.figure()
-        pl.title('MODTRAN TP7 transmission selected')
-        pl.xlabel("Angstrom")
-        for col in aRet[:,1:].T:
-            pl.plot(aRet[:,0], col)
-        pl.grid()
-        pl.legend(pListCol, loc="best")
-    return aRet
 
 
 def coherenceTP7TransFinal(pFileTP7, pFileFinal, pFileAero):
@@ -247,10 +148,10 @@ def fit_BurkeNoAero(aAtm, pConstTgray=False):
      * aAtm : array transmission, column 0 is frequency
     """
     # define position of template coefficient
-    idx2Full = [0,5,6,7]
-    p0 = np.array([1.0, 1.0, 1.0, 1.0], dtype=np.float64)
-    #idx2Full = [5,6,7]
-    #p0 = np.array([ 1.0, 1.0, 1.0], dtype=np.float64)
+    #idx2Full = [0,5,6,7]
+    #p0 = np.array([1.0, 1.0, 1.0, 1.0], dtype=np.float64)
+    idx2Full = [5,6,7]
+    p0 = np.array([ 1.0, 1.0, 1.0], dtype=np.float64)
     myParm = np.zeros(10, dtype=np.float64)
     myParm[0] = 1.0
     myParm[1] = 0.0
@@ -765,6 +666,7 @@ tp7File = "/home/colley/temp/tmp.tp7"
 #fit_FileAtmCorAeroN02(S_file, S_fileAero, tp7File)
 #fit_FileAtm(S_file)
 fit_FileAtmPlotComposant(S_file, S_fileAero, tp7File)
+
 
 try:
     pl.show()
