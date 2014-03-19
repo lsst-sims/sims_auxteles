@@ -9,7 +9,7 @@ import burkeAtmModel as bam
 import numpy as np
 import scipy.optimize as spo
 import lmfit as lm
-
+import modtranTools as mdt
 
 #
 # Static Constant
@@ -23,17 +23,13 @@ S_fileModtran = '../data/modtran/TemplateT04.01_1.txt'
 S_fileAero = "../data/simuRef/trans_aero.plt"
 
 
-
-
-
-
 def coherenceTP7TransFinal(pFileTP7, pFileFinal, pFileAero):
     """
     """
     wlMin = 3000
     wlMax =  10000
     lSelect = ["COMBIN"]
-    aTP7 = readMODTRANtp7(pFileTP7, lSelect, wlMin, wlMax)
+    aTP7 = mdt.readTP7(pFileTP7, lSelect, wlMin, wlMax)
     aAtm = tl.readTextFileColumn(pFileFinal)
     pl.figure()
     pl.title("no correction aero")
@@ -74,7 +70,7 @@ def check_selectedTP7(pFile):
     wlMin = 3000
     wlMax =  10000
     lSelect = ["COMBIN","H2O", 'O2','O3','MOLEC']
-    aTP7 = readMODTRANtp7bis(pFile, lSelect, wlMin, wlMax)
+    aTP7 = mdt.readTP7(pFile, lSelect, wlMin, wlMax)
     totalSelect = aTP7[:,5]*aTP7[:,2]*aTP7[:,3]*aTP7[:,4]
     diff = totalSelect - aTP7[:,1]
     fig = pl.figure()
@@ -83,7 +79,7 @@ def check_selectedTP7(pFile):
     pl.grid()
     pl.xlabel('Angstrom')
     lSelect = ["COMBIN","H2O","H2Ob" ,'O2','O3','MOLEC']
-    aTP7 = readMODTRANtp7(pFile, lSelect, wlMin, wlMax)
+    aTP7 = mdt.readTP7(pFile, lSelect, wlMin, wlMax)
     totalSelect = aTP7[:,2]*aTP7[:,3]*aTP7[:,4]*aTP7[:,5]*aTP7[:,6]
     diff = totalSelect - aTP7[:,1]
     pl.figure()
@@ -92,7 +88,7 @@ def check_selectedTP7(pFile):
     pl.grid()
     pl.xlabel('Angstrom')
     lSelect = ["COMBIN","H2O","H2Ob" ,'O2','O3','MOLEC', 'NO2']
-    aTP7 = readMODTRANtp7(pFile, lSelect, wlMin, wlMax)
+    aTP7 = mdt.readTP7(pFile, lSelect, wlMin, wlMax)
     totalSelect = aTP7[:,2]*aTP7[:,3]*aTP7[:,4]*aTP7[:,5]*aTP7[:,6]*aTP7[:,7]
     diff = totalSelect - aTP7[:,1]
     pl.figure()
@@ -101,7 +97,7 @@ def check_selectedTP7(pFile):
     pl.grid()    
     pl.xlabel('Angstrom')
     lSelect = ['NO2']
-    aTP7 = readMODTRANtp7(pFile, lSelect, wlMin, wlMax)
+    aTP7 = mdt.readTP7(pFile, lSelect, wlMin, wlMax)
     pl.figure()
     pl.title("TP7:  NO2")
     pl.plot(aTP7[:,0], aTP7[:,1])
@@ -331,7 +327,8 @@ def fit_atmBurkeAll(aAtm):
         diff = ydata - atm.computeAtmTrans()
         print (diff*diff).sum()
         return diff    
-    atmTheo = bam.BurkeAtmModel(S_fileModtran)
+    #atmTheo = bam.BurkeAtmModel(S_fileModtran)
+    atmTheo = bam.BurkeAtmModelAM()
     wlMin = 3000
     wlMax = 9000
     rangeInterval = tl.getIndexInInterval(aAtm[:,0]*10, wlMin, wlMax)
@@ -435,7 +432,7 @@ def fit_FileAtmPlotComposant(pFile, pFileAero, pFileTP7):
     pl.grid()
     # MODTRAN composant
     lSelect = ["H2O", "H2Ob", 'O2','O3','MOLEC']
-    aTP7 = readMODTRANtp7bis(pFileTP7, lSelect, wl[0]*.95, wl[-1]*1.05)
+    aTP7 = mdt.readTP7(pFileTP7, lSelect, wl[0]*.95, wl[-1]*1.05)
     # H2O
     cH2O = tl.interpolLinear(aTP7[:,0], aTP7[:,1]*aTP7[:,2], wl)
     residuH2O = cH2O - atmTheo._transH2O()
@@ -508,7 +505,7 @@ def fit_FileAtmCorAeroN02(pFileAtm, pFileAero, pFileTP7):
     print IdxRet
     aAtm = aAtm[IdxRet[0]:IdxRet[1]]
     # read TP7 N02 composant
-    aTP7 = readMODTRANtp7(pFileTP7, ["NO2"])
+    aTP7 = mdt.readTP7(pFileTP7, ["NO2"])
     # interpole to frequence aATm
     print "aTP7:", aTP7[:,0]
     print "aAtm", aAtm[:,0]

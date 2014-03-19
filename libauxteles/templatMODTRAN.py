@@ -37,7 +37,11 @@ class TemplateMODTRAN(object):
         self._wl = self._wl[perm]
         self._ref = 650.0 
         self._res = 2600.0 # resolution read in file
+        self._AM = 1.0 
     
+    def setAirMass(self, pAM):
+        self._AM = pAM
+
     
     def restrictWL(self, pWLmin, pWlmax):
         """
@@ -123,7 +127,7 @@ class TemplateMODTRAN(object):
         return 1.0 - self._AH2O     
     
     def getTrAll(self):
-        return self.getTrO3()*self.getTrmols()*self.getTrmola()* self.getTrH2O()
+        return self.getTrO3()*self.getTrmols()*self.getTrmola()*self.getTrH2O()
     
     def plotTemplate(self, WLmin=None, WLmax=None, pTitle=""):
         if WLmin ==None:
@@ -155,16 +159,19 @@ class TemplateMODTRAN(object):
 ###############################################################################
 class TemplateMODTRANAirMass(TemplateMODTRAN):
 ###############################################################################
+    """
+    MODTRAN template with air mass linear interpolation
+    """
     def __init__(self):
         rootPackage = tl.getRootPackage()
         self._aTplt = np.load(rootPackage+"/data/modtran/tpltMODTRAN.npy")
         self._aTplt = self._aTplt.astype(np.float64)
         self._aTplt = np.rollaxis(self._aTplt,1)
         assert(self._aTplt.shape[0] == 4)
-        assert(self._aTplt.shape[2] >  100)
+        assert(self._aTplt.shape[2] > 100)
         for aTplt in self._aTplt:
             for tplt in aTplt:
-                tplt[:] = self._threasoldOne( tplt)        
+                tplt[:] = self._threasoldOne(tplt)        
         # now shape is (4, ~12,  ~5212)
         self._Lcomp = ["O3", "MolS", "MolA", "H2O"]        
         self._wl = np.load(rootPackage+"/data/modtran/tpltMODTRAN_wlnm.npy")
@@ -175,7 +182,13 @@ class TemplateMODTRANAirMass(TemplateMODTRAN):
         self._AM = 1.0
         self._initInterpolation()
         
-        
+    def setAirMass(self, pAM):
+        print pAM
+        assert(self._Aam[0] <= pAM)
+        assert(pAM <= self._Aam[-1])
+        self._AM = np.array([pAM])
+
+       
     def restrictWL(self, pWLmin, pWlmax):
         """
         restrict wavelength and all MODTRAN template to pWLmin, pWlmax 
@@ -229,26 +242,20 @@ class TemplateMODTRANAirMass(TemplateMODTRAN):
         self._aTplt = out
         self._wl = pWL
         self._initInterpolation()
-    
-    
-    def setAirMass(self, pAM):
-        assert(self._Aam[0] <= pAM)
-        assert(pAM <= self._Aam[-1])
-        self._AM = np.array([pAM])
-    
+        
     
     def getTrO3(self):        
-        return self._DoInter["O3"](self._AM)
+        return self._DoInter["O3"](self._AM).ravel()
     
     
     def getTrmols(self):
-        return self._DoInter["MolS"](self._AM)
+        return self._DoInter["MolS"](self._AM).ravel()
     
     
     def getTrmola(self):
-        return self._DoInter["MolA"](self._AM)
+        return self._DoInter["MolA"](self._AM).ravel()
     
     
     def getTrH2O(self):
-        return self._DoInter["H2O"](self._AM)
+        return self._DoInter["H2O"](self._AM).ravel()
 

@@ -235,6 +235,7 @@ class BurkeAtmModel(object):
 # getter
     def computeAtmTrans(self, flagPlot=False):
         #print "AirMass:",self._AirMass
+        self._Tpl.setAirMass(self._AirMass)
         if flagPlot: 
             pl.figure()
             ret = self._transGrayAero()
@@ -263,6 +264,7 @@ class BurkeAtmModel(object):
             self._CurtTrans = ret        
         return self._CurtTrans
     
+    
     def computeAtmTransAtConstObs(self, alt, az, pressure):
         self.setConstObsComp(alt, az, pressure)  
         return self.computeAtmTrans()
@@ -279,6 +281,7 @@ class BurkeAtmModel(object):
         pl.title("C_H2O")
         self._Tpl.plotTemplate()
                 
+                
     def printBurkeModel(self):
         if self._Par == None:
             print "No parameter yet defined !"
@@ -287,16 +290,19 @@ class BurkeAtmModel(object):
         self.printBurkeModelParam()
         self.printBurkeObserConst()
         
+        
     def printBurkeModelConst(self):
         print "Constants"
         print "  ref. pressure:  %d  mb"% self._PressureRef
         print "  ref. wavelength:  %g  A"% self._WL0
+        
         
     def printBurkeObserConst(self):
         print "Constants observation"
         print "  EW       :   ", self._EW
         print "  SN       :   ", self._NS
         print "  pres. rat:   ", self._PresRat
+               
                
     def printBurkeModelParam(self):
         print "Parameters"
@@ -309,6 +315,7 @@ class BurkeAtmModel(object):
         print "  C_O3 :   ", self._Par[6]
         print "  C_H2O :   ", self._Par[7:]
                    
+                   
     def plotCurrentTrans(self):
         if self._CurtTrans == None:
             print "No current transmission !"
@@ -319,6 +326,7 @@ class BurkeAtmModel(object):
         pl.ylabel("%")
         pl.grid()
         pl.title("atm trans at: [alt:%.1f,az:%.1f], pres ratio %.2f"%(np.rad2deg(self._Alt),np.rad2deg(self._Az), self._PresRat ))
+    
     
     def plotCovarMatrix(self, mat, pTitle=''):
         #pl.figure()        
@@ -333,6 +341,7 @@ class BurkeAtmModel(object):
         #pl.yticks(aIdx, self._NameParam)
         pl.colorbar()
     
+    
     def _covar2Correl(self, mat):
         matTp = np.copy(mat)
         #print matTp
@@ -342,6 +351,7 @@ class BurkeAtmModel(object):
         res = matTp/(A*A.transpose())
         #print res
         return res
+    
     
     def plotCorrelMatFromCovMat(self, mat, pTitle=''):
         #pl.figure()        
@@ -356,6 +366,7 @@ class BurkeAtmModel(object):
         pl.yticks(aIdx, self._NameParam)
         pl.colorbar()
 
+
     def plotErrRelAtm(self, pTrue, pEst, pTitle=""):    
         pl.figure()       
         pl.title(pTitle)
@@ -366,5 +377,63 @@ class BurkeAtmModel(object):
         pl.xticks(aIdx,  self._NameParam)
         pl.grid()
         
+        
     def __str__(self):
         return "BurkeAtmModel"
+
+
+
+###############################################################################
+class BurkeAtmModelAM(BurkeAtmModel):
+###############################################################################   
+    """
+    Burke parameter model are storage in _Par[] variable with order:
+    ================================================================
+        Tgray :   self._Par[0]
+        Tau0 :    self._Par[1]
+        Tau1 :    self._Par[2]
+        Tau2 :    self._Par[3] 
+        alpha :   self._Par[4]
+        Cmol :    self._Par[5]
+        C_O3 :    self._Par[6]
+        C_H2O :   self._Par[7]
+        dC_{H2O}/dEW :   self._Par[8]
+        dC_{H2O}/dNS : self._Par[9]
+    """
+    
+    
+    def __init__(self, pressure=782):
+        '''        
+        '''
+        self._Tpl = tmod.TemplateMODTRANAirMass()
+        # convert in angstrom
+        self._Tpl.convertWaveLength(1.e-10)
+        self._PressureRef = pressure*1.0
+        # nb paral H20 is egal to nbObs
+        self._NbPar = 10 
+        self._Par  = np.zeros(self._NbPar, dtype=np.float64)      
+        self._aWL = self._Tpl._wl
+        self._WL0 = 6750.0    # angstrom 
+        self._NameParam = ['$T_{gray}$',r'$\tau_0$',r'$\tau_1$', r'$\tau_2$', r'$\alpha$', '$C_{mol}$', '$C_{O3}$','$C_{H2O}$']
+        self._NameParam.append('$dC_{H2O}/dEW$')
+        self._NameParam.append('$dC_{H2O}/dNS$')
+
+
+    def _transMols(self):
+        return self._razNeg(1.0 - self._Par[5]*self._PresRat*\
+                            (1.0 - self._Tpl.getTrmols()))
+    
+    
+    def _transMola(self): 
+        return self._razNeg(1.0 - np.sqrt(self._Par[5]*self._PresRat)*\
+                            (1.0 - self._Tpl.getTrmola()))
+     
+     
+    def _transO3(self):
+        return self._razNeg(1.0 - self._Par[6]*(1.0 - self._Tpl.getTrO3()))
+        
+        
+    def _transH2O(self):
+        C_H20 = self._Par[7] + self._EW*self._Par[8] + self._NS*self._Par[9]
+        return self._razNeg(1.0 - C_H20*(1.0 - self._Tpl.getTrH2O()))
+    

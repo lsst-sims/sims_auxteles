@@ -16,8 +16,6 @@ import copy
 S_DoPlot = 0
 
 
-
-
 def getKeywordTP7():
     """
     return list of concatenated keyword with underscore, like "O3_TRANS" to 
@@ -162,8 +160,9 @@ def extractTemplateFromTP7(pFileTP7, pDirOut="../output/"):
         wlAngs = 1.0e7/aRet[:,0]
         tO3 = aRet[:, lKey.index("O3_TRANS")]
         tMols = aRet[:, lKey.index("MOLEC_SCAT")]
-        tMola = aRet[:, lKey.index("O2_TRANS")]*\
-                aRet[:, lKey.index("NO2_TRANS")]
+#         tMola = aRet[:, lKey.index("O2_TRANS")]*\
+#                 aRet[:, lKey.index("NO2_TRANS")]
+        tMola = aRet[:, lKey.index("O2_TRANS")]
         tH2O = aRet[:, lKey.index("H2O_TRANS")]*\
                aRet[:, lKey.index("H2O_CONT")]
         tplMOD = np.array([tO3, tMols, tMola, tH2O], dtype=np.float32)
